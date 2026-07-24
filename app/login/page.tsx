@@ -15,9 +15,17 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    fetch("/api/auth/status")
-      .then((res) => res.json())
-      .then((data) => setHasPasskey(data.hasPasskey));
+    async function loadStatus() {
+      try {
+        const res = await fetch("/api/auth/status");
+        if (!res.ok) throw new Error("Couldn't check passkey status");
+        const data = await res.json();
+        setHasPasskey(data.hasPasskey);
+      } catch {
+        setError("Couldn't check passkey status");
+      }
+    }
+    loadStatus();
   }, []);
 
   async function handleRegister() {
@@ -27,7 +35,10 @@ export default function LoginPage() {
       const optionsRes = await fetch("/api/auth/register-begin", {
         method: "POST",
       });
-      if (!optionsRes.ok) throw new Error((await optionsRes.json()).error);
+      if (!optionsRes.ok)
+        throw new Error(
+          (await optionsRes.json()).error ?? "Something went wrong",
+        );
       const options = await optionsRes.json();
 
       const attestation = await startRegistration({ optionsJSON: options });
@@ -37,7 +48,10 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(attestation),
       });
-      if (!verifyRes.ok) throw new Error((await verifyRes.json()).error);
+      if (!verifyRes.ok)
+        throw new Error(
+          (await verifyRes.json()).error ?? "Something went wrong",
+        );
 
       router.push("/admin");
     } catch (err) {
@@ -54,7 +68,10 @@ export default function LoginPage() {
       const optionsRes = await fetch("/api/auth/authenticate-begin", {
         method: "POST",
       });
-      if (!optionsRes.ok) throw new Error((await optionsRes.json()).error);
+      if (!optionsRes.ok)
+        throw new Error(
+          (await optionsRes.json()).error ?? "Something went wrong",
+        );
       const options = await optionsRes.json();
 
       const assertion = await startAuthentication({ optionsJSON: options });
@@ -64,7 +81,10 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(assertion),
       });
-      if (!verifyRes.ok) throw new Error((await verifyRes.json()).error);
+      if (!verifyRes.ok)
+        throw new Error(
+          (await verifyRes.json()).error ?? "Something went wrong",
+        );
 
       router.push("/admin");
     } catch (err) {
@@ -80,7 +100,7 @@ export default function LoginPage() {
         <h1 className="mb-6 font-[var(--font-display)] text-3xl italic text-[var(--color-ink)]">
           Word of the Day
         </h1>
-        {hasPasskey === null && (
+        {hasPasskey === null && !error && (
           <p className="text-[var(--color-ink-muted)]">Loading...</p>
         )}
         {hasPasskey === false && (
@@ -94,7 +114,12 @@ export default function LoginPage() {
           </Button>
         )}
         {error && (
-          <p className="mt-4 text-sm text-[var(--color-accent)]">{error}</p>
+          <p
+            role="alert"
+            className="mt-4 text-sm text-[var(--color-accent)]"
+          >
+            {error}
+          </p>
         )}
       </div>
     </main>
