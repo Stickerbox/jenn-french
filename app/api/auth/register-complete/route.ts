@@ -20,18 +20,41 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const verification = await verifyRegistrationResponse({
-    response: body,
-    expectedChallenge,
-    expectedOrigin: process.env.ORIGIN!,
-    expectedRPID: process.env.RP_ID!,
-  });
+  let verification;
+  try {
+    verification = await verifyRegistrationResponse({
+      response: body,
+      expectedChallenge,
+      expectedOrigin: process.env.ORIGIN!,
+      expectedRPID: process.env.RP_ID!,
+    });
+  } catch {
+    await clearChallenge();
+    return NextResponse.json(
+      { error: "Verification failed" },
+      { status: 400 },
+    );
+  }
 
   await clearChallenge();
 
   if (!verification.verified || !verification.registrationInfo) {
     return NextResponse.json(
       { error: "Verification failed" },
+      { status: 400 },
+    );
+  }
+
+  // Re-check the single-passkey invariant right before writing: two
+  // concurrent registration ceremonies can both pass the register-begin
+  // guard while passkeys.length === 0, so the check must be repeated here,
+  // immediately before the write, to close the race.
+  const existingPasskeyCount = await prisma.passkey.count({
+    where: { teacherId: teacher.id },
+  });
+  if (existingPasskeyCount > 0) {
+    return NextResponse.json(
+      { error: "A passkey is already registered" },
       { status: 400 },
     );
   }

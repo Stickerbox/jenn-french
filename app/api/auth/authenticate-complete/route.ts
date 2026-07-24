@@ -20,17 +20,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unknown passkey" }, { status: 400 });
   }
 
-  const verification = await verifyAuthenticationResponse({
-    response: body,
-    expectedChallenge,
-    expectedOrigin: process.env.ORIGIN!,
-    expectedRPID: process.env.RP_ID!,
-    credential: {
-      id: passkey.credentialId,
-      publicKey: new Uint8Array(passkey.publicKey),
-      counter: passkey.counter,
-    },
-  });
+  let verification;
+  try {
+    verification = await verifyAuthenticationResponse({
+      response: body,
+      expectedChallenge,
+      expectedOrigin: process.env.ORIGIN!,
+      expectedRPID: process.env.RP_ID!,
+      credential: {
+        id: passkey.credentialId,
+        publicKey: new Uint8Array(passkey.publicKey),
+        counter: passkey.counter,
+      },
+    });
+  } catch {
+    await clearChallenge();
+    return NextResponse.json(
+      { error: "Verification failed" },
+      { status: 400 },
+    );
+  }
 
   await clearChallenge();
 
