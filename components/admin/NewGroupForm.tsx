@@ -14,15 +14,19 @@ export function NewGroupForm({
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
+    setError(null);
     try {
       await onSubmit(name, slug);
       setName("");
       setSlug("");
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSaving(false);
     }
@@ -41,6 +45,11 @@ export function NewGroupForm({
       <Button type="submit" disabled={saving}>
         {saving ? "Creating..." : "Create group"}
       </Button>
+      {error && (
+        <p role="alert" className="text-sm text-[var(--color-accent)]">
+          {error}
+        </p>
+      )}
     </form>
   );
 }

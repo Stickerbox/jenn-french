@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
 
@@ -36,7 +37,7 @@ function toCardData(input: CardInput) {
 export async function upsertGlobalCard(input: CardInput) {
   await requireTeacher();
 
-  const date = new Date(`${input.date}T00:00:00`);
+  const date = new Date(`${input.date}T00:00:00Z`);
 
   await prisma.globalCard.upsert({
     where: { date },
@@ -50,7 +51,17 @@ export async function upsertGlobalCard(input: CardInput) {
 export async function createGroup(name: string, slug: string) {
   await requireTeacher();
 
-  await prisma.group.create({ data: { name, slug } });
+  try {
+    await prisma.group.create({ data: { name, slug } });
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      throw new Error("That link is already taken — pick a different slug.");
+    }
+    throw err;
+  }
 
   revalidatePath("/admin");
 }
@@ -58,7 +69,7 @@ export async function createGroup(name: string, slug: string) {
 export async function upsertOverrideCard(groupId: string, input: CardInput) {
   await requireTeacher();
 
-  const date = new Date(`${input.date}T00:00:00`);
+  const date = new Date(`${input.date}T00:00:00Z`);
 
   await prisma.card.upsert({
     where: { groupId_date: { groupId, date } },

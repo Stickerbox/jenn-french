@@ -28,6 +28,7 @@ export function CardForm({
     tip: initialValues?.tip ?? "",
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function update<K extends keyof CardInput>(key: K, value: CardInput[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -36,9 +37,12 @@ export function CardForm({
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
+    setError(null);
     try {
       await onSubmit(values);
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSaving(false);
     }
@@ -107,6 +111,11 @@ export function CardForm({
       <Button type="submit" disabled={saving}>
         {saving ? "Saving..." : "Save word"}
       </Button>
+      {error && (
+        <p role="alert" className="text-sm text-[var(--color-accent)]">
+          {error}
+        </p>
+      )}
     </form>
   );
 }

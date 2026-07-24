@@ -4,10 +4,13 @@ import { getEffectiveCard, getArchiveDates } from "@/lib/cards";
 import { Flashcard } from "@/components/Flashcard";
 import { ArchiveList } from "@/components/ArchiveList";
 
-function parseDate(value: string | undefined): Date {
-  if (!value) return new Date();
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+function parseDate(value: string | undefined, today: Date): Date {
+  if (!value) return today;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return today;
+  // Clamp future-dated requests to today so students can never peek at
+  // words the teacher has pre-posted ahead of time (a supported workflow).
+  return parsed.getTime() > today.getTime() ? today : parsed;
 }
 
 export default async function GroupPage({
@@ -23,13 +26,15 @@ export default async function GroupPage({
   const group = await prisma.group.findUnique({ where: { slug } });
   if (!group) notFound();
 
-  const selectedDate = parseDate(date);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const today = new Date(`${todayStr}T00:00:00Z`);
+  const selectedDate = parseDate(date, today);
   const [card, archiveDates] = await Promise.all([
     getEffectiveCard(group.id, selectedDate),
-    getArchiveDates(group.id),
+    getArchiveDates(group.id, today),
   ]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const selected = selectedDate.toISOString().slice(0, 10);
 
   return (
     <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
@@ -48,8 +53,8 @@ export default async function GroupPage({
       <ArchiveList
         slug={slug}
         dates={archiveDates.map((d) => d.toISOString().slice(0, 10))}
-        today={today}
-        selected={date ?? today}
+        today={todayStr}
+        selected={selected}
       />
     </main>
   );

@@ -23,10 +23,19 @@ export async function getEffectiveCard(
   return pickEffectiveCard(override, fallback);
 }
 
-export async function getArchiveDates(groupId: string): Promise<Date[]> {
+export async function getArchiveDates(
+  groupId: string,
+  onOrBefore: Date,
+): Promise<Date[]> {
   const [overrides, globals] = await Promise.all([
-    prisma.card.findMany({ where: { groupId }, select: { date: true } }),
-    prisma.globalCard.findMany({ select: { date: true } }),
+    prisma.card.findMany({
+      where: { groupId, date: { lte: onOrBefore } },
+      select: { date: true },
+    }),
+    prisma.globalCard.findMany({
+      where: { date: { lte: onOrBefore } },
+      select: { date: true },
+    }),
   ]);
 
   return mergeArchiveDates(
