@@ -1,1 +1,33 @@
 @import "tailwindcss";
+
+:root {
+  /* Color */
+  --color-bg: #FBF3E9;
+  --color-card-bg: #F5E6D3;
+  --color-ink: #211C17;
+  --color-ink-muted: #6B6259;
+  --color-accent: #A8462F;
+  --color-accent-soft: #EFD9C9;
+
+  /* Type */
+  --font-display: var(--font-display-family), serif;
+  --font-body: var(--font-body-family), sans-serif;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2rem;
+  --space-6: 3rem;
+
+  /* Card */
+  --radius-card: 1.5rem;
+  --shadow-card: 0 20px 40px -12px rgb(33 28 23 / 0.18);
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
