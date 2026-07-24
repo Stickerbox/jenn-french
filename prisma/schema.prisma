@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  cards     Card[]
+}
+
+model GlobalCard {
+  id            String   @id @default(cuid())
+  date          DateTime @unique
+  frenchWord    String
+  wordType      String?
+  pronunciation String?
+  englishPrompt String
+  frenchAnswer  String
+  examples      String
+  tip           String?
+  createdAt     DateTime @default(now())
+}
+
+model Card {
+  id            String   @id @default(cuid())
+  groupId       String
+  group         Group    @relation(fields: [groupId], references: [id])
+  date          DateTime
+  frenchWord    String
+  wordType      String?
+  pronunciation String?
+  englishPrompt String
+  frenchAnswer  String
+  examples      String
+  tip           String?
+  createdAt     DateTime @default(now())
+
+  @@unique([groupId, date])
+}
+
+model Teacher {
+  id        String    @id @default(cuid())
+  username  String    @unique
+  createdAt DateTime  @default(now())
+  passkeys  Passkey[]
+}
+
+model Passkey {
+  id           String   @id @default(cuid())
+  teacherId    String
+  teacher      Teacher  @relation(fields: [teacherId], references: [id])
+  credentialId String   @unique
+  publicKey    Bytes
+  counter      Int      @default(0)
+  createdAt    DateTime @default(now())
+}
