@@ -110,10 +110,20 @@ export async function generateCardSuggestion(
     throw new CardAiError("Claude declined to answer this one.");
   }
 
+  // A max_tokens stop means the JSON may have been cut off mid-object; parsing
+  // it would either throw a raw SyntaxError or silently succeed on garbage.
+  if (response.stop_reason === "max_tokens") {
+    throw new CardAiError("Claude couldn't be reached. Try again.");
+  }
+
   const block = response.content.find((b) => b.type === "text");
   if (!block || block.type !== "text") {
     throw new CardAiError("Claude couldn't be reached. Try again.");
   }
 
-  return JSON.parse(block.text) as CardSuggestion;
+  try {
+    return JSON.parse(block.text) as CardSuggestion;
+  } catch {
+    throw new CardAiError("Claude couldn't be reached. Try again.");
+  }
 }
