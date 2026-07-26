@@ -9,6 +9,16 @@ const baseClass =
   "focus:bg-transparent focus:ring-0 " +
   "focus:border-b focus:border-dashed focus:border-[var(--card-line)]";
 
+export type EditableTextProps = {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  className?: string;
+  multiline?: boolean;
+  required?: boolean;
+  ariaLabel: string;
+};
+
 export function EditableText({
   value,
   onChange,
@@ -17,15 +27,7 @@ export function EditableText({
   multiline = false,
   required = false,
   ariaLabel,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  className?: string;
-  multiline?: boolean;
-  required?: boolean;
-  ariaLabel: string;
-}) {
+}: EditableTextProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
