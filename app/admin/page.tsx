@@ -6,6 +6,7 @@ import { upsertGlobalCard, createGroup } from "@/app/actions";
 import { logout } from "@/app/auth-actions";
 import { CardEditor } from "@/components/admin/CardEditor";
 import { NewGroupForm } from "@/components/admin/NewGroupForm";
+import { toCardFormValues } from "@/lib/cards";
 
 export default async function AdminPage() {
   const teacher = await getCurrentTeacher();
@@ -13,6 +14,10 @@ export default async function AdminPage() {
 
   const groups = await prisma.group.findMany({ orderBy: { name: "asc" } });
   const today = new Date().toISOString().slice(0, 10);
+  const todayDate = new Date(`${today}T00:00:00Z`);
+  const existingCard = await prisma.globalCard.findUnique({
+    where: { date: todayDate },
+  });
 
   return (
     <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
@@ -30,7 +35,11 @@ export default async function AdminPage() {
             </button>
           </form>
         </div>
-        <CardEditor initialDate={today} onSubmit={upsertGlobalCard} />
+        <CardEditor
+          initialDate={today}
+          initialValues={toCardFormValues(existingCard)}
+          onSubmit={upsertGlobalCard}
+        />
 
         <h2 className="mb-4 mt-12 font-[var(--font-display)] text-2xl italic text-[var(--color-ink)]">
           Groups
