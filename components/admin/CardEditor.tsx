@@ -12,6 +12,8 @@ import {
   cardEyebrow,
   cardHeaderRow,
   cardPanel,
+  cardPanelBack,
+  cardSectionHeading,
   cardSubjectPill,
 } from "@/components/card-styles";
 import { formatCardDate } from "@/lib/format";
@@ -126,6 +128,73 @@ export function CardEditor({
             multiline
             className="mt-4 font-[var(--card-font-serif)] text-sm italic text-[var(--card-moss)]"
           />
+        </div>
+      </div>
+
+      <div>
+        <div className={panelLabel}>Back</div>
+        <div className={cardPanelBack}>
+          <span className={accentBarClass} style={accentBarStyle} />
+          {cardHeader}
+          <div className={cn("mb-1", cardEyebrow)}>The answer *</div>
+          <EditableText
+            value={values.frenchAnswer}
+            onChange={(v) => update("frenchAnswer", v)}
+            placeholder="French answer"
+            ariaLabel="French answer"
+            multiline
+            required
+            className="mb-5 font-[var(--card-font-serif)] text-2xl leading-snug text-[var(--card-bleu)]"
+          />
+
+          <div className="mb-4">
+            <h4 className={cardSectionHeading}>Grammar</h4>
+            <EditableText
+              value={values.examples}
+              onChange={(v) => update("examples", v)}
+              placeholder="Grammar notes (optional)"
+              ariaLabel="Grammar"
+              multiline
+              className="text-[15px] leading-relaxed text-[var(--card-ink)]"
+            />
+          </div>
+
+          <div className="mb-4">
+            <h4 className={cardSectionHeading}>Québec Pronunciation</h4>
+            <EditableText
+              value={values.pronunciation}
+              onChange={(v) => update("pronunciation", v)}
+              placeholder="Pronunciation (optional)"
+              ariaLabel="Québec pronunciation"
+              className="rounded bg-[#eef3ee] px-1.5 py-0.5 font-[var(--card-font-mono)] text-[13px] text-[var(--card-moss)]"
+            />
+          </div>
+
+          <div className="mb-4">
+            <h4 className={cardSectionHeading}>Tip</h4>
+            <EditableText
+              value={values.tip}
+              onChange={(v) => update("tip", v)}
+              placeholder="Tip (optional)"
+              ariaLabel="Tip"
+              multiline
+              className="text-[15px] leading-relaxed text-[var(--card-ink)]"
+            />
+          </div>
+
+          <div>
+            <h4 className={cardSectionHeading}>Idiom of the day</h4>
+            <div className="rounded-r-lg border-l-[3px] border-[var(--card-or)] bg-[#fbf1e2] p-3.5">
+              <EditableText
+                value={values.idiom}
+                onChange={(v) => update("idiom", v)}
+                placeholder="e.g. faire un lunch — to pack a lunch (optional)"
+                ariaLabel="Idiom of the day"
+                multiline
+                className="text-[15px] italic text-[var(--card-rouge)]"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
