@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { formatCardDate } from "@/lib/format";
 import type { CardContent } from "@/lib/card-resolution";
 import { cn } from "@/lib/utils";
+import { InlineMarkup } from "@/components/InlineMarkup";
 import {
   accentBarClass,
   accentBarStyle,
@@ -13,6 +14,7 @@ import {
   cardHeaderRow,
   cardPanel,
   cardPanelBack,
+  cardProse,
   cardSectionHeading,
   cardSubjectPill,
 } from "@/components/card-styles";
@@ -61,7 +63,7 @@ export function Flashcard({ card }: { card: CardContent }) {
               </p>
               {card.hint && (
                 <p className="mt-4 whitespace-pre-line font-[var(--card-font-serif)] text-sm italic text-[var(--card-moss)]">
-                  {card.hint}
+                  <InlineMarkup text={card.hint} />
                 </p>
               )}
             </div>
@@ -95,42 +97,34 @@ export function Flashcard({ card }: { card: CardContent }) {
             </p>
             {card.examples && (
               <div className="mb-4">
-                <h4 className={cardSectionHeading}>
-                  Grammar
-                </h4>
-                <p className="whitespace-pre-line text-[15px] leading-relaxed text-[var(--card-ink)]">
-                  {card.examples}
+                <h4 className={cardSectionHeading}>Grammar</h4>
+                <p className={cardProse}>
+                  <InlineMarkup text={card.examples} />
                 </p>
               </div>
             )}
             {card.pronunciation && (
               <div className="mb-4">
-                <h4 className={cardSectionHeading}>
-                  Québec Pronunciation
-                </h4>
-                <span className="rounded bg-[#eef3ee] px-1.5 py-0.5 font-[var(--card-font-mono)] text-[13px] text-[var(--card-moss)]">
-                  {card.pronunciation}
-                </span>
+                <h4 className={cardSectionHeading}>Québec Pronunciation</h4>
+                <p className={cardProse}>
+                  <InlineMarkup text={card.pronunciation} />
+                </p>
               </div>
             )}
             {card.tip && (
               <div className="mb-4">
-                <h4 className={cardSectionHeading}>
-                  Tip
-                </h4>
-                <p className="whitespace-pre-line text-[15px] leading-relaxed text-[var(--card-ink)]">
-                  {card.tip}
+                <h4 className={cardSectionHeading}>Tip</h4>
+                <p className={cardProse}>
+                  <InlineMarkup text={card.tip} />
                 </p>
               </div>
             )}
             {card.idiom && (
               <div>
-                <h4 className={cardSectionHeading}>
-                  Idiom of the day
-                </h4>
+                <h4 className={cardSectionHeading}>Idiom of the day</h4>
                 <div className="rounded-r-lg border-l-[3px] border-[var(--card-or)] bg-[#fbf1e2] p-3.5">
                   <div className="whitespace-pre-line text-[15px] italic text-[var(--card-rouge)]">
-                    {card.idiom}
+                    <InlineMarkup text={card.idiom} />
                   </div>
                 </div>
               </div>

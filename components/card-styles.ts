@@ -24,3 +24,9 @@ export const cardEyebrow =
 
 export const cardSectionHeading =
   "mb-1.5 font-[var(--card-font-mono)] text-[11px] uppercase tracking-wider text-[var(--card-rouge)]";
+
+export const cardCodeChip =
+  "rounded bg-[#eef3ee] px-1.5 py-0.5 font-[var(--card-font-mono)] text-[13px] text-[var(--card-moss)]";
+
+export const cardProse =
+  "whitespace-pre-line text-[15px] leading-relaxed text-[var(--card-ink)]";
