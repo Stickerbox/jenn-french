@@ -19,6 +19,8 @@ import {
 import { formatCardDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CardInput } from "@/app/actions";
+import { suggestCardFields } from "@/app/ai-actions";
+import { applySuggestion } from "@/lib/card-suggestions";
 
 const panelLabel =
   "mb-2 font-[var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[var(--color-ink-muted)]";
@@ -48,8 +50,37 @@ export function CardEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // A card that already exists for this date opens straight in the editor —
+  // it has been generated and saved once already.
+  const [stage, setStage] = useState<"compose" | "generating" | "editing">(
+    initialValues?.englishPrompt && initialValues?.frenchAnswer
+      ? "editing"
+      : "compose",
+  );
+  const [aiError, setAiError] = useState<string | null>(null);
+
   function update<K extends keyof CardInput>(key: K, value: CardInput[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleGenerate() {
+    setAiError(null);
+    setStage("generating");
+
+    const result = await suggestCardFields({
+      englishPrompt: values.englishPrompt,
+      frenchAnswer: values.frenchAnswer,
+      subject: values.subject,
+    });
+
+    if (!result.ok) {
+      setAiError(result.error);
+      setStage("compose");
+      return;
+    }
+
+    setValues((prev) => applySuggestion(prev, result.suggestion));
+    setStage("editing");
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -82,6 +113,71 @@ export function CardEditor({
       />
     </div>
   );
+
+  if (stage !== "editing") {
+    const busy = stage === "generating";
+    const ready =
+      values.englishPrompt.trim() !== "" &&
+      values.frenchAnswer.trim() !== "" &&
+      values.subject.trim() !== "";
+
+    return (
+      <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6">
+        <label className="text-sm font-medium text-[var(--color-ink)]">
+          English phrase *
+          <Input
+            value={values.englishPrompt}
+            onChange={(e) => update("englishPrompt", e.target.value)}
+            placeholder="I used to pack a lunch every day"
+            disabled={busy}
+            required
+          />
+        </label>
+
+        <label className="text-sm font-medium text-[var(--color-ink)]">
+          French phrase *
+          <Input
+            value={values.frenchAnswer}
+            onChange={(e) => update("frenchAnswer", e.target.value)}
+            placeholder="Je faisais un lunch chaque jour"
+            disabled={busy}
+            required
+          />
+        </label>
+
+        <label className="text-sm font-medium text-[var(--color-ink)]">
+          Subject *
+          <Input
+            value={values.subject}
+            onChange={(e) => update("subject", e.target.value)}
+            placeholder="Imparfait"
+            disabled={busy}
+            required
+          />
+        </label>
+
+        <Button type="button" onClick={handleGenerate} disabled={!ready || busy}>
+          {busy ? (
+            <span className="flex items-center justify-center gap-2">
+              <span
+                className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                aria-hidden="true"
+              />
+              Generating…
+            </span>
+          ) : (
+            "Generate"
+          )}
+        </Button>
+
+        {aiError && (
+          <p role="alert" className="text-sm text-[var(--color-accent)]">
+            {aiError}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <form
@@ -166,7 +262,8 @@ export function CardEditor({
               onChange={(v) => update("pronunciation", v)}
               placeholder="Pronunciation (optional)"
               ariaLabel="Québec pronunciation"
-              className="rounded bg-[#eef3ee] px-1.5 py-0.5 font-[var(--card-font-mono)] text-[13px] text-[var(--card-moss)]"
+              multiline
+              className="text-[15px] leading-relaxed text-[var(--card-ink)]"
             />
           </div>
 
