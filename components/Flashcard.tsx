@@ -60,7 +60,7 @@ export function Flashcard({ card }: { card: CardContent }) {
                 {card.englishPrompt}
               </p>
               {card.hint && (
-                <p className="mt-4 font-[var(--card-font-serif)] text-sm italic text-[var(--card-moss)]">
+                <p className="mt-4 whitespace-pre-line font-[var(--card-font-serif)] text-sm italic text-[var(--card-moss)]">
                   {card.hint}
                 </p>
               )}
@@ -118,7 +118,7 @@ export function Flashcard({ card }: { card: CardContent }) {
                 <h4 className={cardSectionHeading}>
                   Tip
                 </h4>
-                <p className="text-[15px] leading-relaxed text-[var(--card-ink)]">
+                <p className="whitespace-pre-line text-[15px] leading-relaxed text-[var(--card-ink)]">
                   {card.tip}
                 </p>
               </div>

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const baseClass =
   "w-full rounded-sm border-0 bg-transparent p-0 outline-none transition-colors " +
   "placeholder:text-[#b0a488] hover:bg-[var(--card-line)]/25 " +
-  "focus:bg-transparent focus:ring-0 " +
+  "focus:ring-0 " +
   "focus:border-b focus:border-dashed focus:border-[var(--card-line)]";
 
 export type EditableTextProps = {
