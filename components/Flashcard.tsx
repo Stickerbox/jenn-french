@@ -4,13 +4,20 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { formatCardDate } from "@/lib/format";
 import type { CardContent } from "@/lib/card-resolution";
+import { cn } from "@/lib/utils";
+import {
+  accentBarClass,
+  accentBarStyle,
+  cardDateLabel,
+  cardEyebrow,
+  cardHeaderRow,
+  cardPanel,
+  cardPanelBack,
+  cardSectionHeading,
+  cardSubjectPill,
+} from "@/components/card-styles";
 
-const accentBar = (
-  <span
-    className="absolute inset-y-0 left-0 w-1.5 rounded-l-[14px]"
-    style={{ background: "linear-gradient(var(--card-bleu), var(--card-or))" }}
-  />
-);
+const accentBar = <span className={accentBarClass} style={accentBarStyle} />;
 
 export function Flashcard({ card }: { card: CardContent }) {
   const [flipped, setFlipped] = useState(false);
@@ -28,14 +35,14 @@ export function Flashcard({ card }: { card: CardContent }) {
           transition={{ duration: 0.6, ease: [0.4, 0.15, 0.2, 1] }}
           style={{ transformStyle: "preserve-3d" }}
         >
-          <div className="relative col-start-1 row-start-1 flex flex-col rounded-[14px] border border-[var(--card-line)] bg-[var(--card-paper)] p-8 shadow-[var(--card-shadow)] [backface-visibility:hidden]">
+          <div className={cn(cardPanel, "col-start-1 row-start-1 [backface-visibility:hidden]")}>
             {accentBar}
-            <div className="mb-4 flex items-baseline justify-between border-b border-dashed border-[var(--card-line)] pb-3">
-              <span className="font-[var(--card-font-mono)] text-xs font-bold uppercase tracking-wider text-[var(--card-bleu)]">
+            <div className={cardHeaderRow}>
+              <span className={cardDateLabel}>
                 {dateLabel}
               </span>
               {card.subject && (
-                <span className="rounded-full bg-[var(--card-bleu-soft)] px-2.5 py-1 text-[11px] uppercase tracking-wide text-[var(--card-bleu)]">
+                <span className={cardSubjectPill}>
                   {card.subject}
                 </span>
               )}
@@ -45,7 +52,7 @@ export function Flashcard({ card }: { card: CardContent }) {
                 {card.usage}
               </div>
             )}
-            <div className="mb-2 font-[var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[#a89a7f]">
+            <div className={cn("mb-2", cardEyebrow)}>
               Say it in French
             </div>
             <div className="flex-1">
@@ -63,19 +70,24 @@ export function Flashcard({ card }: { card: CardContent }) {
             </div>
           </div>
 
-          <div className="relative col-start-1 row-start-1 flex flex-col rounded-[14px] border border-[var(--card-line)] bg-[var(--card-paper-back)] p-8 shadow-[var(--card-shadow)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <div
+            className={cn(
+              cardPanelBack,
+              "col-start-1 row-start-1 [backface-visibility:hidden] [transform:rotateY(180deg)]",
+            )}
+          >
             {accentBar}
-            <div className="mb-4 flex items-baseline justify-between border-b border-dashed border-[var(--card-line)] pb-3">
-              <span className="font-[var(--card-font-mono)] text-xs font-bold uppercase tracking-wider text-[var(--card-bleu)]">
+            <div className={cardHeaderRow}>
+              <span className={cardDateLabel}>
                 {dateLabel}
               </span>
               {card.subject && (
-                <span className="rounded-full bg-[var(--card-bleu-soft)] px-2.5 py-1 text-[11px] uppercase tracking-wide text-[var(--card-bleu)]">
+                <span className={cardSubjectPill}>
                   {card.subject}
                 </span>
               )}
             </div>
-            <div className="mb-1 font-[var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[#a89a7f]">
+            <div className={cn("mb-1", cardEyebrow)}>
               The answer
             </div>
             <p className="mb-5 font-[var(--card-font-serif)] text-2xl leading-snug text-[var(--card-bleu)]">
@@ -83,7 +95,7 @@ export function Flashcard({ card }: { card: CardContent }) {
             </p>
             {card.examples && (
               <div className="mb-4">
-                <h4 className="mb-1.5 font-[var(--card-font-mono)] text-[11px] uppercase tracking-wider text-[var(--card-rouge)]">
+                <h4 className={cardSectionHeading}>
                   Grammar
                 </h4>
                 <p className="whitespace-pre-line text-[15px] leading-relaxed text-[var(--card-ink)]">
@@ -93,7 +105,7 @@ export function Flashcard({ card }: { card: CardContent }) {
             )}
             {card.pronunciation && (
               <div className="mb-4">
-                <h4 className="mb-1.5 font-[var(--card-font-mono)] text-[11px] uppercase tracking-wider text-[var(--card-rouge)]">
+                <h4 className={cardSectionHeading}>
                   Québec Pronunciation
                 </h4>
                 <span className="rounded bg-[#eef3ee] px-1.5 py-0.5 font-[var(--card-font-mono)] text-[13px] text-[var(--card-moss)]">
@@ -103,7 +115,7 @@ export function Flashcard({ card }: { card: CardContent }) {
             )}
             {card.tip && (
               <div className="mb-4">
-                <h4 className="mb-1.5 font-[var(--card-font-mono)] text-[11px] uppercase tracking-wider text-[var(--card-rouge)]">
+                <h4 className={cardSectionHeading}>
                   Tip
                 </h4>
                 <p className="text-[15px] leading-relaxed text-[var(--card-ink)]">
@@ -113,7 +125,7 @@ export function Flashcard({ card }: { card: CardContent }) {
             )}
             {card.idiom && (
               <div>
-                <h4 className="mb-1.5 font-[var(--card-font-mono)] text-[11px] uppercase tracking-wider text-[var(--card-rouge)]">
+                <h4 className={cardSectionHeading}>
                   Idiom of the day
                 </h4>
                 <div className="rounded-r-lg border-l-[3px] border-[var(--card-or)] bg-[#fbf1e2] p-3.5">
