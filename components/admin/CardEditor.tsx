@@ -67,11 +67,18 @@ export function CardEditor({
     setAiError(null);
     setStage("generating");
 
-    const result = await suggestCardFields({
-      englishPrompt: values.englishPrompt,
-      frenchAnswer: values.frenchAnswer,
-      subject: values.subject,
-    });
+    let result;
+    try {
+      result = await suggestCardFields({
+        englishPrompt: values.englishPrompt,
+        frenchAnswer: values.frenchAnswer,
+        subject: values.subject,
+      });
+    } catch {
+      setAiError("Claude couldn't be reached. Try again.");
+      setStage("compose");
+      return;
+    }
 
     if (!result.ok) {
       setAiError(result.error);
