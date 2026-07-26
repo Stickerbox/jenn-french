@@ -13,24 +13,28 @@ async function requireTeacher() {
 
 export type CardInput = {
   date: string; // YYYY-MM-DD
-  frenchWord: string;
-  wordType: string;
+  subject: string;
+  usage: string;
   pronunciation: string;
   englishPrompt: string;
+  hint: string;
   frenchAnswer: string;
   examples: string;
   tip: string;
+  idiom: string;
 };
 
 function toCardData(input: CardInput) {
   return {
-    frenchWord: input.frenchWord,
-    wordType: input.wordType || null,
+    subject: input.subject || null,
+    usage: input.usage || null,
     pronunciation: input.pronunciation || null,
     englishPrompt: input.englishPrompt,
+    hint: input.hint || null,
     frenchAnswer: input.frenchAnswer,
     examples: input.examples,
     tip: input.tip || null,
+    idiom: input.idiom || null,
   };
 }
 

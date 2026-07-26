@@ -18,13 +18,15 @@ model Group {
 model GlobalCard {
   id            String   @id @default(cuid())
   date          DateTime @unique
-  frenchWord    String
-  wordType      String?
+  subject       String?
+  usage         String?
   pronunciation String?
   englishPrompt String
+  hint          String?
   frenchAnswer  String
   examples      String
   tip           String?
+  idiom         String?
   createdAt     DateTime @default(now())
 }
 
@@ -33,13 +35,15 @@ model Card {
   groupId       String
   group         Group    @relation(fields: [groupId], references: [id])
   date          DateTime
-  frenchWord    String
-  wordType      String?
+  subject       String?
+  usage         String?
   pronunciation String?
   englishPrompt String
+  hint          String?
   frenchAnswer  String
   examples      String
   tip           String?
+  idiom         String?
   createdAt     DateTime @default(now())
 
   @@unique([groupId, date])

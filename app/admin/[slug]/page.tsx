@@ -38,7 +38,7 @@ export default async function GroupAdminPage({
         <ul className="flex flex-col gap-1 font-[var(--font-body)] text-sm text-[var(--color-ink-muted)]">
           {group.cards.map((card) => (
             <li key={card.id}>
-              {card.date.toISOString().slice(0, 10)} — {card.frenchWord}
+              {card.date.toISOString().slice(0, 10)} — {card.frenchAnswer}
             </li>
           ))}
           {group.cards.length === 0 && <li>No overrides yet.</li>}

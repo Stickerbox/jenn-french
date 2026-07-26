@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getEffectiveCard, getArchiveDates } from "@/lib/cards";
+import { getEffectiveCard } from "@/lib/cards";
 import { Flashcard } from "@/components/Flashcard";
-import { ArchiveList } from "@/components/ArchiveList";
+import { WeekDayPicker } from "@/components/WeekDayPicker";
 
 function parseDate(value: string | undefined, today: Date): Date {
   if (!value) return today;
@@ -29,18 +29,25 @@ export default async function GroupPage({
   const todayStr = new Date().toISOString().slice(0, 10);
   const today = new Date(`${todayStr}T00:00:00Z`);
   const selectedDate = parseDate(date, today);
-  const [card, archiveDates] = await Promise.all([
-    getEffectiveCard(group.id, selectedDate),
-    getArchiveDates(group.id, today),
-  ]);
+  const card = await getEffectiveCard(group.id, selectedDate);
 
   const selected = selectedDate.toISOString().slice(0, 10);
 
   return (
-    <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
-      <h1 className="mb-8 text-center font-[var(--font-body)] text-lg text-[var(--color-ink-muted)]">
-        {group.name}
-      </h1>
+    <main
+      className="min-h-screen px-4 py-12"
+      style={{ background: "var(--card-page-bg)" }}
+    >
+      <header className="mx-auto mb-7 max-w-[560px] text-center">
+        <div className="mb-2.5 font-[var(--card-font-serif)] text-[13px] uppercase tracking-[6px] text-[var(--card-bleu)] opacity-80">
+          ⚜ La carte du jour ⚜
+        </div>
+        <div className="font-[var(--card-font-serif)] text-[15px] italic text-[var(--card-moss)]">
+          Un jour, une carte — Québec-flavoured
+        </div>
+      </header>
+
+      <WeekDayPicker slug={slug} today={today} selected={selected} />
 
       {card ? (
         <Flashcard card={card} />
@@ -49,13 +56,6 @@ export default async function GroupPage({
           Nothing posted yet — check back soon!
         </p>
       )}
-
-      <ArchiveList
-        slug={slug}
-        dates={archiveDates.map((d) => d.toISOString().slice(0, 10))}
-        today={todayStr}
-        selected={selected}
-      />
     </main>
   );
 }

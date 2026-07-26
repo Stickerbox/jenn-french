@@ -24,6 +24,21 @@
   /* Card */
   --radius-card: 1.5rem;
   --shadow-card: 0 20px 40px -12px rgb(33 28 23 / 0.18);
+
+  /* Flashcard page template (Québec-inspired) — scoped to /g/[slug], not used elsewhere */
+  --card-page-bg: radial-gradient(circle at 12% 8%, #fbf6ec 0%, #efe6d5 60%, #e6dbc6 100%);
+  --card-paper: #fbf6ec;
+  --card-paper-back: #fdfaf3;
+  --card-ink: #1f2a2e;
+  --card-bleu: #0f4c81;
+  --card-bleu-soft: #dbe7f2;
+  --card-rouge: #b5322f;
+  --card-or: #c98a2b;
+  --card-moss: #4a6b52;
+  --card-line: #d8cbb4;
+  --card-shadow: 0 18px 40px -18px rgb(31 42 46 / 0.14), 0 2px 0 var(--card-line);
+  --card-font-serif: Georgia, "Times New Roman", serif;
+  --card-font-mono: "Courier New", monospace;
 }
 
 body {

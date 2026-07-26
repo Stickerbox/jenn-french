@@ -1,12 +1,14 @@
 export type CardContent = {
   date: Date;
-  frenchWord: string;
-  wordType: string | null;
+  subject: string | null;
+  usage: string | null;
   pronunciation: string | null;
   englishPrompt: string;
+  hint: string | null;
   frenchAnswer: string;
   examples: string;
   tip: string | null;
+  idiom: string | null;
 };
 
 export function pickEffectiveCard(

@@ -5,27 +5,29 @@ import {
   type CardContent,
 } from "@/lib/card-resolution";
 
-function makeCard(date: string, frenchWord: string): CardContent {
+function makeCard(date: string, subject: string): CardContent {
   return {
     date: new Date(date),
-    frenchWord,
-    wordType: null,
+    subject,
+    usage: null,
     pronunciation: null,
     englishPrompt: "prompt",
+    hint: null,
     frenchAnswer: "answer",
     examples: "",
     tip: null,
+    idiom: null,
   };
 }
 
 describe("pickEffectiveCard", () => {
   it("returns the global card when there is no override", () => {
-    const global = makeCard("2026-07-20", "chat");
+    const global = makeCard("2026-07-20", "imparfait");
     expect(pickEffectiveCard(null, global)).toBe(global);
   });
 
   it("returns the override when there is no global card", () => {
-    const override = makeCard("2026-07-20", "chien");
+    const override = makeCard("2026-07-20", "passé composé");
     expect(pickEffectiveCard(override, null)).toBe(override);
   });
 
@@ -34,18 +36,18 @@ describe("pickEffectiveCard", () => {
   });
 
   it("prefers whichever of the two has the later date", () => {
-    const olderOverride = makeCard("2026-07-15", "chien");
-    const newerGlobal = makeCard("2026-07-20", "chat");
+    const olderOverride = makeCard("2026-07-15", "passé composé");
+    const newerGlobal = makeCard("2026-07-20", "imparfait");
     expect(pickEffectiveCard(olderOverride, newerGlobal)).toBe(newerGlobal);
 
-    const newerOverride = makeCard("2026-07-22", "chien");
-    const olderGlobal = makeCard("2026-07-20", "chat");
+    const newerOverride = makeCard("2026-07-22", "passé composé");
+    const olderGlobal = makeCard("2026-07-20", "imparfait");
     expect(pickEffectiveCard(newerOverride, olderGlobal)).toBe(newerOverride);
   });
 
   it("prefers the override when dates are exactly equal", () => {
-    const override = makeCard("2026-07-20", "chien");
-    const global = makeCard("2026-07-20", "chat");
+    const override = makeCard("2026-07-20", "passé composé");
+    const global = makeCard("2026-07-20", "imparfait");
     expect(pickEffectiveCard(override, global)).toBe(override);
   });
 });

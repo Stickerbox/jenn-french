@@ -19,13 +19,15 @@ export function CardForm({
   const router = useRouter();
   const [values, setValues] = useState<CardInput>({
     date: initialDate,
-    frenchWord: initialValues?.frenchWord ?? "",
-    wordType: initialValues?.wordType ?? "",
+    subject: initialValues?.subject ?? "",
+    usage: initialValues?.usage ?? "",
     pronunciation: initialValues?.pronunciation ?? "",
     englishPrompt: initialValues?.englishPrompt ?? "",
+    hint: initialValues?.hint ?? "",
     frenchAnswer: initialValues?.frenchAnswer ?? "",
     examples: initialValues?.examples ?? "",
     tip: initialValues?.tip ?? "",
+    idiom: initialValues?.idiom ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,22 +62,23 @@ export function CardForm({
         />
       </label>
       <label className="text-sm font-medium text-[var(--color-ink)]">
-        French word
+        Subject
         <Input
-          value={values.frenchWord}
-          onChange={(e) => update("frenchWord", e.target.value)}
-          required
+          value={values.subject}
+          onChange={(e) => update("subject", e.target.value)}
+          placeholder="e.g. Imparfait, or Idioms"
         />
       </label>
       <label className="text-sm font-medium text-[var(--color-ink)]">
-        Word type / tense
+        Usage (shown above the prompt)
         <Input
-          value={values.wordType}
-          onChange={(e) => update("wordType", e.target.value)}
+          value={values.usage}
+          onChange={(e) => update("usage", e.target.value)}
+          placeholder="e.g. Habits of the past"
         />
       </label>
       <label className="text-sm font-medium text-[var(--color-ink)]">
-        Pronunciation
+        Québec pronunciation
         <Input
           value={values.pronunciation}
           onChange={(e) => update("pronunciation", e.target.value)}
@@ -90,6 +93,14 @@ export function CardForm({
         />
       </label>
       <label className="text-sm font-medium text-[var(--color-ink)]">
+        Hint (shown below the English sentence)
+        <Input
+          value={values.hint}
+          onChange={(e) => update("hint", e.target.value)}
+          placeholder="e.g. &quot;used to&quot; = repeated habits → imparfait"
+        />
+      </label>
+      <label className="text-sm font-medium text-[var(--color-ink)]">
         French answer
         <Textarea
           value={values.frenchAnswer}
@@ -98,7 +109,7 @@ export function CardForm({
         />
       </label>
       <label className="text-sm font-medium text-[var(--color-ink)]">
-        Example sentences (one per line)
+        Grammar
         <Textarea
           value={values.examples}
           onChange={(e) => update("examples", e.target.value)}
@@ -108,8 +119,16 @@ export function CardForm({
         Tip
         <Input value={values.tip} onChange={(e) => update("tip", e.target.value)} />
       </label>
+      <label className="text-sm font-medium text-[var(--color-ink)]">
+        Idiom of the day (leave blank to hide this section)
+        <Textarea
+          value={values.idiom}
+          onChange={(e) => update("idiom", e.target.value)}
+          placeholder="e.g. faire un lunch — to pack a lunch"
+        />
+      </label>
       <Button type="submit" disabled={saving}>
-        {saving ? "Saving..." : "Save word"}
+        {saving ? "Saving..." : "Save card"}
       </Button>
       {error && (
         <p role="alert" className="text-sm text-[var(--color-accent)]">
