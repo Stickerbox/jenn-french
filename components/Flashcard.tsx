@@ -2,15 +2,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { formatCardDate } from "@/lib/format";
 import type { CardContent } from "@/lib/card-resolution";
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("fr-CA", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 const accentBar = (
   <span
@@ -21,7 +14,7 @@ const accentBar = (
 
 export function Flashcard({ card }: { card: CardContent }) {
   const [flipped, setFlipped] = useState(false);
-  const dateLabel = formatDate(card.date);
+  const dateLabel = formatCardDate(card.date);
 
   return (
     <div className="mx-auto w-full max-w-[560px]">
