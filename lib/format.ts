@@ -3,5 +3,6 @@ export function formatCardDate(date: Date): string {
     weekday: "short",
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
   });
 }

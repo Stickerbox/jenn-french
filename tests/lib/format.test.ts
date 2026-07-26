@@ -2,14 +2,8 @@ import { describe, it, expect } from "vitest";
 import { formatCardDate } from "@/lib/format";
 
 describe("formatCardDate", () => {
-  it("formats a date as a short fr-CA weekday label", () => {
-    expect(formatCardDate(new Date("2026-07-26T00:00:00Z"))).toBe(
-      new Date("2026-07-26T00:00:00Z").toLocaleDateString("fr-CA", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      }),
-    );
+  it("labels a UTC-midnight date as that calendar day, regardless of the runtime's local timezone", () => {
+    expect(formatCardDate(new Date("2026-07-26T00:00:00Z"))).toContain("26");
   });
 
   it("includes the weekday, month and day parts", () => {
