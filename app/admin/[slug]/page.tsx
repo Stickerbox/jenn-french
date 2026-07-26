@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { getCurrentTeacher } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { upsertOverrideCard } from "@/app/actions";
-import { CardForm } from "@/components/admin/CardForm";
+import { CardEditor } from "@/components/admin/CardEditor";
 
 export default async function GroupAdminPage({
   params,
@@ -27,7 +27,7 @@ export default async function GroupAdminPage({
         <h1 className="mb-8 font-[var(--font-display)] text-3xl italic text-[var(--color-ink)]">
           {group.name} overrides
         </h1>
-        <CardForm
+        <CardEditor
           initialDate={today}
           onSubmit={upsertOverrideCard.bind(null, group.id)}
         />

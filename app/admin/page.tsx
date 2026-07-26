@@ -4,7 +4,7 @@ import { getCurrentTeacher } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { upsertGlobalCard, createGroup } from "@/app/actions";
 import { logout } from "@/app/auth-actions";
-import { CardForm } from "@/components/admin/CardForm";
+import { CardEditor } from "@/components/admin/CardEditor";
 import { NewGroupForm } from "@/components/admin/NewGroupForm";
 
 export default async function AdminPage() {
@@ -30,7 +30,7 @@ export default async function AdminPage() {
             </button>
           </form>
         </div>
-        <CardForm initialDate={today} onSubmit={upsertGlobalCard} />
+        <CardEditor initialDate={today} onSubmit={upsertGlobalCard} />
 
         <h2 className="mb-4 mt-12 font-[var(--font-display)] text-2xl italic text-[var(--color-ink)]">
           Groups
