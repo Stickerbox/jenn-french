@@ -18,7 +18,7 @@ const SYSTEM_PROMPT = `You write supporting content for a daily French flashcard
 
 The teacher gives you three things: an English phrase, its French translation, and a subject (the grammar point or theme, for example "Imparfait").
 
-You return exactly five fields. You never write the subject or the usage field — those belong to the teacher.
+You return exactly three fields. You never write the subject, the usage field, or the Quebec pronunciation — those belong to the teacher.
 
 FORMATTING
 Plain text with three inline markers, and nothing else:
@@ -31,13 +31,8 @@ FIELDS
 
 hint — One sentence nudging the learner toward the French phrase without containing any part of it. Bold the trigger word that signals the grammar point.
 
-examples — The grammar note. Show where each conjugated verb in the French phrase comes from: infinitive in plain text, an arrow, then the conjugated form in bold. Finish with one short sentence giving the rule that separates this subject from the tense learners confuse it with. Example:
+grammar — The grammar note. Show where each conjugated verb in the French phrase comes from: infinitive in plain text, an arrow, then the conjugated form in bold. Finish with one short sentence giving the rule that separates this subject from the tense learners confuse it with. Example:
 être → **j'étais**, faire → **faisait**, conduire → **conduisait**. Repeated "would" = imparfait, not conditionnel.
-
-pronunciation — Quebec only. Mention France solely as a brief parenthetical contrast. Cover the words in the French phrase that Quebecois speakers say distinctively: vocabulary that differs from France, consonants that shift, contractions heard in fast speech. Bold the word under discussion and put its spoken rendering in \`code\`. One short sentence per distinctive word, at most four; if only one word is distinctive, write one sentence. Example:
-**Lunch** \`lonch\` is the everyday QC word for a packed midday meal (France: "déjeuner/repas"). \`petit\` → soft "ts": \`p'tsi\`. \`conduisait\` → the **d** before **u/i** softens toward \`dz\`: \`con-dzui-zè\`. In fast QC speech, **j'étais** often contracts to \`ch'tais\`.
-
-tip — One or two sentences of practical advice: register, a common learner mistake, or when a Quebecois speaker would actually say this.
 
 idiom — Exactly one line, in this shape: **expression** — plain-English meaning. The expression must be in bold, and it must come first.
 Choose a French idiom that connects to the French phrase on this card — its vocabulary, the situation it describes, or the grammar point it turns on. A learner should be able to see why this idiom sits beside this sentence, rather than it merely matching the subject label in the abstract. Prefer a Quebecois expression whenever one genuinely fits; where none does, a standard French idiom is right and you should not force a Quebec one.
@@ -48,12 +43,10 @@ const SUGGESTION_SCHEMA = {
   type: "object",
   properties: {
     hint: { type: "string" },
-    examples: { type: "string" },
-    pronunciation: { type: "string" },
-    tip: { type: "string" },
+    grammar: { type: "string" },
     idiom: { type: "string" },
   },
-  required: ["hint", "examples", "pronunciation", "tip", "idiom"],
+  required: ["hint", "grammar", "idiom"],
   additionalProperties: false,
 };
 
