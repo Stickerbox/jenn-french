@@ -70,6 +70,21 @@ export async function createGroup(name: string, slug: string) {
   revalidatePath("/admin");
 }
 
+// Card.groupId is a required relation with no cascade, so the group's override
+// cards must be removed first or the delete fails on a foreign-key constraint.
+// Both run in one transaction: a group without its cards, or cards orphaned
+// from their group, would each be worse than failing outright.
+export async function deleteGroup(groupId: string) {
+  await requireTeacher();
+
+  await prisma.$transaction([
+    prisma.card.deleteMany({ where: { groupId } }),
+    prisma.group.deleteMany({ where: { id: groupId } }),
+  ]);
+
+  revalidatePath("/admin");
+}
+
 export async function upsertOverrideCard(
   groupId: string,
   slug: string,

@@ -1,16 +1,17 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getCurrentTeacher } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
   upsertGlobalCard,
   createGroup,
   deleteGlobalCard,
+  deleteGroup,
 } from "@/app/actions";
 import { logout } from "@/app/auth-actions";
 import { CardEditor } from "@/components/admin/CardEditor";
 import { AdminDatePicker } from "@/components/admin/AdminDatePicker";
 import { NewGroupForm } from "@/components/admin/NewGroupForm";
+import { GroupList } from "@/components/admin/GroupList";
 import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
 
@@ -27,7 +28,10 @@ export default async function AdminPage({
   const selected = parseAdminDate(date, today);
   const selectedDate = new Date(`${selected}T00:00:00Z`);
 
-  const groups = await prisma.group.findMany({ orderBy: { name: "asc" } });
+  const groups = await prisma.group.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { cards: true } } },
+  });
   const existingCard = await prisma.globalCard.findUnique({
     where: { date: selectedDate },
   });
@@ -62,23 +66,16 @@ export default async function AdminPage({
         <h2 className="mb-4 mt-12 font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">
           Groups
         </h2>
-        <ul className="mb-6 flex flex-col gap-2">
-          {groups.map((group) => (
-            <li key={group.id}>
-              <Link
-                href={`/admin/${group.slug}`}
-                className="text-[var(--color-accent)] underline"
-              >
-                {group.name} (/g/{group.slug})
-              </Link>
-            </li>
-          ))}
-          {groups.length === 0 && (
-            <li className="text-sm text-[var(--color-ink-muted)]">
-              No groups yet.
-            </li>
-          )}
-        </ul>
+        <GroupList
+          groups={groups.map((g) => ({
+            id: g.id,
+            name: g.name,
+            slug: g.slug,
+            cardCount: g._count.cards,
+          }))}
+          onDelete={deleteGroup}
+        />
+
         <NewGroupForm onSubmit={createGroup} />
       </div>
     </main>
