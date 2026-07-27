@@ -70,7 +70,11 @@ export async function createGroup(name: string, slug: string) {
   revalidatePath("/admin");
 }
 
-export async function upsertOverrideCard(groupId: string, input: CardInput) {
+export async function upsertOverrideCard(
+  groupId: string,
+  slug: string,
+  input: CardInput,
+) {
   await requireTeacher();
 
   const date = new Date(`${input.date}T00:00:00Z`);
@@ -81,5 +85,30 @@ export async function upsertOverrideCard(groupId: string, input: CardInput) {
     update: toCardData(input),
   });
 
-  revalidatePath(`/admin`);
+  revalidatePath(`/admin/${slug}`);
+}
+
+// deleteMany rather than delete: delete throws P2025 when the row is already
+// gone, which turns a double-click or a stale tab into an error the teacher
+// cannot act on. Deleting nothing is the same outcome they asked for.
+export async function deleteGlobalCard(dateStr: string) {
+  await requireTeacher();
+
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  await prisma.globalCard.deleteMany({ where: { date } });
+
+  revalidatePath("/admin");
+}
+
+export async function deleteOverrideCard(
+  groupId: string,
+  slug: string,
+  dateStr: string,
+) {
+  await requireTeacher();
+
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  await prisma.card.deleteMany({ where: { groupId, date } });
+
+  revalidatePath(`/admin/${slug}`);
 }
