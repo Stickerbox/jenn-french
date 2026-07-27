@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import type { CardInput } from "@/app/actions";
 import { suggestCardFields } from "@/app/ai-actions";
 import { applySuggestion } from "@/lib/card-suggestions";
+import { withIds } from "@/lib/sections";
 
 const panelLabel =
   "mb-2 font-[family-name:var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[var(--color-ink-muted)]";
@@ -44,7 +45,7 @@ export function CardEditor({
     englishPrompt: initialValues?.englishPrompt ?? "",
     hint: initialValues?.hint ?? "",
     frenchAnswer: initialValues?.frenchAnswer ?? "",
-    sections: initialValues?.sections ?? [],
+    sections: withIds(initialValues?.sections ?? []),
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +58,10 @@ export function CardEditor({
       : "compose",
   );
   const [aiError, setAiError] = useState<string | null>(null);
+  // A timestamp rather than a boolean, so saving twice inside the window
+  // restarts the five seconds instead of the second save being swallowed by
+  // the first one's timer.
+  const [savedAt, setSavedAt] = useState(0);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [hasSavedCard, setHasSavedCard] = useState(
@@ -90,9 +95,18 @@ export function CardEditor({
       return;
     }
 
-    setValues((prev) => applySuggestion(prev, result.suggestion));
+    setValues((prev) => {
+      const next = applySuggestion(prev, result.suggestion);
+      return { ...next, sections: withIds(next.sections) };
+    });
     setStage("editing");
   }
+
+  useEffect(() => {
+    if (savedAt === 0) return;
+    const timer = setTimeout(() => setSavedAt(0), 5000);
+    return () => clearTimeout(timer);
+  }, [savedAt]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -101,6 +115,7 @@ export function CardEditor({
     try {
       await onSubmit(values);
       setHasSavedCard(true);
+      setSavedAt(Date.now());
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -317,6 +332,14 @@ export function CardEditor({
             Delete card
           </button>
         ))}
+      {savedAt > 0 && !error && (
+        <p
+          role="status"
+          className="text-center text-sm text-[var(--card-moss)]"
+        >
+          Card saved
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-sm text-[var(--color-accent)]">
           {error}
