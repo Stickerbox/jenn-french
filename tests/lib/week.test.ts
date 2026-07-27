@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { weekRange, formatWeekRange } from "@/lib/week";
+import { weekRange, formatWeekRange, latestViewableDate } from "@/lib/week";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00Z`);
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -33,6 +33,33 @@ describe("weekRange", () => {
     const input = utc("2026-07-29");
     weekRange(input);
     expect(iso(input)).toBe("2026-07-29");
+  });
+});
+
+describe("latestViewableDate", () => {
+  it("returns today on a teaching day", () => {
+    for (const d of [
+      "2026-07-27", // Mon
+      "2026-07-29", // Wed
+      "2026-08-01", // Sat
+    ]) {
+      expect(iso(latestViewableDate(utc(d)))).toBe(d);
+    }
+  });
+
+  it("returns Saturday when today is Sunday", () => {
+    expect(iso(latestViewableDate(utc("2026-08-02")))).toBe("2026-08-01");
+  });
+
+  it("steps back across a month boundary on Sunday", () => {
+    // Sunday 1 March 2026 — the Saturday before is in February.
+    expect(iso(latestViewableDate(utc("2026-03-01")))).toBe("2026-02-28");
+  });
+
+  it("does not mutate the date it was given", () => {
+    const input = utc("2026-08-02");
+    latestViewableDate(input);
+    expect(iso(input)).toBe("2026-08-02");
   });
 });
 

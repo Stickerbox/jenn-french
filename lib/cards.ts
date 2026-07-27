@@ -38,19 +38,18 @@ export function toCardFormValues(
   };
 }
 
+// Looks up that day and no other. An earlier version returned the most recent
+// card on or before the date, so a day with nothing posted silently showed the
+// previous day's card — which made the week picker lie: a student could select
+// Tuesday and be shown Monday's word with Tuesday highlighted. Now a day with
+// no card resolves to null and the page says so.
 export async function getEffectiveCard(
   groupId: string,
-  onOrBefore: Date,
+  date: Date,
 ): Promise<CardContent | null> {
   const [override, fallback] = await Promise.all([
-    prisma.card.findFirst({
-      where: { groupId, date: { lte: onOrBefore } },
-      orderBy: { date: "desc" },
-    }),
-    prisma.globalCard.findFirst({
-      where: { date: { lte: onOrBefore } },
-      orderBy: { date: "desc" },
-    }),
+    prisma.card.findUnique({ where: { groupId_date: { groupId, date } } }),
+    prisma.globalCard.findUnique({ where: { date } }),
   ]);
 
   return pickEffectiveCard(override, fallback);

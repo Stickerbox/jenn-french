@@ -4,15 +4,16 @@ import { prisma } from "@/lib/prisma";
 import { getEffectiveCard } from "@/lib/cards";
 import { Flashcard } from "@/components/Flashcard";
 import { WeekDayPicker } from "@/components/WeekDayPicker";
-import { weekRange, formatWeekRange } from "@/lib/week";
+import { weekRange, formatWeekRange, latestViewableDate } from "@/lib/week";
 
-function parseDate(value: string | undefined, today: Date): Date {
-  if (!value) return today;
+function parseDate(value: string | undefined, latest: Date): Date {
+  if (!value) return latest;
   const parsed = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) return today;
-  // Clamp future-dated requests to today so students can never peek at
-  // words the teacher has pre-posted ahead of time (a supported workflow).
-  return parsed.getTime() > today.getTime() ? today : parsed;
+  if (Number.isNaN(parsed.getTime())) return latest;
+  // Clamp future-dated requests so students can never peek at words the
+  // teacher has pre-posted ahead of time (a supported workflow). `latest` is
+  // today, except on Sunday when it is the Saturday that closed the week.
+  return parsed.getTime() > latest.getTime() ? latest : parsed;
 }
 
 export default async function GroupPage({
@@ -30,7 +31,7 @@ export default async function GroupPage({
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const today = new Date(`${todayStr}T00:00:00Z`);
-  const selectedDate = parseDate(date, today);
+  const selectedDate = parseDate(date, latestViewableDate(today));
   const card = await getEffectiveCard(group.id, selectedDate);
 
   const selected = selectedDate.toISOString().slice(0, 10);

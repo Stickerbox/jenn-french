@@ -29,6 +29,18 @@ export function weekRange(date: Date): { start: Date; end: Date } {
   return { start, end };
 }
 
+// The latest day a student may look at. Normally today — but Sunday is not a
+// teaching day and has no dot in the picker, so the page opens on the Saturday
+// that closed the week rather than on a blank day. This doubles as the ceiling
+// for an explicit ?date=, so a future date clamps to something that has a card
+// rather than to an empty Sunday.
+export function latestViewableDate(today: Date): Date {
+  if (today.getUTCDay() !== 0) return today;
+  const saturday = new Date(today);
+  saturday.setUTCDate(saturday.getUTCDate() - 1);
+  return saturday;
+}
+
 export function formatWeekRange(start: Date, end: Date): string {
   const from = `${MONTHS[start.getUTCMonth()]} ${start.getUTCDate()}`;
   const to = `${MONTHS[end.getUTCMonth()]} ${end.getUTCDate()}`;
