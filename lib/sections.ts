@@ -17,6 +17,17 @@ export function withIds(sections: CardSection[]): CardSection[] {
 
 export const PRONUNCIATION_TITLE = "Québec Pronunciation";
 
+// The section that renders in the gold box. Keyed to the title rather than to
+// the shape of the text: an earlier content-driven rule silently dropped the
+// styling from four of six existing cards, because an idiom typed loosely —
+// or edited afterwards — no longer matched. Renaming this section is the one
+// way to lose the box, and that is at least a visible, deliberate act.
+export const IDIOM_TITLE = "Idiom of the day";
+
+export function isIdiomSection(title: string): boolean {
+  return title.trim().toLowerCase() === IDIOM_TITLE.toLowerCase();
+}
+
 // Prisma types a Json column as JsonValue, which is to say it does not type it
 // at all. Everything read from the database comes through here, so a
 // hand-edited row or a half-finished migration produces a card with missing
@@ -67,7 +78,7 @@ export function seedSections(grammar: string, idiom: string): CardSection[] {
   return [
     { title: "Grammar", body: grammar },
     { title: PRONUNCIATION_TITLE, body: "" },
-    { title: "Idiom of the day", body: idiom },
+    { title: IDIOM_TITLE, body: idiom },
   ];
 }
 
@@ -83,7 +94,7 @@ export function backfillSections(card: {
     ["Grammar", card.examples],
     [PRONUNCIATION_TITLE, card.pronunciation],
     ["Tip", card.tip],
-    ["Idiom of the day", card.idiom],
+    [IDIOM_TITLE, card.idiom],
   ];
 
   return columns
@@ -91,11 +102,3 @@ export function backfillSections(card: {
     .map(([title, body]) => ({ title, body: (body as string).trim() }));
 }
 
-// Drives the idiom box on the student card. Keyed to the shape of the text
-// rather than the section's title, so the styling survives the teacher
-// renaming or moving the section — and she can get it on any section.
-const EXPRESSION_SHAPE = /^\s*\*\*[^*]+\*\*\s*[—–-]\s*\S/;
-
-export function isExpressionBody(body: string): boolean {
-  return EXPRESSION_SHAPE.test(body);
-}

@@ -7,7 +7,7 @@ import type { CardContent } from "@/lib/card-resolution";
 import { cn } from "@/lib/utils";
 import { InlineMarkup } from "@/components/InlineMarkup";
 import { splitIdiom } from "@/lib/idiom";
-import { isExpressionBody } from "@/lib/sections";
+import { isIdiomSection } from "@/lib/sections";
 import {
   accentBarClass,
   accentBarStyle,
@@ -104,7 +104,7 @@ export function Flashcard({ card }: { card: CardContent }) {
                   {section.title && (
                     <h4 className={cardSectionHeading}>{section.title}</h4>
                   )}
-                  {isExpressionBody(section.body) ? (
+                  {isIdiomSection(section.title) ? (
                     <div className="rounded-r-lg border-l-[3px] border-[var(--card-or)] bg-[#fbf1e2] p-3.5">
                       {(() => {
                         const { expression, meaning } = splitIdiom(section.body);

@@ -6,7 +6,8 @@ import {
   seedSections,
   backfillSections,
   withIds,
-  isExpressionBody,
+  isIdiomSection,
+  IDIOM_TITLE,
   PRONUNCIATION_TITLE,
   type CardSection,
 } from "@/lib/sections";
@@ -201,25 +202,19 @@ describe("normaliseSections strips the client-only id", () => {
   });
 });
 
-describe("isExpressionBody", () => {
-  it("is true for the expression-and-meaning shape", () => {
-    expect(isExpressionBody("**sur la galerie** — on the porch")).toBe(true);
-    expect(isExpressionBody("**être à boutte** - exhausted")).toBe(true);
-    expect(isExpressionBody("**avoir de la misère** – a hard time")).toBe(true);
+describe("isIdiomSection", () => {
+  it("matches the seeded title", () => {
+    expect(isIdiomSection(IDIOM_TITLE)).toBe(true);
   });
 
-  it("is false for prose that merely contains bold", () => {
-    expect(
-      isExpressionBody("être → **j'étais**, faire → **faisait**."),
-    ).toBe(false);
+  it("ignores surrounding whitespace and case", () => {
+    expect(isIdiomSection("  idiom of the day  ")).toBe(true);
+    expect(isIdiomSection("IDIOM OF THE DAY")).toBe(true);
   });
 
-  it("is false for a bold expression with no meaning after it", () => {
-    expect(isExpressionBody("**pantoute**")).toBe(false);
-  });
-
-  it("is false for an empty body", () => {
-    expect(isExpressionBody("")).toBe(false);
-    expect(isExpressionBody("   ")).toBe(false);
+  it("does not match another section", () => {
+    expect(isIdiomSection("Grammar")).toBe(false);
+    expect(isIdiomSection("Idiom")).toBe(false);
+    expect(isIdiomSection("")).toBe(false);
   });
 });

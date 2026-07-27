@@ -156,12 +156,22 @@ Jenn started and abandoned.
 Each section renders its title in the existing red mono heading style and its
 body as prose with inline markup, exactly as Grammar and Tip do today.
 
-One exception, driven by content rather than title: a body shaped
-`**expression** — meaning` renders in the gold-bordered box, with the
-expression in red italic above its meaning. That is how the idiom looks today,
-and tying it to the shape of the text rather than to the title "Idiom of the
-day" means it survives Jenn renaming or moving that section — and lets her get
-the same treatment on any section by writing that shape.
+One exception: the section titled "Idiom of the day" renders in the
+gold-bordered box, with the expression in red italic above its meaning.
+
+**Amended 2026-07-27, hours after this shipped.** The rule was originally
+driven by content — any body shaped `**expression** — meaning` got the box —
+so that the styling survived a rename. In practice it silently dropped the box
+from four of the six existing cards, because those idioms had been typed or
+edited loosely and no longer matched the shape. The content rule also
+disagreed with `splitIdiom`, which only requires a leading bold span, so a card
+could parse correctly and still not qualify.
+
+Matching on the title restores all six and is the behaviour that shipped
+before sections existed. The cost is the one this design originally tried to
+avoid: renaming that section loses the box. That is at least visible and
+deliberate, where the content rule failed invisibly on text that looked fine.
+The comparison is trimmed and case-insensitive.
 
 Sections with an empty body are skipped, so a seeded Québec Pronunciation that
 Jenn has not filled in does not show students an empty heading.
@@ -197,8 +207,8 @@ should make the remaining three fields more reliable, not less.
 - **seedSections** — produces the three seeded sections in the stated order
 - **backfillSections** — the four-column mapping, including cards where some
   fields are blank and a card where all four are
-- **isExpressionBody** — true for `**x** — y`, false for prose that merely
-  contains bold, false for empty
+- **isIdiomSection** — matches the seeded title, tolerates surrounding
+  whitespace and differing case, and rejects a merely similar title
 - **readSections** — the untyped-column guard: a null, a string, an object, an
   array of the wrong shape and an array with one bad entry among good ones
 
