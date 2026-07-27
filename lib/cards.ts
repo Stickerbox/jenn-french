@@ -5,6 +5,7 @@ import {
   type CardContent,
 } from "@/lib/card-resolution";
 import type { CardInput } from "@/app/actions";
+import { readSections } from "@/lib/sections";
 
 // Shape shared by GlobalCard and Card (minus id/date/createdAt/groupId) — the
 // nullable optional fields need to become "" for the editor's controlled
@@ -12,13 +13,10 @@ import type { CardInput } from "@/app/actions";
 type StoredCardFields = {
   subject: string | null;
   usage: string | null;
-  pronunciation: string | null;
   englishPrompt: string;
   hint: string | null;
   frenchAnswer: string;
-  examples: string;
-  tip: string | null;
-  idiom: string | null;
+  sections: unknown;
 };
 
 export function toCardFormValues(
@@ -28,13 +26,10 @@ export function toCardFormValues(
   return {
     subject: card.subject ?? "",
     usage: card.usage ?? "",
-    pronunciation: card.pronunciation ?? "",
     englishPrompt: card.englishPrompt,
     hint: card.hint ?? "",
     frenchAnswer: card.frenchAnswer,
-    examples: card.examples,
-    tip: card.tip ?? "",
-    idiom: card.idiom ?? "",
+    sections: readSections(card.sections),
   };
 }
 
@@ -52,7 +47,20 @@ export async function getEffectiveCard(
     prisma.globalCard.findUnique({ where: { date } }),
   ]);
 
-  return pickEffectiveCard(override, fallback);
+  const toContent = (row: typeof override | typeof fallback): CardContent | null =>
+    row === null
+      ? null
+      : {
+          date: row.date,
+          subject: row.subject,
+          usage: row.usage,
+          englishPrompt: row.englishPrompt,
+          hint: row.hint,
+          frenchAnswer: row.frenchAnswer,
+          sections: readSections(row.sections),
+        };
+
+  return pickEffectiveCard(toContent(override), toContent(fallback));
 }
 
 export async function getArchiveDates(

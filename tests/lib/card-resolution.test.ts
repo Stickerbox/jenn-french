@@ -10,13 +10,10 @@ function makeCard(date: string, subject: string): CardContent {
     date: new Date(date),
     subject,
     usage: null,
-    pronunciation: null,
     englishPrompt: "prompt",
     hint: null,
     frenchAnswer: "answer",
-    examples: "",
-    tip: null,
-    idiom: null,
+    sections: [],
   };
 }
 

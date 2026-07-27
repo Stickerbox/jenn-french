@@ -1,14 +1,13 @@
+import type { CardSection } from "@/lib/sections";
+
 export type CardContent = {
   date: Date;
   subject: string | null;
   usage: string | null;
-  pronunciation: string | null;
   englishPrompt: string;
   hint: string | null;
   frenchAnswer: string;
-  examples: string;
-  tip: string | null;
-  idiom: string | null;
+  sections: CardSection[];
 };
 
 export function pickEffectiveCard(

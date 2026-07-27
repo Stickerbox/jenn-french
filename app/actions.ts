@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
+import { normaliseSections, type CardSection } from "@/lib/sections";
 
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
@@ -15,26 +16,36 @@ export type CardInput = {
   date: string; // YYYY-MM-DD
   subject: string;
   usage: string;
-  pronunciation: string;
   englishPrompt: string;
   hint: string;
   frenchAnswer: string;
-  examples: string;
-  tip: string;
-  idiom: string;
+  sections: CardSection[];
 };
 
-function toCardData(input: CardInput) {
+// Split in two on purpose. `update` omits examples/pronunciation/tip/idiom
+// entirely, so Prisma leaves those columns exactly as the backfill left them —
+// which is what makes them a usable rollback path. `create` has to supply
+// `examples` because the column is non-nullable.
+function toCreateData(input: CardInput) {
   return {
     subject: input.subject || null,
     usage: input.usage || null,
-    pronunciation: input.pronunciation || null,
     englishPrompt: input.englishPrompt,
     hint: input.hint || null,
     frenchAnswer: input.frenchAnswer,
-    examples: input.examples,
-    tip: input.tip || null,
-    idiom: input.idiom || null,
+    examples: "",
+    sections: normaliseSections(input.sections),
+  };
+}
+
+function toUpdateData(input: CardInput) {
+  return {
+    subject: input.subject || null,
+    usage: input.usage || null,
+    englishPrompt: input.englishPrompt,
+    hint: input.hint || null,
+    frenchAnswer: input.frenchAnswer,
+    sections: normaliseSections(input.sections),
   };
 }
 
@@ -45,8 +56,8 @@ export async function upsertGlobalCard(input: CardInput) {
 
   await prisma.globalCard.upsert({
     where: { date },
-    create: { date, ...toCardData(input) },
-    update: toCardData(input),
+    create: { date, ...toCreateData(input) },
+    update: toUpdateData(input),
   });
 
   revalidatePath("/admin");
@@ -96,8 +107,8 @@ export async function upsertOverrideCard(
 
   await prisma.card.upsert({
     where: { groupId_date: { groupId, date } },
-    create: { groupId, date, ...toCardData(input) },
-    update: toCardData(input),
+    create: { groupId, date, ...toCreateData(input) },
+    update: toUpdateData(input),
   });
 
   revalidatePath(`/admin/${slug}`);
