@@ -165,7 +165,7 @@ export function CardEditor({
         onChange={(v) => update("subject", v)}
         placeholder="Subject"
         ariaLabel="Subject"
-        className={cn(cardSubjectPill, "w-auto max-w-[45%] text-right")}
+        className={cn(cardSubjectPill, "w-auto max-w-[45%] text-base text-right sm:text-[11px]")}
       />
     </div>
   );
@@ -250,7 +250,7 @@ export function CardEditor({
             onChange={(v) => update("usage", v)}
             placeholder="Usage — e.g. Habits of the past"
             ariaLabel="Usage"
-            className="mb-1.5 font-[family-name:var(--card-font-serif)] text-xs italic tracking-[0.3px] text-[var(--card-or)]"
+            className="mb-1.5 font-[family-name:var(--card-font-serif)] text-base italic tracking-[0.3px] text-[var(--card-or)] sm:text-xs"
           />
           <div className={cn("mb-2", cardEyebrow)}>Say it in French *</div>
           <EditableText
@@ -260,7 +260,7 @@ export function CardEditor({
             ariaLabel="English sentence to translate"
             multiline
             required
-            className="font-[family-name:var(--card-font-serif)] text-xl leading-relaxed text-[var(--card-ink)]"
+            className="font-[family-name:var(--card-font-serif)] text-2xl leading-snug text-[var(--card-ink)]"
           />
           <EditableText
             value={values.hint}
@@ -268,7 +268,7 @@ export function CardEditor({
             placeholder="Hint (optional)"
             ariaLabel="Hint"
             multiline
-            className="mt-4 font-[family-name:var(--card-font-serif)] text-sm italic text-[var(--card-moss)]"
+            className="mt-4 font-[family-name:var(--card-font-serif)] text-base italic text-[var(--card-moss)] sm:text-sm"
           />
         </div>
       </div>

@@ -142,7 +142,7 @@ export function SectionEditor({
               onChange={(v) => update(index, { title: v })}
               placeholder={isPlaceholder ? "Add new section" : "Section title"}
               ariaLabel={isPlaceholder ? "New section title" : `${label} title`}
-              className={cn(cardSectionHeading, "mb-1")}
+              className={cn(cardSectionHeading, "mb-1 text-base sm:text-[13px]")}
             />
 
             <EditableText
@@ -151,7 +151,7 @@ export function SectionEditor({
               placeholder={isPlaceholder ? "" : "Section text"}
               ariaLabel={isPlaceholder ? "New section text" : `${label} text`}
               multiline
-              className="text-[15px] leading-relaxed text-[var(--card-ink)]"
+              className="text-base leading-relaxed text-[var(--card-ink)] sm:text-[15px]"
             />
           </motion.div>
         );
