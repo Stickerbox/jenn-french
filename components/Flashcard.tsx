@@ -6,6 +6,7 @@ import { formatCardDate } from "@/lib/format";
 import type { CardContent } from "@/lib/card-resolution";
 import { cn } from "@/lib/utils";
 import { InlineMarkup } from "@/components/InlineMarkup";
+import { splitIdiom } from "@/lib/idiom";
 import {
   accentBarClass,
   accentBarStyle,
@@ -123,9 +124,23 @@ export function Flashcard({ card }: { card: CardContent }) {
               <div>
                 <h4 className={cardSectionHeading}>Idiom of the day</h4>
                 <div className="rounded-r-lg border-l-[3px] border-[var(--card-or)] bg-[#fbf1e2] p-3.5">
-                  <div className="whitespace-pre-line text-[15px] italic text-[var(--card-rouge)]">
-                    <InlineMarkup text={card.idiom} />
-                  </div>
+                  {(() => {
+                    const { expression, meaning } = splitIdiom(card.idiom);
+                    return (
+                      <>
+                        {expression && (
+                          <div className="font-[family-name:var(--card-font-serif)] text-[19px] italic leading-snug text-[var(--card-rouge)]">
+                            <InlineMarkup text={expression} />
+                          </div>
+                        )}
+                        {meaning && (
+                          <div className="mt-1 whitespace-pre-line font-[family-name:var(--card-font-serif)] text-[15px] leading-relaxed text-[var(--card-ink)]">
+                            <InlineMarkup text={meaning} />
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
