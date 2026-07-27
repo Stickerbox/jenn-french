@@ -7,6 +7,7 @@ import type { CardContent } from "@/lib/card-resolution";
 import { cn } from "@/lib/utils";
 import { InlineMarkup } from "@/components/InlineMarkup";
 import { splitIdiom } from "@/lib/idiom";
+import { isExpressionBody } from "@/lib/sections";
 import {
   accentBarClass,
   accentBarStyle,
@@ -96,54 +97,40 @@ export function Flashcard({ card }: { card: CardContent }) {
             <p className="mb-5 font-[family-name:var(--card-font-serif)] text-2xl leading-snug text-[var(--card-bleu)]">
               {card.frenchAnswer}
             </p>
-            {card.examples && (
-              <div className="mb-4">
-                <h4 className={cardSectionHeading}>Grammar</h4>
-                <p className={cardProse}>
-                  <InlineMarkup text={card.examples} />
-                </p>
-              </div>
-            )}
-            {card.pronunciation && (
-              <div className="mb-4">
-                <h4 className={cardSectionHeading}>Québec Pronunciation</h4>
-                <p className={cardProse}>
-                  <InlineMarkup text={card.pronunciation} />
-                </p>
-              </div>
-            )}
-            {card.tip && (
-              <div className="mb-4">
-                <h4 className={cardSectionHeading}>Tip</h4>
-                <p className={cardProse}>
-                  <InlineMarkup text={card.tip} />
-                </p>
-              </div>
-            )}
-            {card.idiom && (
-              <div>
-                <h4 className={cardSectionHeading}>Idiom of the day</h4>
-                <div className="rounded-r-lg border-l-[3px] border-[var(--card-or)] bg-[#fbf1e2] p-3.5">
-                  {(() => {
-                    const { expression, meaning } = splitIdiom(card.idiom);
-                    return (
-                      <>
-                        {expression && (
-                          <div className="font-[family-name:var(--card-font-serif)] text-[19px] italic leading-snug text-[var(--card-rouge)]">
-                            <InlineMarkup text={expression} />
-                          </div>
-                        )}
-                        {meaning && (
-                          <div className="mt-1 whitespace-pre-line font-[family-name:var(--card-font-serif)] text-[15px] leading-relaxed text-[var(--card-ink)]">
-                            <InlineMarkup text={meaning} />
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
+            {card.sections
+              .filter((section) => section.body.trim() !== "")
+              .map((section, index) => (
+                <div key={index} className="mb-4 last:mb-0">
+                  {section.title && (
+                    <h4 className={cardSectionHeading}>{section.title}</h4>
+                  )}
+                  {isExpressionBody(section.body) ? (
+                    <div className="rounded-r-lg border-l-[3px] border-[var(--card-or)] bg-[#fbf1e2] p-3.5">
+                      {(() => {
+                        const { expression, meaning } = splitIdiom(section.body);
+                        return (
+                          <>
+                            {expression && (
+                              <div className="font-[family-name:var(--card-font-serif)] text-[19px] italic leading-snug text-[var(--card-rouge)]">
+                                <InlineMarkup text={expression} />
+                              </div>
+                            )}
+                            {meaning && (
+                              <div className="mt-1 whitespace-pre-line font-[family-name:var(--card-font-serif)] text-[15px] leading-relaxed text-[var(--card-ink)]">
+                                <InlineMarkup text={meaning} />
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <p className={cardProse}>
+                      <InlineMarkup text={section.body} />
+                    </p>
+                  )}
                 </div>
-              </div>
-            )}
+              ))}
           </div>
         </motion.div>
       </div>
