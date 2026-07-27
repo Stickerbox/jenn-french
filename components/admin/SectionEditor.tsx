@@ -65,9 +65,13 @@ export function SectionEditor({
             layout="position"
             transition={{ duration: 0.18, ease: "easeOut" }}
             className={cn(
-              "rounded-lg p-3",
-              isPlaceholder &&
-                "border border-dashed border-[var(--card-rouge)]/60",
+              "rounded-xl p-4",
+              // A filled panel for a section that holds something, an outlined
+              // one for the empty slot — so "written" and "not yet written"
+              // are distinguishable at a glance.
+              isPlaceholder
+                ? "border border-dashed border-[var(--card-rouge)]/60"
+                : "bg-[var(--card-section)]",
             )}
           >
             {/* The controls sit on their own row above the title. Sharing a
