@@ -29,10 +29,12 @@ export function CardEditor({
   initialDate,
   initialValues,
   onSubmit,
+  onDelete,
 }: {
   initialDate: string;
   initialValues?: Partial<CardInput>;
   onSubmit: (input: CardInput) => Promise<void>;
+  onDelete?: (date: string) => Promise<void>;
 }) {
   const router = useRouter();
   const [values, setValues] = useState<CardInput>({
@@ -58,6 +60,8 @@ export function CardEditor({
       : "compose",
   );
   const [aiError, setAiError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   function update<K extends keyof CardInput>(key: K, value: CardInput[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -101,6 +105,36 @@ export function CardEditor({
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!onDelete) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await onDelete(values.date);
+      // Drop back to compose on the same date, blank. The teacher stays on
+      // the day they were looking at, now ready to generate again.
+      setValues({
+        date: values.date,
+        subject: "",
+        usage: "",
+        pronunciation: "",
+        englishPrompt: "",
+        hint: "",
+        frenchAnswer: "",
+        examples: "",
+        tip: "",
+        idiom: "",
+      });
+      setConfirmingDelete(false);
+      setStage("compose");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete the card");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -191,16 +225,6 @@ export function CardEditor({
       onSubmit={handleSubmit}
       className="mx-auto flex w-full max-w-[560px] flex-col gap-6"
     >
-      <label className="text-sm font-medium text-[var(--color-ink)]">
-        Date *
-        <Input
-          type="date"
-          value={values.date}
-          onChange={(e) => update("date", e.target.value)}
-          required
-        />
-      </label>
-
       <div>
         <div className={panelLabel}>Front</div>
         <div className={cardPanel}>
@@ -305,6 +329,38 @@ export function CardEditor({
       <Button type="submit" disabled={saving}>
         {saving ? "Saving..." : "Save card"}
       </Button>
+      {onDelete &&
+        (confirmingDelete ? (
+          <div className="flex items-center justify-center gap-4 text-sm">
+            <span className="text-[var(--color-ink-muted)]">
+              Delete this card?
+            </span>
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(false)}
+              disabled={deleting}
+              className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="font-medium text-[var(--color-accent)] underline disabled:opacity-50"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            className="mx-auto text-sm text-[var(--color-ink-muted)] underline"
+          >
+            Delete card
+          </button>
+        ))}
       {error && (
         <p role="alert" className="text-sm text-[var(--color-accent)]">
           {error}
