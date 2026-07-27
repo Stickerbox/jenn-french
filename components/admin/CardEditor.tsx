@@ -62,6 +62,9 @@ export function CardEditor({
   const [aiError, setAiError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [hasSavedCard, setHasSavedCard] = useState(
+    Boolean(initialValues?.englishPrompt && initialValues?.frenchAnswer),
+  );
 
   function update<K extends keyof CardInput>(key: K, value: CardInput[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -100,6 +103,7 @@ export function CardEditor({
     setError(null);
     try {
       await onSubmit(values);
+      setHasSavedCard(true);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -112,6 +116,7 @@ export function CardEditor({
     if (!onDelete) return;
     setDeleting(true);
     setError(null);
+    setAiError(null);
     try {
       await onDelete(values.date);
       // Drop back to compose on the same date, blank. The teacher stays on
@@ -128,6 +133,7 @@ export function CardEditor({
         tip: "",
         idiom: "",
       });
+      setHasSavedCard(false);
       setConfirmingDelete(false);
       setStage("compose");
       router.refresh();
@@ -326,10 +332,11 @@ export function CardEditor({
         </div>
       </div>
 
-      <Button type="submit" disabled={saving}>
+      <Button type="submit" disabled={saving || deleting}>
         {saving ? "Saving..." : "Save card"}
       </Button>
       {onDelete &&
+        hasSavedCard &&
         (confirmingDelete ? (
           <div className="flex items-center justify-center gap-4 text-sm">
             <span className="text-[var(--color-ink-muted)]">
@@ -338,7 +345,7 @@ export function CardEditor({
             <button
               type="button"
               onClick={() => setConfirmingDelete(false)}
-              disabled={deleting}
+              disabled={saving || deleting}
               className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
             >
               Cancel
@@ -346,7 +353,7 @@ export function CardEditor({
             <button
               type="button"
               onClick={handleDelete}
-              disabled={deleting}
+              disabled={saving || deleting}
               className="font-medium text-[var(--color-accent)] underline disabled:opacity-50"
             >
               {deleting ? "Deleting…" : "Delete"}
