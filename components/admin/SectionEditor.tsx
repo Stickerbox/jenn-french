@@ -36,7 +36,9 @@ export function SectionEditor({
   const rows = [...sections, { title: "", body: "", id: placeholderId }];
 
   function update(index: number, patch: Partial<CardSection>) {
-    const next = rows.map((row, i) => (i === index ? { ...row, ...patch } : row));
+    const next = rows.map((row, i) =>
+      i === index ? { ...row, ...patch } : row,
+    );
     const last = next[next.length - 1];
     if (last.title === "" && last.body === "") {
       // Drop a trailing placeholder the teacher has not touched.
@@ -68,19 +70,12 @@ export function SectionEditor({
                 "border border-dashed border-[var(--card-rouge)]/60",
             )}
           >
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <EditableText
-                value={section.title}
-                onChange={(v) => update(index, { title: v })}
-                placeholder={isPlaceholder ? "Add new section" : "Section title"}
-                ariaLabel={
-                  isPlaceholder ? "New section title" : `${label} title`
-                }
-                className={cn(cardSectionHeading, "mb-0")}
-              />
-
-              {!isPlaceholder &&
-                (confirmingDelete === index ? (
+            {/* The controls sit on their own row above the title. Sharing a
+                flex row with it meant three 44px buttons competed with the
+                input, and on a phone the title was clipped as she typed. */}
+            {!isPlaceholder && (
+              <div className="mb-1 flex min-h-[44px] items-center justify-end gap-2">
+                {confirmingDelete === index ? (
                   <div className="flex shrink-0 items-center gap-2 text-sm">
                     <span className="text-[var(--color-ink-muted)]">
                       Delete section?
@@ -134,16 +129,23 @@ export function SectionEditor({
                       ✕
                     </button>
                   </div>
-                ))}
-            </div>
+                )}
+              </div>
+            )}
+
+            <EditableText
+              value={section.title}
+              onChange={(v) => update(index, { title: v })}
+              placeholder={isPlaceholder ? "Add new section" : "Section title"}
+              ariaLabel={isPlaceholder ? "New section title" : `${label} title`}
+              className={cn(cardSectionHeading, "mb-1")}
+            />
 
             <EditableText
               value={section.body}
               onChange={(v) => update(index, { body: v })}
               placeholder={isPlaceholder ? "" : "Section text"}
-              ariaLabel={
-                isPlaceholder ? "New section text" : `${label} text`
-              }
+              ariaLabel={isPlaceholder ? "New section text" : `${label} text`}
               multiline
               className="text-[15px] leading-relaxed text-[var(--card-ink)]"
             />

@@ -17,6 +17,10 @@ export function AdminDatePicker({
       Date
       <Input
         type="date"
+        // Capped rather than full-width: a date field needs about 200px, and
+        // stretching it the whole width of the card made it the widest thing
+        // on the page on a phone.
+        className="max-w-[220px]"
         value={selected}
         onChange={(e) => {
           const next = e.target.value;
