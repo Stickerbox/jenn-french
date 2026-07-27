@@ -116,7 +116,7 @@ generated is persisted, and the database schema does not change.
 | examples | Claude | grammar — verb derivations, see below |
 | pronunciation | Claude | Québec-specific, see below |
 | tip | Claude | one practical usage or register note |
-| idiom | Claude | `**expression** — meaning`, a Québécois idiom fitting the theme |
+| idiom | Claude | `**expression** — meaning`, tied to the French phrase; Québécois where one fits, standard French otherwise |
 
 Subject and usage are excluded in the schema itself, not only in the prompt —
 they are simply not fields Claude can return, so there is no way for a stray
@@ -199,28 +199,40 @@ the compose stage, where those five fields cannot yet hold anything.
 ## The Claude call
 
 ```
-model       claude-haiku-4-5
+model       claude-sonnet-5
 max_tokens  2000
+thinking    disabled, explicitly
 output_config.format   json_schema, the five fields
 ```
 
+**Amended 2026-07-27.** This shipped on `claude-haiku-4-5` and was moved to
+`claude-sonnet-5` the same day. Haiku ended the `tip` field mid-sentence in
+roughly one generation in three, while reporting `stop_reason: end_turn` at
+around 140 of 2000 output tokens — so nothing hit a limit, the `max_tokens`
+guard could not fire, the JSON parsed cleanly, and the truncated text saved
+as an ordinary card. The escape hatch below was written for exactly this and
+was taken.
+
 Model choice: a short, tightly specified task returning structured output,
 where a human reviews every field before it is saved. `MODEL` is a single
-exported constant in `lib/card-ai.ts`; moving to `claude-sonnet-5` is a
-one-line change if quality disappoints.
+exported constant in `lib/card-ai.ts`, so the change was one line plus the
+thinking parameter this section already predicted would be needed.
 
-Three constraints specific to this model:
+Constraints, as they now stand on Sonnet 5:
 
-- **No `output_config.effort`.** Effort is Opus 4.5 and later; sending it to
-  Haiku 4.5 returns a 400. Only `output_config.format` is set.
-- **No thinking configuration.** Omitting `thinking` on Haiku 4.5 means no
-  thinking, which suits a task this size. Switching the constant to Sonnet 5
-  would make thinking adaptive-by-default and `effort` available — both would
-  need revisiting then, and `max_tokens` would have to cover thinking as well
-  as the JSON.
-- **No prompt caching.** Haiku 4.5's minimum cacheable prefix is 4096 tokens
-  and the system prompt is far shorter, so a `cache_control` marker would
-  silently do nothing.
+- **`thinking` is disabled explicitly, not omitted.** Sonnet 5 runs adaptive
+  thinking when the parameter is absent, and `max_tokens` caps thinking and
+  response text together — so leaving it unset would let reasoning consume
+  the budget and truncate the JSON, reintroducing the very failure the model
+  change was made to fix. The task is prescribed formatting with no reasoning
+  to do.
+- **No `output_config.effort`.** Sonnet 5 does accept it, unlike Haiku 4.5
+  which returned a 400. It is still not set: the default suits a task whose
+  output runs to roughly 300 tokens, and adding a knob nobody has tuned would
+  be noise. Available if generation quality ever needs it.
+- **No prompt caching.** Sonnet 5's minimum cacheable prefix is 1024 tokens
+  (Haiku 4.5's was 4096) and the system prompt is still shorter than that, so
+  a `cache_control` marker would continue to do nothing silently.
 
 Structured outputs guarantee the response parses against the schema, so there
 is no text parsing to get wrong. The schema declares the five fields as

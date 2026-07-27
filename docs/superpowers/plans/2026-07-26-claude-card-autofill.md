@@ -12,6 +12,15 @@
 
 ## Global Constraints
 
+> **Superseded 2026-07-27, after this plan was executed.** The model moved
+> from `claude-haiku-4-5` to `claude-sonnet-5` because Haiku truncated the
+> `tip` field mid-sentence in roughly one generation in three while reporting
+> `stop_reason: end_turn`, so no guard could catch it. `thinking` is now
+> disabled explicitly rather than omitted. The four model constraints below
+> describe Haiku and are kept as the record of what was built; see
+> `docs/superpowers/specs/2026-07-26-claude-card-autofill-design.md` for the
+> current design.
+
 - Model is `claude-haiku-4-5`, exported as a named constant. Do **not** substitute another model.
 - Do **not** send `output_config.effort` — effort is Opus 4.5 and later, and returns a 400 on Haiku 4.5.
 - Do **not** send a `thinking` parameter. Omitting it on Haiku 4.5 means no thinking, which is intended.

@@ -52,12 +52,14 @@ Done:
 - [x] aws CLI + sqlite3 installed, `~/backup-db.sh` written
 - [x] Two backups uploaded successfully; nightly cron installed (03:15 UTC)
 
+- [x] Backup objects confirmed present in S3
+- [x] Landing page, card-page header, group delete shipped
+- [x] Card generation verified working end to end on `claude-sonnet-5`
+
 Remaining:
 
-- [ ] Confirm the backup objects are visible in the S3 console
 - [ ] S3 lifecycle rule to expire old backups (suggest 90 days)
 - [ ] Rehearse a restore once, deliberately, before you need it
-- [ ] Manual browser pass: delete flow, override fallback, future-date clamp
 - [ ] Hand the passkey over to Jenn (procedure below)
 
 ---
