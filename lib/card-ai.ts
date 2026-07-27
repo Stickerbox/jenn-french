@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { CardSuggestion } from "@/lib/card-suggestions";
 
-export const MODEL = "claude-haiku-4-5";
+export const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 2000;
 
 // Every message here is shown to the teacher verbatim, so each one has to be
@@ -39,7 +39,10 @@ pronunciation — Quebec only. Mention France solely as a brief parenthetical co
 
 tip — One or two sentences of practical advice: register, a common learner mistake, or when a Quebecois speaker would actually say this.
 
-idiom — A Quebecois idiom or expression that connects directly to the French phrase on this card: its vocabulary, the situation it describes, or the grammar point it turns on. Do not pick something that merely matches the subject label in the abstract — a learner should be able to see why this idiom sits beside this sentence. Written as: **expression** — plain-English meaning. One line.`;
+idiom — Exactly one line, in this shape: **expression** — plain-English meaning. The expression must be in bold, and it must come first.
+Choose a French idiom that connects to the French phrase on this card — its vocabulary, the situation it describes, or the grammar point it turns on. A learner should be able to see why this idiom sits beside this sentence, rather than it merely matching the subject label in the abstract. Prefer a Quebecois expression whenever one genuinely fits; where none does, a standard French idiom is right and you should not force a Quebec one.
+
+Every field must be a complete, finished sentence. Never stop mid-sentence or mid-word.`;
 
 const SUGGESTION_SCHEMA = {
   type: "object",
@@ -76,6 +79,12 @@ export async function generateCardSuggestion(
       model: MODEL,
       max_tokens: MAX_TOKENS,
       system: SYSTEM_PROMPT,
+      // Sonnet 5 runs adaptive thinking when `thinking` is omitted, and
+      // max_tokens caps thinking and response text together — so leaving it
+      // unset would let reasoning eat the budget and truncate the JSON, which
+      // is the failure this model was chosen to fix. This is short, prescribed
+      // formatting work with no reasoning to do, so it is disabled outright.
+      thinking: { type: "disabled" },
       output_config: {
         format: { type: "json_schema", schema: SUGGESTION_SCHEMA },
       },
