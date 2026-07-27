@@ -23,7 +23,7 @@ import { suggestCardFields } from "@/app/ai-actions";
 import { applySuggestion } from "@/lib/card-suggestions";
 
 const panelLabel =
-  "mb-2 font-[var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[var(--color-ink-muted)]";
+  "mb-2 font-[family-name:var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[var(--color-ink-muted)]";
 
 export function CardEditor({
   initialDate,
@@ -241,7 +241,7 @@ export function CardEditor({
             onChange={(v) => update("usage", v)}
             placeholder="Usage — e.g. Habits of the past"
             ariaLabel="Usage"
-            className="mb-1.5 font-[var(--card-font-serif)] text-xs italic tracking-[0.3px] text-[var(--card-or)]"
+            className="mb-1.5 font-[family-name:var(--card-font-serif)] text-xs italic tracking-[0.3px] text-[var(--card-or)]"
           />
           <div className={cn("mb-2", cardEyebrow)}>Say it in French *</div>
           <EditableText
@@ -251,7 +251,7 @@ export function CardEditor({
             ariaLabel="English sentence to translate"
             multiline
             required
-            className="font-[var(--card-font-serif)] text-xl leading-relaxed text-[var(--card-ink)]"
+            className="font-[family-name:var(--card-font-serif)] text-xl leading-relaxed text-[var(--card-ink)]"
           />
           <EditableText
             value={values.hint}
@@ -259,7 +259,7 @@ export function CardEditor({
             placeholder="Hint (optional)"
             ariaLabel="Hint"
             multiline
-            className="mt-4 font-[var(--card-font-serif)] text-sm italic text-[var(--card-moss)]"
+            className="mt-4 font-[family-name:var(--card-font-serif)] text-sm italic text-[var(--card-moss)]"
           />
         </div>
       </div>
@@ -277,7 +277,7 @@ export function CardEditor({
             ariaLabel="French answer"
             multiline
             required
-            className="mb-5 font-[var(--card-font-serif)] text-2xl leading-snug text-[var(--card-bleu)]"
+            className="mb-5 font-[family-name:var(--card-font-serif)] text-2xl leading-snug text-[var(--card-bleu)]"
           />
 
           <div className="mb-4">

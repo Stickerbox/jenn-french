@@ -57,7 +57,7 @@ export function WeekDayPicker({
               router.push(`/g/${slug}?date=${dateStr}`, { scroll: false })
             }
             className={cn(
-              "flex h-[34px] w-[34px] items-center justify-center rounded-full border-[1.5px] font-[var(--card-font-mono)] text-xs font-bold transition-all",
+              "flex h-[34px] w-[34px] items-center justify-center rounded-full border-[1.5px] font-[family-name:var(--card-font-mono)] text-xs font-bold transition-all",
               isSelected
                 ? "scale-[1.12] border-[var(--card-bleu)] bg-[var(--card-bleu)] text-white"
                 : "border-[var(--card-line)] bg-[var(--card-paper)] text-[#9c8f75] hover:border-[var(--card-bleu)] hover:text-[var(--card-bleu)]",

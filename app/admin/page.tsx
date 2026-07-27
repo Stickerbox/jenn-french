@@ -36,13 +36,13 @@ export default async function AdminPage({
     <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
       <div className="mx-auto max-w-xl">
         <div className="mb-8 flex items-center justify-between">
-          <h1 className="font-[var(--font-display)] text-3xl italic text-[var(--color-ink)]">
+          <h1 className="font-[family-name:var(--font-display)] text-3xl italic text-[var(--color-ink)]">
             Daily word
           </h1>
           <form action={logout}>
             <button
               type="submit"
-              className="font-[var(--font-body)] text-sm text-[var(--color-ink-muted)] underline"
+              className="font-[family-name:var(--font-body)] text-sm text-[var(--color-ink-muted)] underline"
             >
               Log out
             </button>
@@ -59,7 +59,7 @@ export default async function AdminPage({
           onDelete={deleteGlobalCard}
         />
 
-        <h2 className="mb-4 mt-12 font-[var(--font-display)] text-2xl italic text-[var(--color-ink)]">
+        <h2 className="mb-4 mt-12 font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">
           Groups
         </h2>
         <ul className="mb-6 flex flex-col gap-2">

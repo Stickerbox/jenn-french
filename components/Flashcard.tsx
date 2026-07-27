@@ -50,7 +50,7 @@ export function Flashcard({ card }: { card: CardContent }) {
               )}
             </div>
             {card.usage && (
-              <div className="mb-1.5 font-[var(--card-font-serif)] text-xs italic tracking-[0.3px] text-[var(--card-or)]">
+              <div className="mb-1.5 font-[family-name:var(--card-font-serif)] text-xs italic tracking-[0.3px] text-[var(--card-or)]">
                 {card.usage}
               </div>
             )}
@@ -58,16 +58,16 @@ export function Flashcard({ card }: { card: CardContent }) {
               Say it in French
             </div>
             <div className="flex-1">
-              <p className="font-[var(--card-font-serif)] text-xl leading-relaxed text-[var(--card-ink)]">
+              <p className="font-[family-name:var(--card-font-serif)] text-xl leading-relaxed text-[var(--card-ink)]">
                 {card.englishPrompt}
               </p>
               {card.hint && (
-                <p className="mt-4 whitespace-pre-line font-[var(--card-font-serif)] text-sm italic text-[var(--card-moss)]">
+                <p className="mt-4 whitespace-pre-line font-[family-name:var(--card-font-serif)] text-sm italic text-[var(--card-moss)]">
                   <InlineMarkup text={card.hint} />
                 </p>
               )}
             </div>
-            <div className="mt-4 text-center font-[var(--card-font-serif)] text-xs italic text-[#b0a488]">
+            <div className="mt-4 text-center font-[family-name:var(--card-font-serif)] text-xs italic text-[#b0a488]">
               tap to reveal the answer
             </div>
           </div>
@@ -92,7 +92,7 @@ export function Flashcard({ card }: { card: CardContent }) {
             <div className={cn("mb-1", cardEyebrow)}>
               The answer
             </div>
-            <p className="mb-5 font-[var(--card-font-serif)] text-2xl leading-snug text-[var(--card-bleu)]">
+            <p className="mb-5 font-[family-name:var(--card-font-serif)] text-2xl leading-snug text-[var(--card-bleu)]">
               {card.frenchAnswer}
             </p>
             {card.examples && (
@@ -139,7 +139,7 @@ export function Flashcard({ card }: { card: CardContent }) {
             event.stopPropagation();
             setFlipped((value) => !value);
           }}
-          className="rounded-full border border-[var(--card-bleu)] bg-[var(--card-bleu)] px-6 py-2.5 font-[var(--card-font-serif)] text-sm text-white transition-colors hover:bg-[#0d3f6b]"
+          className="rounded-full border border-[var(--card-bleu)] bg-[var(--card-bleu)] px-6 py-2.5 font-[family-name:var(--card-font-serif)] text-sm text-white transition-colors hover:bg-[#0d3f6b]"
         >
           Flip card
         </button>

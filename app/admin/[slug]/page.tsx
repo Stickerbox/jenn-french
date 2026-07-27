@@ -40,7 +40,7 @@ export default async function GroupAdminPage({
   return (
     <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
       <div className="mx-auto max-w-xl">
-        <h1 className="mb-8 font-[var(--font-display)] text-3xl italic text-[var(--color-ink)]">
+        <h1 className="mb-8 font-[family-name:var(--font-display)] text-3xl italic text-[var(--color-ink)]">
           {group.name} overrides
         </h1>
 
@@ -54,10 +54,10 @@ export default async function GroupAdminPage({
           onDelete={deleteOverrideCard.bind(null, group.id, group.slug)}
         />
 
-        <h2 className="mb-4 mt-12 font-[var(--font-display)] text-2xl italic text-[var(--color-ink)]">
+        <h2 className="mb-4 mt-12 font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">
           Existing overrides
         </h2>
-        <ul className="flex flex-col gap-1 font-[var(--font-body)] text-sm text-[var(--color-ink-muted)]">
+        <ul className="flex flex-col gap-1 font-[family-name:var(--font-body)] text-sm text-[var(--color-ink-muted)]">
           {group.cards.map((card) => {
             const cardDate = card.date.toISOString().slice(0, 10);
             return (

@@ -97,7 +97,7 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[var(--color-bg)] px-4">
       <div className="w-full max-w-sm rounded-[var(--radius-card)] bg-[var(--color-card-bg)] p-8 text-center shadow-[var(--shadow-card)]">
-        <h1 className="mb-6 font-[var(--font-display)] text-3xl italic text-[var(--color-ink)]">
+        <h1 className="mb-6 font-[family-name:var(--font-display)] text-3xl italic text-[var(--color-ink)]">
           Word of the Day
         </h1>
         {hasPasskey === null && !error && (
