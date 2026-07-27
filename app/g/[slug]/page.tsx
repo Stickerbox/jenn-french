@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getEffectiveCard } from "@/lib/cards";
 import { Flashcard } from "@/components/Flashcard";
@@ -48,7 +49,9 @@ export default async function GroupPage({
           className="mb-2.5 font-[family-name:var(--card-font-serif)] text-[var(--card-plum)]"
           style={{ fontSize: "clamp(30px, 5.5vw, 42px)", lineHeight: 1.15 }}
         >
-          Français Avec Jenn
+          <Link href="/" className="transition-opacity hover:opacity-75">
+            Français Avec Jenn
+          </Link>
         </h1>
         <div className="font-[family-name:var(--card-font-serif)] text-[15px] italic text-[var(--card-moss)]">
           Un jour, une carte — Québec-flavoured

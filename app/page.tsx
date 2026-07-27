@@ -52,7 +52,7 @@ export default function RootPage() {
       <div className="mx-auto w-full max-w-[660px]">
         <header>
           <h1
-            className="text-[var(--card-ink)]"
+            className="text-[var(--card-plum)]"
             style={{
               fontFamily: SERIF,
               fontSize: "clamp(30px, 5vw, 46px)",
