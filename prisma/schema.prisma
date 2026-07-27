@@ -27,6 +27,7 @@ model GlobalCard {
   examples      String
   tip           String?
   idiom         String?
+  sections      Json?
   createdAt     DateTime @default(now())
 }
 
@@ -44,6 +45,7 @@ model Card {
   examples      String
   tip           String?
   idiom         String?
+  sections      Json?
   createdAt     DateTime @default(now())
 
   @@unique([groupId, date])
