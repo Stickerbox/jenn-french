@@ -1,4 +1,19 @@
-export type CardSection = { title: string; body: string };
+// `id` exists only in the browser, to give React a stable key so a reordered
+// section animates as a moving row rather than two rows swapping their text.
+// It is optional and never persisted: normaliseSections and readSections both
+// rebuild plain {title, body} objects, so it cannot reach the database and
+// needs no migration.
+export type CardSection = { title: string; body: string; id?: string };
+
+// Deterministic by index rather than random, so the ids a server render
+// produces match the ones hydration produces. Sections created later, by the
+// teacher typing, are minted in the editor where only the client runs.
+export function withIds(sections: CardSection[]): CardSection[] {
+  return sections.map((section, index) => ({
+    ...section,
+    id: section.id ?? `s-${index}`,
+  }));
+}
 
 export const PRONUNCIATION_TITLE = "Québec Pronunciation";
 

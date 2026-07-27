@@ -5,6 +5,7 @@ import {
   moveSection,
   seedSections,
   backfillSections,
+  withIds,
   isExpressionBody,
   PRONUNCIATION_TITLE,
   type CardSection,
@@ -165,6 +166,38 @@ describe("backfillSections", () => {
         idiom: null,
       }),
     ).toEqual([]);
+  });
+});
+
+describe("withIds", () => {
+  it("assigns a deterministic id per position", () => {
+    expect(withIds([s("A", "a"), s("B", "b")]).map((x) => x.id)).toEqual([
+      "s-0",
+      "s-1",
+    ]);
+  });
+
+  it("keeps an id a section already has", () => {
+    const existing = [{ title: "A", body: "a", id: "kept" }, s("B", "b")];
+    expect(withIds(existing).map((x) => x.id)).toEqual(["kept", "s-1"]);
+  });
+
+  it("leaves title and body untouched", () => {
+    expect(withIds([s("A", "a")])[0]).toMatchObject({ title: "A", body: "a" });
+  });
+
+  it("does not mutate its argument", () => {
+    const input = [s("A", "a")];
+    withIds(input);
+    expect(input[0].id).toBeUndefined();
+  });
+});
+
+describe("normaliseSections strips the client-only id", () => {
+  it("never lets an id reach the database", () => {
+    const result = normaliseSections([{ title: "A", body: "a", id: "s-0" }]);
+    expect(result).toEqual([{ title: "A", body: "a" }]);
+    expect("id" in result[0]).toBe(false);
   });
 });
 
