@@ -25,7 +25,7 @@
 
 ### Expected build breakage
 
-Task 3 changes `CardInput`, which `CardEditor.tsx` and `Flashcard.tsx` both use. Those are repaired in Tasks 5 and 6. **`npm run typecheck` therefore fails from Task 3 until Task 6 completes.** Each affected task states the errors it expects. Do not "fix" them by editing files outside the task.
+Task 3 changes `CardInput` and `CardContent`. Four files consume the removed fields: `components/admin/CardEditor.tsx` (Task 5), `components/Flashcard.tsx` (Task 6), `lib/card-suggestions.ts` and `tests/lib/card-suggestions.test.ts` (both Task 4). **`npm run typecheck` therefore fails from Task 3 until Task 6 completes.** Each affected task states exactly which files it expects to see; a file outside that list is a real finding, not noise.
 
 ---
 
@@ -489,6 +489,7 @@ rollback path if the new shape misbehaves in production."
 - Modify: `app/actions.ts`
 - Modify: `lib/cards.ts`
 - Modify: `lib/card-resolution.ts`
+- Modify: `tests/lib/card-resolution.test.ts` — its `makeCard` helper builds a `CardContent` and must follow the type
 
 **Interfaces:**
 - Consumes: `CardSection`, `readSections`, `normaliseSections` from Task 1.
@@ -659,7 +660,7 @@ export async function getEffectiveCard(
 - [ ] **Step 6: Type-check**
 
 Run: `npm run typecheck`
-Expected: **FAIL**, with errors only in `components/admin/CardEditor.tsx` and `components/Flashcard.tsx`, both about the removed `CardInput` / `CardContent` fields. Those are repaired in Tasks 5 and 6. Confirm no other file is named.
+Expected: **FAIL**, in exactly four files: `components/admin/CardEditor.tsx` (Task 5), `components/Flashcard.tsx` (Task 6), `lib/card-suggestions.ts` and `tests/lib/card-suggestions.test.ts` (both Task 4). Confirm no other file is named.
 
 Run: `npm run lint`
 Expected: PASS.
@@ -820,7 +821,7 @@ Run: `npm run lint`
 Expected: PASS.
 
 Run: `npm run typecheck`
-Expected: **FAIL**, still only in `CardEditor.tsx` and `Flashcard.tsx`, as in Task 3.
+Expected: **FAIL**, now in exactly two files — `components/admin/CardEditor.tsx` (Task 5) and `components/Flashcard.tsx` (Task 6). The two `card-suggestions` files you just rewrote must be gone from the list.
 
 - [ ] **Step 6: Commit**
 
