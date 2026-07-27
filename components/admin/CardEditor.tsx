@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { EditableText } from "@/components/admin/EditableText";
+import { SectionEditor } from "@/components/admin/SectionEditor";
 import {
   accentBarClass,
   accentBarStyle,
@@ -13,7 +14,6 @@ import {
   cardHeaderRow,
   cardPanel,
   cardPanelBack,
-  cardSectionHeading,
   cardSubjectPill,
 } from "@/components/card-styles";
 import { formatCardDate } from "@/lib/format";
@@ -41,13 +41,10 @@ export function CardEditor({
     date: initialDate,
     subject: initialValues?.subject ?? "",
     usage: initialValues?.usage ?? "",
-    pronunciation: initialValues?.pronunciation ?? "",
     englishPrompt: initialValues?.englishPrompt ?? "",
     hint: initialValues?.hint ?? "",
     frenchAnswer: initialValues?.frenchAnswer ?? "",
-    examples: initialValues?.examples ?? "",
-    tip: initialValues?.tip ?? "",
-    idiom: initialValues?.idiom ?? "",
+    sections: initialValues?.sections ?? [],
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,13 +122,10 @@ export function CardEditor({
         date: values.date,
         subject: "",
         usage: "",
-        pronunciation: "",
         englishPrompt: "",
         hint: "",
         frenchAnswer: "",
-        examples: "",
-        tip: "",
-        idiom: "",
+        sections: [],
       });
       setHasSavedCard(false);
       setConfirmingDelete(false);
@@ -280,55 +274,10 @@ export function CardEditor({
             className="mb-5 font-[family-name:var(--card-font-serif)] text-2xl leading-snug text-[var(--card-bleu)]"
           />
 
-          <div className="mb-4">
-            <h4 className={cardSectionHeading}>Grammar</h4>
-            <EditableText
-              value={values.examples}
-              onChange={(v) => update("examples", v)}
-              placeholder="Grammar notes (optional)"
-              ariaLabel="Grammar"
-              multiline
-              className="text-[15px] leading-relaxed text-[var(--card-ink)]"
-            />
-          </div>
-
-          <div className="mb-4">
-            <h4 className={cardSectionHeading}>Québec Pronunciation</h4>
-            <EditableText
-              value={values.pronunciation}
-              onChange={(v) => update("pronunciation", v)}
-              placeholder="Pronunciation (optional)"
-              ariaLabel="Québec pronunciation"
-              multiline
-              className="text-[15px] leading-relaxed text-[var(--card-ink)]"
-            />
-          </div>
-
-          <div className="mb-4">
-            <h4 className={cardSectionHeading}>Tip</h4>
-            <EditableText
-              value={values.tip}
-              onChange={(v) => update("tip", v)}
-              placeholder="Tip (optional)"
-              ariaLabel="Tip"
-              multiline
-              className="text-[15px] leading-relaxed text-[var(--card-ink)]"
-            />
-          </div>
-
-          <div>
-            <h4 className={cardSectionHeading}>Idiom of the day</h4>
-            <div className="rounded-r-lg border-l-[3px] border-[var(--card-or)] bg-[#fbf1e2] p-3.5">
-              <EditableText
-                value={values.idiom}
-                onChange={(v) => update("idiom", v)}
-                placeholder="e.g. faire un lunch — to pack a lunch (optional)"
-                ariaLabel="Idiom of the day"
-                multiline
-                className="text-[15px] italic text-[var(--card-rouge)]"
-              />
-            </div>
-          </div>
+          <SectionEditor
+            sections={values.sections}
+            onChange={(sections) => update("sections", sections)}
+          />
         </div>
       </div>
 
