@@ -39,7 +39,7 @@ pronunciation — Quebec only. Mention France solely as a brief parenthetical co
 
 tip — One or two sentences of practical advice: register, a common learner mistake, or when a Quebecois speaker would actually say this.
 
-idiom — A Quebecois idiom or expression connected to the card's theme, written as: **expression** — plain-English meaning. One line.`;
+idiom — A Quebecois idiom or expression that connects directly to the French phrase on this card: its vocabulary, the situation it describes, or the grammar point it turns on. Do not pick something that merely matches the subject label in the abstract — a learner should be able to see why this idiom sits beside this sentence. Written as: **expression** — plain-English meaning. One line.`;
 
 const SUGGESTION_SCHEMA = {
   type: "object",
