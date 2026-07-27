@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getEffectiveCard } from "@/lib/cards";
 import { Flashcard } from "@/components/Flashcard";
 import { WeekDayPicker } from "@/components/WeekDayPicker";
+import { weekRange, formatWeekRange } from "@/lib/week";
 
 function parseDate(value: string | undefined, today: Date): Date {
   if (!value) return today;
@@ -32,6 +33,7 @@ export default async function GroupPage({
   const card = await getEffectiveCard(group.id, selectedDate);
 
   const selected = selectedDate.toISOString().slice(0, 10);
+  const { start: weekStart, end: weekEnd } = weekRange(today);
 
   return (
     <main
@@ -39,11 +41,20 @@ export default async function GroupPage({
       style={{ background: "var(--card-page-bg)" }}
     >
       <header className="mx-auto mb-7 max-w-[560px] text-center">
-        <div className="mb-2.5 font-[var(--card-font-serif)] text-[13px] uppercase tracking-[6px] text-[var(--card-bleu)] opacity-80">
+        <div className="mb-2.5 font-[family-name:var(--card-font-serif)] text-[13px] uppercase tracking-[6px] text-[var(--card-bleu)] opacity-80">
           ⚜ La carte du jour ⚜
         </div>
-        <div className="font-[var(--card-font-serif)] text-[15px] italic text-[var(--card-moss)]">
+        <h1
+          className="mb-2.5 font-[family-name:var(--card-font-serif)] text-[var(--card-plum)]"
+          style={{ fontSize: "clamp(30px, 5.5vw, 42px)", lineHeight: 1.15 }}
+        >
+          Français Avec Jenn
+        </h1>
+        <div className="font-[family-name:var(--card-font-serif)] text-[15px] italic text-[var(--card-moss)]">
           Un jour, une carte — Québec-flavoured
+        </div>
+        <div className="mt-2.5 font-[family-name:var(--card-font-mono)] text-[12px] uppercase tracking-[2px] text-[#8a7f6c]">
+          {formatWeekRange(weekStart, weekEnd)}
         </div>
       </header>
 
@@ -52,7 +63,7 @@ export default async function GroupPage({
       {card ? (
         <Flashcard card={card} />
       ) : (
-        <p className="text-center font-[var(--font-body)] text-[var(--color-ink-muted)]">
+        <p className="text-center font-[family-name:var(--font-body)] text-[var(--color-ink-muted)]">
           Nothing posted yet — check back soon!
         </p>
       )}
