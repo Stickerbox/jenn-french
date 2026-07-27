@@ -60,7 +60,7 @@ export function Flashcard({ card }: { card: CardContent }) {
               Say it in French
             </div>
             <div className="flex-1">
-              <p className="font-[family-name:var(--card-font-serif)] text-xl leading-relaxed text-[var(--card-ink)]">
+              <p className="font-[family-name:var(--card-font-serif)] text-2xl leading-snug text-[var(--card-ink)]">
                 {card.englishPrompt}
               </p>
               {card.hint && (
