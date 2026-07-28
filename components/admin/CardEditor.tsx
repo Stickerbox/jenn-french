@@ -239,9 +239,9 @@ export function CardEditor({
   }
 
   return (
-    // 1152 − 32 of gap = 1120, halved = 560 — the exact width the form is
-    // today, so the editor column does not move when the preview appears
-    // beside it.
+    // 1152 − 32 gap = 1120, halved = 560 — the form's mobile width.
+    // This holds from viewport ≥ 1184px onward. Between lg (1024px)
+    // and that threshold, columns scale proportionally narrower instead.
     <div className="mx-auto grid w-full max-w-[560px] gap-8 lg:max-w-[1152px] lg:grid-cols-2 lg:items-start">
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div>
