@@ -131,12 +131,23 @@ export function toPreviewContent(values: CardInput): CardContent;
 | `CardInput` | `CardContent` | Rule |
 | --- | --- | --- |
 | `date: string` | `date: Date` | parsed as UTC midnight, as every date in this app is |
-| `subject: string` | `subject: string \| null` | trimmed; `""` → `null` |
-| `usage: string` | `usage: string \| null` | trimmed; `""` → `null` |
-| `hint: string` | `hint: string \| null` | trimmed; `""` → `null` |
+| `subject: string` | `subject: string \| null` | `value \|\| null` — no trim |
+| `usage: string` | `usage: string \| null` | `value \|\| null` — no trim |
+| `hint: string` | `hint: string \| null` | `value \|\| null` — no trim |
 | `englishPrompt` | `englishPrompt` | unchanged |
 | `frenchAnswer` | `frenchAnswer` | unchanged |
 | `sections` | `sections` | `normaliseSections` |
+
+The three scalars are deliberately **not** trimmed, because `toCreateData` and
+`toUpdateData` in `app/actions.ts` do not trim them either — they use
+`input.subject || null`. A subject of `"   "` is truthy, so it saves, and the
+student card renders a pill containing spaces. A trimming preview would show no
+pill and be wrong. The mapping mirrors the save path exactly rather than
+mirroring what the save path arguably ought to do; making the save path trim is
+a separate change to a separate file, and out of scope here.
+
+Sections are the exception, and only because the save path is the exception:
+`normaliseSections` runs on both paths, so trimming there is faithful.
 
 This belongs in `lib/` and gets tested because the `"" → null` rule is a real
 rule, not plumbing: it decides whether the subject pill, the usage line and the
@@ -236,7 +247,8 @@ beside the editor.
 `tests/lib/card-preview.test.ts` covers `toPreviewContent`:
 
 - each of `subject`, `usage` and `hint`: a value survives, `""` becomes `null`,
-  and whitespace-only becomes `null`
+  and whitespace-only survives as itself — the test that pins the mapping to the
+  untrimmed save path in `app/actions.ts`
 - `englishPrompt` and `frenchAnswer` pass through untouched, including when blank
 - the date string becomes the correct UTC `Date`
 - sections are trimmed, sections blank in both fields are dropped, and a
