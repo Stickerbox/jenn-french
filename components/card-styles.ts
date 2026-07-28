@@ -30,3 +30,9 @@ export const cardCodeChip =
 
 export const cardProse =
   "whitespace-pre-line text-[15px] leading-relaxed text-[var(--card-ink)]";
+
+// The small caps label above a panel in the admin editor — "Front", "Back",
+// "As the student sees it". Lives here rather than in CardEditor because the
+// preview needs it too.
+export const panelLabel =
+  "mb-2 font-[family-name:var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[var(--color-ink-muted)]";

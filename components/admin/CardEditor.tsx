@@ -15,6 +15,7 @@ import {
   cardPanel,
   cardPanelBack,
   cardSubjectPill,
+  panelLabel,
 } from "@/components/card-styles";
 import { formatCardDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -22,9 +23,6 @@ import type { CardInput } from "@/app/actions";
 import { suggestCardFields } from "@/app/ai-actions";
 import { applySuggestion } from "@/lib/card-suggestions";
 import { withIds } from "@/lib/sections";
-
-const panelLabel =
-  "mb-2 font-[family-name:var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[var(--color-ink-muted)]";
 
 export function CardEditor({
   initialDate,
