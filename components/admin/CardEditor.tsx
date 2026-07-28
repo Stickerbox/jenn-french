@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { EditableText } from "@/components/admin/EditableText";
 import { SectionEditor } from "@/components/admin/SectionEditor";
+import { StudentPreview } from "@/components/admin/StudentPreview";
 import {
   accentBarClass,
   accentBarStyle,
@@ -234,115 +235,119 @@ export function CardEditor({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="mx-auto flex w-full max-w-[560px] flex-col gap-6"
-    >
-      <div>
-        <div className={panelLabel}>Front</div>
-        <div className={cardPanel}>
-          <span className={accentBarClass} style={accentBarStyle} />
-          {cardHeader}
-          <EditableText
-            value={values.usage}
-            onChange={(v) => update("usage", v)}
-            placeholder="Usage — e.g. Habits of the past"
-            ariaLabel="Usage"
-            className="mb-1.5 font-[family-name:var(--card-font-serif)] text-base italic tracking-[0.3px] text-[var(--card-or)] sm:text-xs"
-          />
-          <div className={cn("mb-2", cardEyebrow)}>Say it in French *</div>
-          <EditableText
-            value={values.englishPrompt}
-            onChange={(v) => update("englishPrompt", v)}
-            placeholder="English sentence to translate"
-            ariaLabel="English sentence to translate"
-            multiline
-            required
-            className="font-[family-name:var(--card-font-serif)] text-2xl leading-snug text-[var(--card-ink)]"
-          />
-          <EditableText
-            value={values.hint}
-            onChange={(v) => update("hint", v)}
-            placeholder="Hint (optional)"
-            ariaLabel="Hint"
-            multiline
-            className="mt-4 font-[family-name:var(--card-font-serif)] text-base italic text-[var(--card-moss)] sm:text-sm"
-          />
-        </div>
-      </div>
-
-      <div>
-        <div className={panelLabel}>Back</div>
-        <div className={cardPanelBack}>
-          <span className={accentBarClass} style={accentBarStyle} />
-          {cardHeader}
-          <div className={cn("mb-1", cardEyebrow)}>The answer *</div>
-          <EditableText
-            value={values.frenchAnswer}
-            onChange={(v) => update("frenchAnswer", v)}
-            placeholder="French answer"
-            ariaLabel="French answer"
-            multiline
-            required
-            className="mb-5 font-[family-name:var(--card-font-serif)] text-2xl leading-snug text-[var(--card-bleu)]"
-          />
-
-          <SectionEditor
-            sections={values.sections}
-            onChange={(sections) => update("sections", sections)}
-          />
-        </div>
-      </div>
-
-      <Button type="submit" disabled={saving || deleting}>
-        {saving ? "Saving..." : "Save card"}
-      </Button>
-      {onDelete &&
-        hasSavedCard &&
-        (confirmingDelete ? (
-          <div className="flex items-center justify-center gap-4 text-sm">
-            <span className="text-[var(--color-ink-muted)]">
-              Delete this card?
-            </span>
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(false)}
-              disabled={saving || deleting}
-              className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving || deleting}
-              className="font-medium text-[var(--color-accent)] underline disabled:opacity-50"
-            >
-              {deleting ? "Deleting…" : "Delete"}
-            </button>
+    // 1152 − 32 of gap = 1120, halved = 560 — the exact width the form is
+    // today, so the editor column does not move when the preview appears
+    // beside it.
+    <div className="mx-auto grid w-full max-w-[560px] gap-8 lg:max-w-[1152px] lg:grid-cols-2 lg:items-start">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <div>
+          <div className={panelLabel}>Front</div>
+          <div className={cardPanel}>
+            <span className={accentBarClass} style={accentBarStyle} />
+            {cardHeader}
+            <EditableText
+              value={values.usage}
+              onChange={(v) => update("usage", v)}
+              placeholder="Usage — e.g. Habits of the past"
+              ariaLabel="Usage"
+              className="mb-1.5 font-[family-name:var(--card-font-serif)] text-base italic tracking-[0.3px] text-[var(--card-or)] sm:text-xs"
+            />
+            <div className={cn("mb-2", cardEyebrow)}>Say it in French *</div>
+            <EditableText
+              value={values.englishPrompt}
+              onChange={(v) => update("englishPrompt", v)}
+              placeholder="English sentence to translate"
+              ariaLabel="English sentence to translate"
+              multiline
+              required
+              className="font-[family-name:var(--card-font-serif)] text-2xl leading-snug text-[var(--card-ink)]"
+            />
+            <EditableText
+              value={values.hint}
+              onChange={(v) => update("hint", v)}
+              placeholder="Hint (optional)"
+              ariaLabel="Hint"
+              multiline
+              className="mt-4 font-[family-name:var(--card-font-serif)] text-base italic text-[var(--card-moss)] sm:text-sm"
+            />
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmingDelete(true)}
-            className="mx-auto text-sm text-[var(--color-ink-muted)] underline"
+        </div>
+
+        <div>
+          <div className={panelLabel}>Back</div>
+          <div className={cardPanelBack}>
+            <span className={accentBarClass} style={accentBarStyle} />
+            {cardHeader}
+            <div className={cn("mb-1", cardEyebrow)}>The answer *</div>
+            <EditableText
+              value={values.frenchAnswer}
+              onChange={(v) => update("frenchAnswer", v)}
+              placeholder="French answer"
+              ariaLabel="French answer"
+              multiline
+              required
+              className="mb-5 font-[family-name:var(--card-font-serif)] text-2xl leading-snug text-[var(--card-bleu)]"
+            />
+
+            <SectionEditor
+              sections={values.sections}
+              onChange={(sections) => update("sections", sections)}
+            />
+          </div>
+        </div>
+
+        <Button type="submit" disabled={saving || deleting}>
+          {saving ? "Saving..." : "Save card"}
+        </Button>
+        {onDelete &&
+          hasSavedCard &&
+          (confirmingDelete ? (
+            <div className="flex items-center justify-center gap-4 text-sm">
+              <span className="text-[var(--color-ink-muted)]">
+                Delete this card?
+              </span>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={saving || deleting}
+                className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={saving || deleting}
+                className="font-medium text-[var(--color-accent)] underline disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              className="mx-auto text-sm text-[var(--color-ink-muted)] underline"
+            >
+              Delete card
+            </button>
+          ))}
+        {savedAt > 0 && !error && (
+          <p
+            role="status"
+            className="text-center text-sm text-[var(--card-moss)]"
           >
-            Delete card
-          </button>
-        ))}
-      {savedAt > 0 && !error && (
-        <p
-          role="status"
-          className="text-center text-sm text-[var(--card-moss)]"
-        >
-          Card saved
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-[var(--color-accent)]">
-          {error}
-        </p>
-      )}
-    </form>
+            Card saved
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-[var(--color-accent)]">
+            {error}
+          </p>
+        )}
+      </form>
+
+      <StudentPreview values={values} />
+    </div>
   );
 }
