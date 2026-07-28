@@ -38,8 +38,8 @@ export default async function AdminPage({
 
   return (
     <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
-      <div className="mx-auto max-w-xl">
-        <div className="mb-8 flex items-center justify-between">
+      <div className="mx-auto max-w-xl lg:max-w-[1152px]">
+        <div className="mx-auto mb-8 flex w-full max-w-[560px] items-center justify-between lg:mx-0">
           <h1 className="font-[family-name:var(--font-display)] text-3xl italic text-[var(--color-ink)]">
             Daily word
           </h1>
@@ -53,7 +53,9 @@ export default async function AdminPage({
           </form>
         </div>
 
-        <AdminDatePicker basePath="/admin" selected={selected} />
+        <div className="mx-auto w-full max-w-[560px] lg:mx-0">
+          <AdminDatePicker basePath="/admin" selected={selected} />
+        </div>
 
         <CardEditor
           key={selected}
@@ -63,20 +65,22 @@ export default async function AdminPage({
           onDelete={deleteGlobalCard}
         />
 
-        <h2 className="mb-4 mt-12 font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">
-          Groups
-        </h2>
-        <GroupList
-          groups={groups.map((g) => ({
-            id: g.id,
-            name: g.name,
-            slug: g.slug,
-            cardCount: g._count.cards,
-          }))}
-          onDelete={deleteGroup}
-        />
+        <div className="mx-auto w-full max-w-[560px] lg:mx-0">
+          <h2 className="mb-4 mt-12 font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">
+            Groups
+          </h2>
+          <GroupList
+            groups={groups.map((g) => ({
+              id: g.id,
+              name: g.name,
+              slug: g.slug,
+              cardCount: g._count.cards,
+            }))}
+            onDelete={deleteGroup}
+          />
 
-        <NewGroupForm onSubmit={createGroup} />
+          <NewGroupForm onSubmit={createGroup} />
+        </div>
       </div>
     </main>
   );

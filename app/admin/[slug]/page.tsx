@@ -39,12 +39,14 @@ export default async function GroupAdminPage({
 
   return (
     <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
-      <div className="mx-auto max-w-xl">
-        <h1 className="mb-8 font-[family-name:var(--font-display)] text-3xl italic text-[var(--color-ink)]">
+      <div className="mx-auto max-w-xl lg:max-w-[1152px]">
+        <h1 className="mx-auto mb-8 w-full max-w-[560px] font-[family-name:var(--font-display)] text-3xl italic text-[var(--color-ink)] lg:mx-0">
           {group.name} overrides
         </h1>
 
-        <AdminDatePicker basePath={`/admin/${slug}`} selected={selected} />
+        <div className="mx-auto w-full max-w-[560px] lg:mx-0">
+          <AdminDatePicker basePath={`/admin/${slug}`} selected={selected} />
+        </div>
 
         <CardEditor
           key={selected}
@@ -54,26 +56,28 @@ export default async function GroupAdminPage({
           onDelete={deleteOverrideCard.bind(null, group.id, group.slug)}
         />
 
-        <h2 className="mb-4 mt-12 font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">
-          Existing overrides
-        </h2>
-        <ul className="flex flex-col gap-1 font-[family-name:var(--font-body)] text-sm text-[var(--color-ink-muted)]">
-          {group.cards.map((card) => {
-            const cardDate = card.date.toISOString().slice(0, 10);
-            return (
-              <li key={card.id}>
-                <Link
-                  href={`/admin/${slug}?date=${cardDate}`}
-                  className="text-[var(--color-accent)] underline"
-                >
-                  {cardDate}
-                </Link>{" "}
-                — {card.frenchAnswer}
-              </li>
-            );
-          })}
-          {group.cards.length === 0 && <li>No overrides yet.</li>}
-        </ul>
+        <div className="mx-auto w-full max-w-[560px] lg:mx-0">
+          <h2 className="mb-4 mt-12 font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">
+            Existing overrides
+          </h2>
+          <ul className="flex flex-col gap-1 font-[family-name:var(--font-body)] text-sm text-[var(--color-ink-muted)]">
+            {group.cards.map((card) => {
+              const cardDate = card.date.toISOString().slice(0, 10);
+              return (
+                <li key={card.id}>
+                  <Link
+                    href={`/admin/${slug}?date=${cardDate}`}
+                    className="text-[var(--color-accent)] underline"
+                  >
+                    {cardDate}
+                  </Link>{" "}
+                  — {card.frenchAnswer}
+                </li>
+              );
+            })}
+            {group.cards.length === 0 && <li>No overrides yet.</li>}
+          </ul>
+        </div>
       </div>
     </main>
   );
