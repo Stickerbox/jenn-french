@@ -252,14 +252,12 @@ There is no recovery flow in the application.
 
 ### Deploying a code change
 
+See **`DEPLOY.md`** — the everyday commit → push → deploy loop lives there, along
+with the `deploy.sh` script, rollback, and what to do when a deploy fails. The
+short version:
+
 ```bash
-ssh -i ~/.ssh/jenn-french.pem ubuntu@54.80.104.161
-cd ~/jenn-french
-git pull
-npm ci
-npx prisma migrate deploy    # only if the schema changed
-npm run build
-pm2 restart jenn-french
+ssh -i ~/.ssh/jenn-french.pem ubuntu@54.80.104.161 './deploy.sh'
 ```
 
 ### Checking on the app
