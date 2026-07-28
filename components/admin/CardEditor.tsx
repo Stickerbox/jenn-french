@@ -177,7 +177,11 @@ export function CardEditor({
       values.subject.trim() !== "";
 
     return (
-      <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6">
+      // Same 560px wrapper as the page's other siblings: below lg this
+      // centres like everything else, but above lg the page container is
+      // 1152px, so without lg:mx-0 this block would float to the middle
+      // instead of sharing the editor column's left edge.
+      <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6 lg:mx-0">
         <label className="text-sm font-medium text-[var(--color-ink)]">
           English phrase *
           <Input
