@@ -45,7 +45,11 @@ export default async function GroupAdminPage({
         </h1>
 
         <div className="mx-auto w-full max-w-[560px] lg:mx-0">
-          <AdminDatePicker basePath={`/admin/${slug}`} selected={selected} />
+          <AdminDatePicker
+            basePath={`/admin/${slug}`}
+            selected={selected}
+            today={today}
+          />
         </div>
 
         <CardEditor

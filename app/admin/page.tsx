@@ -54,7 +54,7 @@ export default async function AdminPage({
         </div>
 
         <div className="mx-auto w-full max-w-[560px] lg:mx-0">
-          <AdminDatePicker basePath="/admin" selected={selected} />
+          <AdminDatePicker basePath="/admin" selected={selected} today={today} />
         </div>
 
         <CardEditor
