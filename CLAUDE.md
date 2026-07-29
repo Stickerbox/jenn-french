@@ -75,13 +75,15 @@ content-driven rule silently dropped styling from existing cards.
 ### Dates
 
 Every date is UTC midnight, constructed as ``new Date(`${str}T00:00:00Z`)``, and
-formatted with `timeZone: "UTC"`. The teaching week runs Monday–Saturday; Sunday
-belongs to the week that just ended (`lib/week.ts`).
+formatted with `timeZone: "UTC"`. The teaching week runs Monday–Friday; both
+Saturday and Sunday belong to the week that just ended (`lib/week.ts`).
 
 The student page clamps `?date=` to `latestViewableDate(today)` so students cannot
 read ahead of pre-posted cards. `parseAdminDate` deliberately does *not* clamp —
 pre-posting is the teacher's workflow, and clamping would make those days
-unreachable from `/admin`.
+unreachable from `/admin`. It does, however, snap a weekend date forward to the
+following Monday, including its `today` fallback, so `/admin` never opens on a
+non-teaching day; the five-column calendar is the UI half of the same rule.
 
 ### Auth
 

@@ -34,12 +34,14 @@ const overrides = await prisma.card.findMany({
   orderBy: { date: "desc" },
 });
 
-const sundays = [...globals, ...overrides].filter(
-  (card) => card.date.getUTCDay() === 0,
-);
+const sundays = [
+  ...globals.map((card) => ({ card, table: "GlobalCard" })),
+  ...overrides.map((card) => ({ card, table: "Card" })),
+].filter(({ card }) => card.date.getUTCDay() === 0);
 if (sundays.length > 0) {
   console.error("Cards sit on a Sunday at or after the anchor:");
-  for (const card of sundays) console.error(`  ${iso(card.date)}  ${card.id}`);
+  for (const { card, table } of sundays)
+    console.error(`  ${table}  ${iso(card.date)}  ${card.id}`);
   console.error("A Sunday has no slot in either week. Resolve these first.");
   await finish(1);
 }

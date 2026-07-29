@@ -87,6 +87,10 @@ export function AdminDatePicker({
 
   function choose(date: string) {
     setOpen(false);
+    // The day button just clicked unmounts with the popover, which would
+    // otherwise drop focus to <body> mid-keyboard-workflow. Match the
+    // Escape path, which already restores it to the trigger.
+    triggerRef.current?.focus();
     router.push(`${basePath}?date=${date}`, { scroll: false });
   }
 
@@ -94,19 +98,27 @@ export function AdminDatePicker({
 
   return (
     <div ref={rootRef} className="relative mx-auto mb-6 w-full max-w-[560px]">
-      <span className="block text-sm font-medium text-[var(--color-ink)]">
+      <span
+        id="admin-date-label"
+        className="block text-sm font-medium text-[var(--color-ink)]"
+      >
         Date
       </span>
       <button
         ref={triggerRef}
+        id="admin-date-trigger"
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
+        // aria-labelledby replaces the accessible name outright, so both ids
+        // are listed — the label for "Date" and the button itself for the
+        // formatted date text.
+        aria-labelledby="admin-date-label admin-date-trigger"
         onClick={toggle}
-        // Capped rather than full-width: a date field needs about 220px, and
+        // Capped rather than full-width: a date field needs about 260px, and
         // stretching it the whole width of the card made it the widest thing
         // on the page on a phone.
-        className={cn(inputClassName, "max-w-[260px] text-left")}
+        className={cn(inputClassName, "max-w-[260px] whitespace-nowrap text-left")}
       >
         {formatFull(selected)}
       </button>
@@ -115,7 +127,7 @@ export function AdminDatePicker({
         <div
           role="dialog"
           aria-label="Choose a date"
-          className="absolute left-0 z-20 mt-2 w-[300px] rounded-xl border border-[var(--color-ink-muted)]/20 bg-white p-3 shadow-lg"
+          className="absolute left-0 z-20 mt-2 w-[300px] max-w-[calc(100vw-2rem)] rounded-xl border border-[var(--color-ink-muted)]/20 bg-white p-3 shadow-lg"
         >
           <div className="flex items-center justify-between">
             <button

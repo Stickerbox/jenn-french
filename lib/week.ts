@@ -32,8 +32,10 @@ export function weekRange(date: Date): { start: Date; end: Date } {
 // The latest day a student may look at. Normally today — but neither weekend
 // day is a teaching day and neither has a dot in the picker, so the page opens
 // on the Friday that closed the week rather than on a blank day. This doubles
-// as the ceiling for an explicit ?date=, which is also what keeps a Saturday
-// card left behind by an earlier six-day week out of reach.
+// as the ceiling for an explicit ?date=, which during the deploy window is
+// also what keeps the current week's not-yet-moved Saturday card out of
+// reach — a past Saturday reached by an explicit ?date= still renders, since
+// this clamps only the upper bound.
 export function latestViewableDate(today: Date): Date {
   const dayOfWeek = today.getUTCDay(); // 0 = Sunday, 6 = Saturday
   if (dayOfWeek !== 0 && dayOfWeek !== 6) return today;

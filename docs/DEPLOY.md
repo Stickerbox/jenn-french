@@ -107,12 +107,29 @@ ssh -i ~/.ssh/jenn-french.pem ubuntu@54.80.104.161
 cd ~/jenn-french
 ~/backup-db.sh                                              # before anything
 npx --yes tsx scripts/reschedule-five-day-week.mjs          # dry run, read it
+```
+
+Read the output before going any further — this is deliberately its own step
+rather than the middle of a block you'd paste all at once, because pasting the
+whole thing would run the migration before you'd read anything. It lists every
+card at or after Monday 27 July 2026 with the date it will move to, unchanged
+rows included. Check two things:
+
+- the first Saturday listed moves to the Monday after it
+- no weekday you expected to see is missing from the list
+
+That second check matters because the script remaps calendar positions, not
+the cards themselves: it shifts by the Saturdays *crossed*, not by the
+Saturday cards that existed. If Jenn skipped a Saturday, the following Monday
+still moves forward and leaves a gap. That's intended behaviour, and the dry
+run is the only place to notice it before it's live.
+
+Once the output looks right, apply it:
+
+```bash
 npx --yes tsx scripts/reschedule-five-day-week.mjs --apply
 pm2 restart jenn-french
 ```
-
-Read the dry run before applying. It lists every card at or after Monday
-27 July 2026 with the date it will move to, unchanged rows included.
 
 Order matters: deploy the code **first**, then run the script. Between the two
 there are Saturday cards the picker no longer offers, so that one day is
@@ -130,6 +147,13 @@ Re-running is safe. Once no card sits on a Saturday the script prints
 `already migrated, nothing to do` and writes nothing. **Rollback for a bad apply
 is the backup from step one**, not a reverse run — the mapping only goes
 forward.
+
+A card on a Saturday *before* the anchor (Monday 27 July 2026) is out of scope
+for the script and is not moved. After this change it also can't be opened
+from `/admin` any more — the calendar has no Saturday cell, and
+`parseAdminDate` snaps any hand-typed one forward to the following Monday. In
+practice the only such date that can exist is Saturday 25 July 2026. Recorded
+here so nobody rediscovers it as a bug.
 
 ---
 
