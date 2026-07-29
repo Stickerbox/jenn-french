@@ -23,7 +23,8 @@ calendar.
 New:
 
 - `lib/reschedule.ts` — the old-slot-to-new-slot date mapping
-- `tests/lib/reschedule.test.ts`
+- `lib/month-grid.ts` — the weekday-only month grid the admin calendar renders
+- `tests/lib/reschedule.test.ts`, `tests/lib/month-grid.test.ts`
 - `scripts/reschedule-five-day-week.mjs` — a one-off, run once per environment
 
 Changed:
@@ -32,6 +33,8 @@ Changed:
   Saturday as well as Sunday
 - `lib/admin-date.ts` — `parseAdminDate` snaps a weekend to the following Monday
 - `components/WeekDayPicker.tsx` — five buttons instead of six
+- `components/admin/AdminDatePicker.tsx` — a five-column calendar replaces the
+  native date input
 - `app/g/[slug]/page.tsx` — comment only
 - `tests/lib/week.test.ts`, `tests/lib/admin-date.test.ts`
 - `docs/DEPLOY.md` — the one-off script run
@@ -160,6 +163,7 @@ under `--apply`. That is a decision for the teacher, not the script.
 | `components/WeekDayPicker.tsx` | drop the `S` / Samedi entry; `FRENCH_DAYS` has five entries and `currentWeekDates` follows its length |
 | `app/g/[slug]/page.tsx` | the comment on `parseDate` describing the Sunday case |
 | `lib/admin-date.ts` | `parseAdminDate` snaps a Saturday or Sunday forward to the following Monday |
+| `components/admin/AdminDatePicker.tsx` | the native date input is replaced by a calendar with no weekend columns |
 
 `latestViewableDate` is the ceiling for an explicit `?date=` as well as the
 default landing day, so clamping Saturday there is what stops a student reading
@@ -177,6 +181,106 @@ the student page's ceiling.
 Comments in these files are rewritten rather than left describing a six-day
 week. The existing ones record the failure that motivated each decision and are
 worth keeping accurate.
+
+## The admin calendar
+
+`parseAdminDate`'s snap is a correction after the fact — Jenn can still click
+Saturday and be moved somewhere she did not choose. A weekend has to be
+unclickable, and `<input type="date">` cannot express that: `min` and `max` are
+the only constraints it accepts, and the calendar the browser opens is not
+ours to style or filter. So `AdminDatePicker` stops being a native date input.
+
+It becomes a button showing the selected date, which opens a popover calendar
+whose grid has five columns:
+
+```
+Date
++-------------------------------+
+| Monday 3 August 2026    [cal] |
++-------------------------------+
+        |
+        v
++-------------------------------+
+|  <        AUGUST 2026       > |
+|   L    M    M    J    V       |
+|  27   28   29   30   31       |
+|   3    4    5    6    7       |
+|  10   11   12   13   14       |
+|  17   18   19   20   21       |
+|  24   25   26   27   28       |
+|  31    1    2    3    4       |
++-------------------------------+
+```
+
+There is no Saturday or Sunday column, so there is no weekend cell to click.
+That is the entire point of the component; a greyed-out-but-present weekend
+would be a weaker version of the same idea.
+
+### `lib/month-grid.ts`
+
+```ts
+monthWeekdayRows(year: number, month: number): MonthCell[][]
+```
+
+Returns rows of exactly five cells, each `{ date: "YYYY-MM-DD", inMonth:
+boolean }`. Rows run from the Monday of the week containing the 1st to the
+Friday of the week containing the last day, with the weekend dates of each week
+simply absent.
+
+Cells outside the month are shown dimmed and **remain selectable**. August 2026
+begins on a Saturday, so its first row is 27–31 July; September begins the row
+after 31 August ends. Jenn writing Monday 31 August and then Tuesday 1 September
+should not have to change month between two consecutive teaching days, which is
+exactly the case a month boundary creates.
+
+This differs from the sketch approved in conversation, which showed a partial
+leading row containing only 31 July. Whole weeks are the coherent rule: a row is
+a teaching week, and the grid reads as one whether or not the month starts on a
+Monday.
+
+The month is a pure function of the year and month, so it lives in `lib/` with a
+test, per the repository convention. The component holds only which month is on
+display and whether the popover is open.
+
+### Behaviour
+
+- The trigger is a `<button>`, not an input. There is nothing to type into and
+  nothing to clear, which retires the current component's comment about a
+  cleared date input firing `onChange` with `""`.
+- Each day is a `<button>`. Choosing one pushes `` `${basePath}?date=${dateStr}`
+  `` with `scroll: false` and closes the popover — the navigation contract with
+  the admin pages is unchanged, so `key={initialDate}` keeps doing its work.
+- `<` and `>` move one month and do not select anything. There is no bound in
+  either direction; pre-posting is a supported workflow and a ceiling would be
+  the student page's rule leaking into the teacher's.
+- Escape closes the popover and returns focus to the trigger; a click outside
+  closes it. The selected day carries `aria-pressed`, and today carries
+  `aria-current="date"`.
+- Opening the popover shows the month of the currently selected date, not the
+  current month.
+
+Styling uses the general app palette (`--color-*`), not the flashcard
+`--card-*` tokens, which are scoped to `/g/[slug]`. The trigger reuses the
+`Input` field styling so the control still reads as a form field.
+
+`parseAdminDate` keeps its weekend snap even so. The calendar makes a weekend
+unreachable through the UI; a hand-typed `?date=`, an old bookmark, or a link
+from before this change can still name a Saturday, and the server is where that
+has to be answered.
+
+### Testing
+
+`tests/lib/month-grid.test.ts`:
+
+- August 2026, which begins on a Saturday, leads with 27–31 July
+- a month beginning on a Monday has no dimmed leading cells
+- February 2028, a leap February, ends on the 29th
+- a month ending on a Saturday or Sunday trails into the next month
+- every row has exactly five cells, and no cell is a Saturday or Sunday
+- `inMonth` is true for exactly the days of the requested month
+
+The component itself is not unit-tested, matching the convention that components
+are verified by running the app.
 
 ## Testing
 
@@ -205,6 +309,8 @@ worth keeping accurate.
 - a future weekday is still not clamped
 - malformed and overflowing values still fall back to `today` — and the fallback
   is itself snapped when `today` is a weekend
+
+`tests/lib/month-grid.test.ts` is specified with the admin calendar above.
 
 Components and Prisma access stay untested; the pure modules underneath them
 carry the rules.
