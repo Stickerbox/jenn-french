@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { EditableText } from "@/components/admin/EditableText";
+import { RichText } from "@/components/admin/RichText";
 import { cardSectionHeading } from "@/components/card-styles";
+import { FIELD_STYLES } from "@/lib/field-styles";
+import { toPlainText } from "@/lib/inline-markup";
 import { moveSection, type CardSection } from "@/lib/sections";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +59,8 @@ export function SectionEditor({
         const isPlaceholder = index === sections.length;
         // An untitled section is a supported state, and without this the
         // controls announce as "Move  up" and "Delete " to a screen reader.
-        const label = section.title.trim() || "untitled section";
+        // Plain text, or a screen reader would read the markers out too.
+        const label = toPlainText(section.title).trim() || "untitled section";
 
         return (
           <motion.div
@@ -137,21 +140,26 @@ export function SectionEditor({
               </div>
             )}
 
-            <EditableText
+            <RichText
               value={section.title}
               onChange={(v) => update(index, { title: v })}
               placeholder={isPlaceholder ? "Add new section" : "Section title"}
               ariaLabel={isPlaceholder ? "New section title" : `${label} title`}
+              style={FIELD_STYLES.sectionTitle}
               className={cn(cardSectionHeading, "mb-1 text-base sm:text-[13px]")}
             />
 
-            <EditableText
+            {/* Every body gets the plain default, the idiom's included. Its
+                two-part red-and-black seeding only makes sense for the shape
+                Claude produces, which applySectionStyles handles on load. */}
+            <RichText
               value={section.body}
               onChange={(v) => update(index, { body: v })}
               placeholder={isPlaceholder ? "" : "Section text"}
               ariaLabel={isPlaceholder ? "New section text" : `${label} text`}
               multiline
-              className="text-base leading-relaxed text-[var(--card-ink)] sm:text-[15px]"
+              style={FIELD_STYLES.sectionBody}
+              className="text-base leading-relaxed sm:text-[15px]"
             />
           </motion.div>
         );

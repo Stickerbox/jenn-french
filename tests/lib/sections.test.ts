@@ -9,6 +9,7 @@ import {
   isIdiomSection,
   IDIOM_TITLE,
   PRONUNCIATION_TITLE,
+  TIP_TITLE,
   type CardSection,
 } from "@/lib/sections";
 
@@ -121,12 +122,26 @@ describe("moveSection", () => {
 });
 
 describe("seedSections", () => {
-  it("produces Grammar, an empty pronunciation, and the idiom in order", () => {
+  it("produces Grammar, an empty pronunciation and tip, and the idiom in order", () => {
     expect(seedSections("g", "i")).toEqual([
       s("Grammar", "g"),
       s(PRONUNCIATION_TITLE, ""),
+      s(TIP_TITLE, ""),
       s("Idiom of the day", "i"),
     ]);
+  });
+
+  // Tip goes between the pronunciation and the idiom because that is where she
+  // put it on both cards where she added it by hand.
+  it("seeds tip in the slot backfillSections already used for it", () => {
+    expect(seedSections("g", "i").map((section) => section.title)).toEqual(
+      backfillSections({
+        examples: "g",
+        pronunciation: "p",
+        tip: "t",
+        idiom: "i",
+      }).map((section) => section.title),
+    );
   });
 });
 

@@ -1,3 +1,5 @@
+import { toPlainText } from "@/lib/inline-markup";
+
 // `id` exists only in the browser, to give React a stable key so a reordered
 // section animates as a moving row rather than two rows swapping their text.
 // It is optional and never persisted: normaliseSections and readSections both
@@ -17,6 +19,8 @@ export function withIds(sections: CardSection[]): CardSection[] {
 
 export const PRONUNCIATION_TITLE = "Québec Pronunciation";
 
+export const TIP_TITLE = "Tip";
+
 // The section that renders in the gold box. Keyed to the title rather than to
 // the shape of the text: an earlier content-driven rule silently dropped the
 // styling from four of six existing cards, because an idiom typed loosely —
@@ -24,8 +28,11 @@ export const PRONUNCIATION_TITLE = "Québec Pronunciation";
 // way to lose the box, and that is at least a visible, deliberate act.
 export const IDIOM_TITLE = "Idiom of the day";
 
+// Compared against the plain text, because a title carries its own formatting
+// now — the gold box would otherwise be lost the moment the teacher recoloured
+// the heading, which is not the visible, deliberate act described above.
 export function isIdiomSection(title: string): boolean {
-  return title.trim().toLowerCase() === IDIOM_TITLE.toLowerCase();
+  return toPlainText(title).trim().toLowerCase() === IDIOM_TITLE.toLowerCase();
 }
 
 // Prisma types a Json column as JsonValue, which is to say it does not type it
@@ -71,13 +78,19 @@ export function moveSection(
   return next;
 }
 
-// Pronunciation is seeded empty rather than fixed: it is on every new card so
-// the teacher never has to create it, but it is an ordinary section she can
-// rename, move or delete on any given card.
+// Pronunciation and Tip are seeded empty rather than fixed: they are on every
+// new card so the teacher never has to create them, but they are ordinary
+// sections she can rename, move or delete on any given card. Claude does not
+// write either — the pronunciation is hers by design, and the tips she writes
+// are asides about a specific sentence rather than anything derivable from it.
+//
+// Tip sits between pronunciation and the idiom because that is where she puts
+// it on the cards where she added it by hand.
 export function seedSections(grammar: string, idiom: string): CardSection[] {
   return [
     { title: "Grammar", body: grammar },
     { title: PRONUNCIATION_TITLE, body: "" },
+    { title: TIP_TITLE, body: "" },
     { title: IDIOM_TITLE, body: idiom },
   ];
 }
@@ -93,7 +106,7 @@ export function backfillSections(card: {
   const columns: [string, string | null][] = [
     ["Grammar", card.examples],
     [PRONUNCIATION_TITLE, card.pronunciation],
-    ["Tip", card.tip],
+    [TIP_TITLE, card.tip],
     [IDIOM_TITLE, card.idiom],
   ];
 

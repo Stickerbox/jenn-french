@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applySuggestion, type CardSuggestion } from "@/lib/card-suggestions";
-import { PRONUNCIATION_TITLE } from "@/lib/sections";
+import { PRONUNCIATION_TITLE, TIP_TITLE } from "@/lib/sections";
 import type { CardInput } from "@/app/actions";
 
 const composed: CardInput = {
@@ -24,19 +24,25 @@ describe("applySuggestion", () => {
     expect(applySuggestion(composed, suggestion).hint).toBe(suggestion.hint);
   });
 
-  it("seeds three sections in order", () => {
+  it("seeds four sections in order", () => {
     expect(
       applySuggestion(composed, suggestion).sections.map((s) => s.title),
-    ).toEqual(["Grammar", PRONUNCIATION_TITLE, "Idiom of the day"]);
+    ).toEqual([
+      "Grammar",
+      PRONUNCIATION_TITLE,
+      TIP_TITLE,
+      "Idiom of the day",
+    ]);
   });
 
-  it("puts Claude's text in Grammar and Idiom, and leaves pronunciation empty", () => {
-    const [grammar, pronunciation, idiom] = applySuggestion(
+  it("puts Claude's text in Grammar and Idiom, and leaves the teacher's two empty", () => {
+    const [grammar, pronunciation, tip, idiom] = applySuggestion(
       composed,
       suggestion,
     ).sections;
     expect(grammar.body).toBe(suggestion.grammar);
     expect(pronunciation.body).toBe("");
+    expect(tip.body).toBe("");
     expect(idiom.body).toBe(suggestion.idiom);
   });
 

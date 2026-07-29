@@ -50,3 +50,12 @@ body {
   color: var(--color-ink);
   font-family: var(--font-body);
 }
+
+/* A contenteditable has no placeholder attribute, and an empty one collapses
+   to nothing at all — so the admin fields draw their own. :empty holds because
+   RichText writes the field's HTML itself and leaves it truly empty. */
+[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #b0a488;
+  pointer-events: none;
+}
