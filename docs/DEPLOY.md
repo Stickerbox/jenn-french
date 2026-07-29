@@ -96,6 +96,43 @@ not been worth solving.
 
 ---
 
+## One-off: re-dating cards to the five-day week
+
+Run **once**, on the deploy that moves the teaching week from Monday–Saturday to
+Monday–Friday. `deploy.sh` does not run it; it is a data migration, not a schema
+one, so nothing runs it for you.
+
+```bash
+ssh -i ~/.ssh/jenn-french.pem ubuntu@54.80.104.161
+cd ~/jenn-french
+~/backup-db.sh                                              # before anything
+npx --yes tsx scripts/reschedule-five-day-week.mjs          # dry run, read it
+npx --yes tsx scripts/reschedule-five-day-week.mjs --apply
+pm2 restart jenn-french
+```
+
+Read the dry run before applying. It lists every card at or after Monday
+27 July 2026 with the date it will move to, unchanged rows included.
+
+Order matters: deploy the code **first**, then run the script. Between the two
+there are Saturday cards the picker no longer offers, so that one day is
+unreachable for a few minutes. The other order is worse — cards would be
+re-dated while the picker still showed a Saturday dot pointing at a day that had
+just been vacated.
+
+The script reads all the affected rows before it opens its write transaction. If
+the site is live while it runs and Jenn saves a card in that window, the
+transaction fails and rolls back — safe, but a wasted run. Run it in a quiet
+window, or stop the app (`pm2 stop jenn-french`) first if you'd rather not
+gamble on the timing.
+
+Re-running is safe. Once no card sits on a Saturday the script prints
+`already migrated, nothing to do` and writes nothing. **Rollback for a bad apply
+is the backup from step one**, not a reverse run — the mapping only goes
+forward.
+
+---
+
 ## Installing `deploy.sh` (one time)
 
 **Already installed** on the current instance (`54.80.104.161`), as of
