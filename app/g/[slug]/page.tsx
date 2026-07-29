@@ -12,7 +12,7 @@ function parseDate(value: string | undefined, latest: Date): Date {
   if (Number.isNaN(parsed.getTime())) return latest;
   // Clamp future-dated requests so students can never peek at words the
   // teacher has pre-posted ahead of time (a supported workflow). `latest` is
-  // today, except on Sunday when it is the Saturday that closed the week.
+  // today, except at the weekend when it is the Friday that closed the week.
   return parsed.getTime() > latest.getTime() ? latest : parsed;
 }
 

@@ -9,7 +9,6 @@ const FRENCH_DAYS = [
   { letter: "M", label: "Mercredi" },
   { letter: "J", label: "Jeudi" },
   { letter: "V", label: "Vendredi" },
-  { letter: "S", label: "Samedi" },
 ];
 
 function toDateStr(date: Date): string {
