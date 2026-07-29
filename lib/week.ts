@@ -1,4 +1,4 @@
-const MONTHS = [
+export const MONTHS = [
   "JANUARY",
   "FEBRUARY",
   "MARCH",
@@ -13,9 +13,9 @@ const MONTHS = [
   "DECEMBER",
 ];
 
-// The teaching week runs Monday to Saturday, matching the six days the
-// WeekDayPicker offers. Sunday belongs to the week that has just ended, not
-// the one about to start.
+// The teaching week runs Monday to Friday, matching the five days the
+// WeekDayPicker offers. Saturday and Sunday belong to the week that has just
+// ended, not the one about to start.
 export function weekRange(date: Date): { start: Date; end: Date } {
   const dayOfWeek = date.getUTCDay(); // 0 = Sunday
   const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -24,21 +24,23 @@ export function weekRange(date: Date): { start: Date; end: Date } {
   start.setUTCDate(start.getUTCDate() - daysSinceMonday);
 
   const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 5); // Monday + 5 = Saturday
+  end.setUTCDate(end.getUTCDate() + 4); // Monday + 4 = Friday
 
   return { start, end };
 }
 
-// The latest day a student may look at. Normally today — but Sunday is not a
-// teaching day and has no dot in the picker, so the page opens on the Saturday
-// that closed the week rather than on a blank day. This doubles as the ceiling
-// for an explicit ?date=, so a future date clamps to something that has a card
-// rather than to an empty Sunday.
+// The latest day a student may look at. Normally today — but neither weekend
+// day is a teaching day and neither has a dot in the picker, so the page opens
+// on the Friday that closed the week rather than on a blank day. This doubles
+// as the ceiling for an explicit ?date=, which is also what keeps a Saturday
+// card left behind by an earlier six-day week out of reach.
 export function latestViewableDate(today: Date): Date {
-  if (today.getUTCDay() !== 0) return today;
-  const saturday = new Date(today);
-  saturday.setUTCDate(saturday.getUTCDate() - 1);
-  return saturday;
+  const dayOfWeek = today.getUTCDay(); // 0 = Sunday, 6 = Saturday
+  if (dayOfWeek !== 0 && dayOfWeek !== 6) return today;
+
+  const friday = new Date(today);
+  friday.setUTCDate(friday.getUTCDate() - (dayOfWeek === 0 ? 2 : 1));
+  return friday;
 }
 
 export function formatWeekRange(start: Date, end: Date): string {
