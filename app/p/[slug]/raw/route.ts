@@ -1,18 +1,28 @@
 import { NextResponse } from "next/server";
 import { getPageBySlug } from "@/lib/pages";
 
-// Defence in depth behind the iframe sandbox. `connect-src 'none'` is the line
-// that earns its place: a published page cannot make a network request, so
-// nothing it collects can leave the browser. `script-src` deliberately has no
-// https: — a page that pulls a library from a CDN will not run, which is the
-// accepted cost of self-contained pages being the only supported kind.
+// The iframe sandbox is the primary control; this is the second layer. Every
+// directive here is deliberately restricted to what the document carries
+// inside itself — no https: anywhere — because a subresource load is a real
+// network request and `img-src https:` alone would let a hostile page
+// exfiltrate whatever a student typed via `<img src="https://…?d=answer">`.
+// `connect-src 'none'` closes fetch/XHR/beacon but NOT subresource loads,
+// which is why the passive directives have to be closed too.
+//
+// Residual, accepted and unclosable: a sandboxed frame may navigate itself,
+// so `location.href = "https://…?d=…"` still leaks. No CSP directive
+// prevents it (`navigate-to` was never shipped). The sandbox does block
+// navigating the TOP window and opening popups.
+//
+// Consequence: a page that pulls a font, image, stylesheet or script from a
+// CDN will not load it. Self-contained files are the only supported kind.
 const CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
   "script-src 'unsafe-inline' 'unsafe-eval' blob:",
-  "style-src 'unsafe-inline' https:",
-  "img-src data: blob: https:",
-  "font-src data: https:",
-  "media-src data: blob: https:",
+  "style-src 'unsafe-inline'",
+  "img-src data: blob:",
+  "font-src data:",
+  "media-src data: blob:",
   "connect-src 'none'",
   "frame-ancestors 'self'",
   "form-action 'none'",
