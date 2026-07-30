@@ -28,7 +28,9 @@ export function parsePagePayload(body: unknown): PagePayloadResult {
   if (!html.ok) return { ok: false, error: html.error };
 
   let groups: string[] | null = null;
-  if (raw.groups !== undefined) {
+  // A client that sends null for an optional field means the same thing as one
+  // that omits it; the distinction that matters is null-or-absent versus [].
+  if (raw.groups !== undefined && raw.groups !== null) {
     if (
       !Array.isArray(raw.groups) ||
       raw.groups.some((g) => typeof g !== "string" || g.trim() === "")
@@ -39,7 +41,7 @@ export function parsePagePayload(body: unknown): PagePayloadResult {
   }
 
   let slug: string | null = null;
-  if (raw.slug !== undefined) {
+  if (raw.slug !== undefined && raw.slug !== null) {
     if (typeof raw.slug !== "string") {
       return { ok: false, error: "slug must be a string." };
     }

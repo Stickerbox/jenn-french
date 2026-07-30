@@ -77,4 +77,13 @@ describe("parsePagePayload", () => {
   it("rejects a slug that is not a string", () => {
     expect(parsePagePayload({ ...valid, slug: 12 }).ok).toBe(false);
   });
+
+  it("treats an explicit null the same as an absent key", () => {
+    const result = parsePagePayload({ ...valid, groups: null, slug: null });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.groups).toBe(null);
+      expect(result.payload.slug).toBe(null);
+    }
+  });
 });
