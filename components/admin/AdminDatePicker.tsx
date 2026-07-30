@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { monthWeekdayRows } from "@/lib/month-grid";
 import { MONTHS } from "@/lib/week";
-import { inputClassName } from "@/components/ui/Input";
+import { fieldClassName } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 
 // Full names so React has a distinct key per column — two of the five initials
@@ -118,7 +118,7 @@ export function AdminDatePicker({
         // Capped rather than full-width: a date field needs about 260px, and
         // stretching it the whole width of the card made it the widest thing
         // on the page on a phone.
-        className={cn(inputClassName, "max-w-[260px] whitespace-nowrap text-left")}
+        className={cn(fieldClassName, "max-w-[260px] whitespace-nowrap text-left")}
       >
         {formatFull(selected)}
       </button>
@@ -127,7 +127,7 @@ export function AdminDatePicker({
         <div
           role="dialog"
           aria-label="Choose a date"
-          className="absolute left-0 z-20 mt-2 w-[300px] max-w-[calc(100vw-2rem)] rounded-xl border border-[var(--color-ink-muted)]/20 bg-white p-3 shadow-lg"
+          className="absolute left-0 z-20 mt-2 w-[300px] max-w-[calc(100vw-2rem)] rounded-xl border border-[var(--color-field-border)] bg-[var(--color-field)] p-3 shadow-lg"
         >
           <div className="flex items-center justify-between">
             <button

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { fieldClassName } from "@/components/ui/field";
 import type { TextareaHTMLAttributes } from "react";
 
 export function Textarea({
@@ -7,13 +8,6 @@ export function Textarea({
   ...props
 }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
-    <textarea
-      rows={rows}
-      className={cn(
-        "mt-1 block w-full rounded-lg border border-[var(--color-ink-muted)]/30 bg-white px-3 py-2 font-[family-name:var(--font-body)] text-base sm:text-sm text-[var(--color-ink)] focus:border-[var(--color-accent)] focus:outline-none",
-        className,
-      )}
-      {...props}
-    />
+    <textarea rows={rows} className={cn(fieldClassName, className)} {...props} />
   );
 }

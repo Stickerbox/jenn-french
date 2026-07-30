@@ -8,6 +8,11 @@
   --color-ink-muted: #6B6259;
   --color-accent: #A8462F;
   --color-accent-soft: #EFD9C9;
+  /* Form fields sit a step darker than the page, with a line dark enough to
+     read as an edge rather than a shadow. White fields disappeared into the
+     cream background. */
+  --color-field: #F3E8D8;
+  --color-field-border: #CDB89A;
 
   /* Type */
   --font-display: var(--font-display-family), serif;
