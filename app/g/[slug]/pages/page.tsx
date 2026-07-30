@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { listPagesForGroup } from "@/lib/pages";
 import { formatLongDate } from "@/lib/format";
-import { cardEyebrow } from "@/components/card-styles";
+import { Tile } from "@/components/ui/Tile";
 
 export default async function GroupPagesPage({
   params,
@@ -45,15 +45,11 @@ export default async function GroupPagesPage({
           <ul className="flex flex-col gap-3">
             {pages.map((page) => (
               <li key={page.slug}>
-                <Link
+                <Tile
                   href={`/p/${page.slug}`}
-                  className="block rounded-lg border border-[var(--card-line)] bg-[var(--card-paper)] px-5 py-4 font-[family-name:var(--card-font-serif)] text-[var(--card-ink)] transition-opacity hover:opacity-80"
-                >
-                  <span className="text-lg">{page.title}</span>
-                  <span className={`mt-1 block ${cardEyebrow}`}>
-                    {formatLongDate(page.createdAt)}
-                  </span>
-                </Link>
+                  title={page.title}
+                  eyebrow={formatLongDate(page.createdAt)}
+                />
               </li>
             ))}
           </ul>
