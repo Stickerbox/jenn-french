@@ -27,16 +27,16 @@ export default async function AdminPageEditor({
     <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
       <div className="mx-auto w-full max-w-[560px]">
         <Link
-          href="/admin"
+          href="/admin?tab=pages"
           className="mb-6 inline-block text-sm text-[var(--color-ink-muted)] underline"
         >
-          ← Admin
+          ← Pages
         </Link>
 
-        <h1 className="mb-2 font-[family-name:var(--font-display)] text-3xl italic text-[var(--color-ink)]">
+        <h1 className="mb-2 text-center font-[family-name:var(--font-display)] text-3xl italic text-[var(--color-ink)]">
           {page.title}
         </h1>
-        <p className="mb-6 text-sm text-[var(--color-ink-muted)]">
+        <p className="mb-8 text-center text-sm text-[var(--color-ink-muted)]">
           <a href={`/p/${page.slug}`} className="underline">
             /p/{page.slug}
           </a>{" "}

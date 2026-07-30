@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
-import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
+import { HtmlDropZone } from "@/components/admin/HtmlDropZone";
+import { cn } from "@/lib/utils";
 import type { PageInput } from "@/app/page-actions";
-import { MAX_PAGE_BYTES } from "@/lib/page-html";
 
 export type PageEditorGroup = { id: string; name: string };
 
@@ -25,7 +25,11 @@ export function PageEditor({
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(initial?.title ?? "");
+  // The html still lives here, exactly as before — the drop zone simply never
+  // shows it. Saving an existing page without touching the file therefore
+  // re-submits the identical html and page-actions needs no change.
   const [html, setHtml] = useState(initial?.html ?? "");
+  const [fileName, setFileName] = useState<string | null>(null);
   const [groupIds, setGroupIds] = useState<string[]>(initial?.groupIds ?? []);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -36,30 +40,21 @@ export function PageEditor({
   // another, but a title the teacher typed herself must never be overwritten.
   const [titleFromFile, setTitleFromFile] = useState(false);
 
-  // The file never reaches the server: it is read here and the text goes into
-  // the same textarea a paste would fill, so upload and paste are one control
-  // and the source stays editable afterwards.
-  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (file.size > MAX_PAGE_BYTES) {
-      setError("That page is larger than 2 MB.");
-      event.target.value = "";
-      return;
-    }
-    setHtml(await file.text());
+  // The file never reaches the server: it is read in the browser and the text
+  // goes straight into state, so the source stays editable by re-uploading.
+  function handleFile(file: File, text: string) {
+    setError(null);
+    setHtml(text);
+    setFileName(file.name);
     if (!title || titleFromFile) {
       setTitle(file.name.replace(/\.html?$/i, ""));
       setTitleFromFile(true);
     }
-    event.target.value = "";
   }
 
   function toggleGroup(id: string) {
     setGroupIds((current) =>
-      current.includes(id)
-        ? current.filter((g) => g !== id)
-        : [...current, id],
+      current.includes(id) ? current.filter((g) => g !== id) : [...current, id],
     );
   }
 
@@ -74,7 +69,9 @@ export function PageEditor({
       if (!initial) {
         setTitle("");
         setHtml("");
+        setFileName(null);
         setGroupIds([]);
+        setTitleFromFile(false);
       }
       router.refresh();
     } catch (err) {
@@ -90,7 +87,7 @@ export function PageEditor({
     setError(null);
     try {
       await onDelete();
-      router.push("/admin");
+      router.push("/admin?tab=pages");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete the page");
     } finally {
@@ -99,7 +96,7 @@ export function PageEditor({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <label className="text-sm font-medium text-[var(--color-ink)]">
         Title
         <Input
@@ -113,54 +110,54 @@ export function PageEditor({
       </label>
 
       <fieldset className="text-sm font-medium text-[var(--color-ink)]">
-        <legend className="mb-1">Groups</legend>
+        <legend className="mb-2">Groups</legend>
         {groups.length === 0 ? (
           <p className="text-sm font-normal text-[var(--color-ink-muted)]">
             No groups yet.
           </p>
         ) : (
-          <div className="flex flex-wrap gap-3">
-            {groups.map((group) => (
-              <label
-                key={group.id}
-                className="flex items-center gap-2 text-sm font-normal"
-              >
-                <input
-                  type="checkbox"
-                  checked={groupIds.includes(group.id)}
-                  onChange={() => toggleGroup(group.id)}
-                />
-                {group.name}
-              </label>
-            ))}
+          <div className="flex flex-wrap gap-2">
+            {groups.map((group) => {
+              const checked = groupIds.includes(group.id);
+              return (
+                // A real checkbox, visually hidden inside its own label: the
+                // pill is appearance only, so keyboard and screen readers get
+                // the control they already understood.
+                <label
+                  key={group.id}
+                  className={cn(
+                    "cursor-pointer rounded-full border px-4 py-2 text-sm font-normal transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-accent)]/40",
+                    checked
+                      ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-ink)]"
+                      : "border-[var(--color-field-border)] bg-[var(--color-field)] text-[var(--color-ink-muted)]",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={checked}
+                    onChange={() => toggleGroup(group.id)}
+                  />
+                  {group.name}
+                </label>
+              );
+            })}
           </div>
         )}
       </fieldset>
 
-      <label className="text-sm font-medium text-[var(--color-ink)]">
-        HTML file
-        <input
-          type="file"
-          accept=".html,.htm,text/html"
-          onChange={handleFile}
-          className="mt-1 block w-full text-sm font-normal text-[var(--color-ink-muted)]"
+      <div className="text-sm font-medium text-[var(--color-ink)]">
+        Page file
+        <HtmlDropZone
+          fileName={fileName}
+          hasExisting={Boolean(initial)}
+          onFile={handleFile}
+          onError={setError}
         />
-      </label>
+      </div>
 
-      <label className="text-sm font-medium text-[var(--color-ink)]">
-        HTML source
-        <Textarea
-          value={html}
-          onChange={(e) => setHtml(e.target.value)}
-          required
-          rows={10}
-          spellCheck={false}
-          className="font-mono text-xs"
-        />
-      </label>
-
-      <div className="flex items-center gap-4">
-        <Button type="submit" disabled={saving || deleting}>
+      <div className="flex items-center justify-center gap-4">
+        <Button type="submit" disabled={saving || deleting || html.trim() === ""}>
           {saving ? "Saving..." : submitLabel}
         </Button>
         {onDelete && (
@@ -179,7 +176,7 @@ export function PageEditor({
       </div>
 
       {error && (
-        <p role="alert" className="text-sm text-[var(--color-accent)]">
+        <p role="alert" className="text-center text-sm text-[var(--color-accent)]">
           {error}
         </p>
       )}
