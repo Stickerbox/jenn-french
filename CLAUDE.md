@@ -37,7 +37,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `/` | public | landing page |
 | `/g/[slug]` | students | the card for `?date=`, defaulting to today |
 | `/login` | teacher | passkey register/authenticate |
-| `/admin` | teacher | edits the **global** card for `?date=` + group management |
+| `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/admin/[slug]` | teacher | edits one group's **override** card for `?date=` |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe |
 | `/g/[slug]/pages` | students | that group's uploaded pages (unlinked; shared by URL) |
@@ -150,6 +150,12 @@ browser Jenn writes pages in is sandboxed and cannot complete a passkey login;
 it is authenticated by `PAGES_UPLOAD_TOKEN` and returns 404 when that variable
 is unset.
 
+The admin editor shows no HTML at all: `PageEditor` holds the document in
+state and `HtmlDropZone` takes a file, so the round trip for a correction is
+download → edit in the tool she wrote it in → re-upload. The download is a
+plain `<a download>` pointing at `/p/[slug]/raw`, which is why that route and
+its CSP needed no change to support it.
+
 ## Conventions
 
 - **Logic belongs in `lib/`.** Anything with a rule in it — date handling, card
@@ -162,8 +168,10 @@ is unset.
   don't add comments that restate the code.
 - **Styling:** Tailwind v4 via PostCSS, no `tailwind.config`. Design tokens are CSS
   custom properties in `app/globals.css`, and there are two distinct palettes: the
-  general app (`--color-*`) and the Québec flashcard template (`--card-*`), the
-  latter scoped to `/g/[slug]`. Repeated flashcard class strings live in
+  general app (`--color-*`) and the Québec flashcard template (`--card-*`). The
+  latter is scoped to the student card pages and to `components/ui/Tile.tsx`,
+  which the admin group and page lists also use — so Jenn sees her pages the way
+  her students do. Repeated flashcard class strings live in
   `components/card-styles.ts` — extend that rather than duplicating the strings.
 - **Imports** use the `@/` alias for repo-root-relative paths.
 - Server actions call `revalidatePath` for the page they affect. Deletes use
