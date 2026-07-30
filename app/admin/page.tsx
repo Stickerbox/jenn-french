@@ -14,6 +14,10 @@ import { NewGroupForm } from "@/components/admin/NewGroupForm";
 import { GroupList } from "@/components/admin/GroupList";
 import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
+import { createPage } from "@/app/page-actions";
+import { listPagesForAdmin } from "@/lib/pages";
+import { PageList } from "@/components/admin/PageList";
+import { PageEditor } from "@/components/admin/PageEditor";
 
 export default async function AdminPage({
   searchParams,
@@ -35,6 +39,7 @@ export default async function AdminPage({
   const existingCard = await prisma.globalCard.findUnique({
     where: { date: selectedDate },
   });
+  const pages = await listPagesForAdmin();
 
   return (
     <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
@@ -80,6 +85,18 @@ export default async function AdminPage({
           />
 
           <NewGroupForm onSubmit={createGroup} />
+        </div>
+
+        <div className="mx-auto w-full max-w-[560px] lg:mx-0">
+          <h2 className="mb-4 mt-12 font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">
+            Pages
+          </h2>
+          <PageList pages={pages} />
+          <PageEditor
+            groups={groups.map((g) => ({ id: g.id, name: g.name }))}
+            submitLabel="Publish page"
+            onSubmit={createPage}
+          />
         </div>
       </div>
     </main>
