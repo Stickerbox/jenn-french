@@ -15,24 +15,28 @@ export type SavePageInput = {
 export async function savePage(input: SavePageInput): Promise<string> {
   const slug = input.slug ?? (await deriveSlug(input.title));
 
-  const page = await prisma.page.upsert({
-    where: { slug },
-    create: { slug, title: input.title, html: input.html },
-    update: { title: input.title, html: input.html },
-    select: { id: true },
-  });
+  // One interactive transaction, not an upsert followed by a separate group
+  // write: a failing group assignment used to leave the page row committed
+  // with no groups, which is invisible in every list and cannot be repaired
+  // by retrying, because the retry derives a fresh slug.
+  await prisma.$transaction(async (tx) => {
+    const page = await tx.page.upsert({
+      where: { slug },
+      create: { slug, title: input.title, html: input.html },
+      update: { title: input.title, html: input.html },
+      select: { id: true },
+    });
 
-  if (input.groupIds) {
+    if (!input.groupIds) return;
+
     // Replace the whole set rather than diffing it: the caller always sends
-    // the complete list, and one transaction is easier to reason about than
-    // an add/remove pair that could half-apply.
-    await prisma.$transaction([
-      prisma.pageGroup.deleteMany({ where: { pageId: page.id } }),
-      ...input.groupIds.map((groupId) =>
-        prisma.pageGroup.create({ data: { pageId: page.id, groupId } }),
-      ),
-    ]);
-  }
+    // the complete list, and a duplicate id would otherwise collide with the
+    // composite primary key.
+    await tx.pageGroup.deleteMany({ where: { pageId: page.id } });
+    for (const groupId of new Set(input.groupIds)) {
+      await tx.pageGroup.create({ data: { pageId: page.id, groupId } });
+    }
+  });
 
   return slug;
 }
