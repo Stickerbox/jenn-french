@@ -158,6 +158,17 @@ navigating the top window and opening popups. The exposure is limited to data
 the student enters into that page; cookies, storage and the teacher session
 stay unreachable either way.
 
+**Residual, accepted:** `/p/[slug]/raw` answers any GET, so the document can be
+loaded outside the iframe — view-source, or "Open Frame in New Tab" — and then
+it runs at the real origin rather than an opaque one. Rejecting requests whose
+`Sec-Fetch-Dest` is not `iframe` would close it, at the cost of a blank page on
+any browser that omits the header, which was judged the worse failure. The
+exposure today is nil for two reasons, and both are worth keeping true: the CSP
+travels with the response, so `connect-src 'none'` still blocks fetch on a
+direct load, and the session cookie is httpOnly with no `localStorage` anywhere
+in the app, so there is nothing for `document.cookie` to yield. Storing anything
+readable in client-side storage would make this live.
+
 Known limitation, accepted: nothing loads from a CDN — not scripts, not fonts,
 not images, not stylesheets. Self-contained files, which is what Jenn writes,
 are unaffected. Relaxing any of those lines is a decision to be taken

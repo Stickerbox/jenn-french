@@ -135,7 +135,10 @@ real GET request, so `img-src https:` alone would let a page exfiltrate what a
 student typed via `<img src="https://…?d=answer">`. Nothing loads from a CDN;
 self-contained files are the only supported kind. One residual is accepted and
 unclosable: a sandboxed frame may navigate itself, and no CSP directive
-prevents that.
+prevents that. The raw route also answers a direct GET, so the page can be
+loaded outside the iframe at the real origin; that is inert only because the
+CSP travels with the response and the session cookie is httpOnly with no
+`localStorage` in use.
 
 There is no HTML sanitiser, deliberately. Sanitising would strip exactly the
 interactivity the feature exists to preserve, and the sandbox already contains

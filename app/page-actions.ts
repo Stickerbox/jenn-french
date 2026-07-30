@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
-import { savePage } from "@/lib/pages";
+import { savePage, type SavePageInput } from "@/lib/pages";
 import { validatePageHtml } from "@/lib/page-html";
 
 async function requireTeacher() {
@@ -38,11 +39,32 @@ function revalidatePages(slug: string) {
   revalidatePath("/g/[slug]/pages", "page");
 }
 
+// The admin form is rendered with the group list as it was when the page
+// loaded, but the teacher edits in her own time — a group can be deleted from
+// another tab before she submits. savePage then hits the foreign-key
+// constraint on PageGroup, and a raw Prisma message tells her nothing she can
+// act on, so translate that one case into a retry instruction.
+async function saveOrExplain(input: SavePageInput): Promise<string> {
+  try {
+    return await savePage(input);
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2003"
+    ) {
+      throw new Error(
+        "One of those groups was just deleted — reload the page and try again.",
+      );
+    }
+    throw err;
+  }
+}
+
 export async function createPage(input: PageInput): Promise<string> {
   await requireTeacher();
   const { title, html } = validate(input);
 
-  const slug = await savePage({
+  const slug = await saveOrExplain({
     slug: null,
     title,
     html,
@@ -57,7 +79,7 @@ export async function updatePage(slug: string, input: PageInput): Promise<void> 
   await requireTeacher();
   const { title, html } = validate(input);
 
-  await savePage({ slug, title, html, groupIds: input.groupIds });
+  await saveOrExplain({ slug, title, html, groupIds: input.groupIds });
 
   revalidatePages(slug);
 }
