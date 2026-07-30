@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import type { PageInput } from "@/app/page-actions";
+import { MAX_PAGE_BYTES } from "@/lib/page-html";
 
 export type PageEditorGroup = { id: string; name: string };
 
@@ -27,8 +28,13 @@ export function PageEditor({
   const [html, setHtml] = useState(initial?.html ?? "");
   const [groupIds, setGroupIds] = useState<string[]>(initial?.groupIds ?? []);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Tracks whether the current title came from a filename rather than typing:
+  // a filename-derived title should follow the file when it's swapped for
+  // another, but a title the teacher typed herself must never be overwritten.
+  const [titleFromFile, setTitleFromFile] = useState(false);
 
   // The file never reaches the server: it is read here and the text goes into
   // the same textarea a paste would fill, so upload and paste are one control
@@ -36,8 +42,16 @@ export function PageEditor({
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (file.size > MAX_PAGE_BYTES) {
+      setError("That page is larger than 2 MB.");
+      event.target.value = "";
+      return;
+    }
     setHtml(await file.text());
-    if (!title) setTitle(file.name.replace(/\.html?$/i, ""));
+    if (!title || titleFromFile) {
+      setTitle(file.name.replace(/\.html?$/i, ""));
+      setTitleFromFile(true);
+    }
     event.target.value = "";
   }
 
@@ -72,14 +86,15 @@ export function PageEditor({
 
   async function handleDelete() {
     if (!onDelete) return;
-    setSaving(true);
+    setDeleting(true);
     setError(null);
     try {
       await onDelete();
       router.push("/admin");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete the page");
-      setSaving(false);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -87,7 +102,14 @@ export function PageEditor({
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <label className="text-sm font-medium text-[var(--color-ink)]">
         Title
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <Input
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setTitleFromFile(false);
+          }}
+          required
+        />
       </label>
 
       <fieldset className="text-sm font-medium text-[var(--color-ink)]">
@@ -138,17 +160,17 @@ export function PageEditor({
       </label>
 
       <div className="flex items-center gap-4">
-        <Button type="submit" disabled={saving}>
+        <Button type="submit" disabled={saving || deleting}>
           {saving ? "Saving..." : submitLabel}
         </Button>
         {onDelete && (
           <button
             type="button"
             onClick={handleDelete}
-            disabled={saving}
+            disabled={saving || deleting}
             className="text-sm text-[var(--color-ink-muted)] underline"
           >
-            Delete page
+            {deleting ? "Deleting..." : "Delete page"}
           </button>
         )}
         {saved && (
