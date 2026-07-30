@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { listPagesForGroup } from "@/lib/pages";
+import { formatLongDate } from "@/lib/format";
+import { cardEyebrow } from "@/components/card-styles";
 
 export default async function GroupPagesPage({
   params,
@@ -48,13 +50,8 @@ export default async function GroupPagesPage({
                   className="block rounded-lg border border-[var(--card-line)] bg-[var(--card-paper)] px-5 py-4 font-[family-name:var(--card-font-serif)] text-[var(--card-ink)] transition-opacity hover:opacity-80"
                 >
                   <span className="text-lg">{page.title}</span>
-                  <span className="mt-1 block font-[family-name:var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[#8a7f6c]">
-                    {page.createdAt.toLocaleDateString("en-CA", {
-                      timeZone: "UTC",
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
+                  <span className={`mt-1 block ${cardEyebrow}`}>
+                    {formatLongDate(page.createdAt)}
                   </span>
                 </Link>
               </li>
