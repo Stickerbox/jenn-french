@@ -185,6 +185,18 @@ Afterwards, add a lifecycle rule on the bucket to expire objects after
 
 ## Operational procedures
 
+### Environment variables
+
+`.env.local` on the server is gitignored and not covered by `deploy.sh` — a new
+required variable has to be added there by hand before the deploy that needs
+it (see "The app won't come back up" in `DEPLOY.md`). It currently holds
+`RP_ID`, `ORIGIN`, and `ANTHROPIC_API_KEY`, described in `CLAUDE.md`, plus:
+
+`PAGES_UPLOAD_TOKEN` — bearer token for `POST /api/pages`. Generate with
+`openssl rand -hex 32`. Leaving it unset disables the endpoint entirely (it
+returns 404), which is the right setting anywhere Jenn is not publishing from.
+Rotating it is just editing `.env.local` and restarting pm2.
+
 ### Handing the passkey to Jenn
 
 The app allows exactly **one** passkey. `register-begin` returns
@@ -332,3 +344,15 @@ Worth folding back into it.
     database before terminating an instance, which fails exactly when it
     matters, because a compromise does not wait for you to remember. Use the
     S3 + IAM-role approach in this document instead.
+
+11. **nginx's default body limit is too small for uploaded pages.**
+    `client_max_body_size` defaults to 1 MB; a published page up to our own
+    2 MB cap would get a 413 from nginx before Next ever saw the request,
+    from both the admin form and `POST /api/pages`. The server block needs:
+
+    ```
+    sudo nano /etc/nginx/sites-available/francaisavecjenn
+    # inside the `server { ... }` block, add:
+    #   client_max_body_size 4m;
+    sudo nginx -t && sudo systemctl reload nginx
+    ```

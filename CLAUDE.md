@@ -27,8 +27,8 @@ CI (`.github/workflows/ci.yml`) runs, in order: `prisma generate` → lint → `
 --noEmit` → test → build. Run those locally before claiming work is done.
 
 Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
-(`file:./dev.db`), `.env.local` holds `RP_ID`, `ORIGIN`, `ANTHROPIC_API_KEY`.
-Prisma reads `.env`; Next.js reads both.
+(`file:./dev.db`), `.env.local` holds `RP_ID`, `ORIGIN`, `ANTHROPIC_API_KEY`,
+`PAGES_UPLOAD_TOKEN`. Prisma reads `.env`; Next.js reads both.
 
 ## Routes
 
@@ -39,7 +39,11 @@ Prisma reads `.env`; Next.js reads both.
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | edits the **global** card for `?date=` + group management |
 | `/admin/[slug]` | teacher | edits one group's **override** card for `?date=` |
-| `/api/auth/*` | — | WebAuthn ceremonies (the only route handlers; everything else is a server action) |
+| `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe |
+| `/g/[slug]/pages` | students | that group's uploaded pages (unlinked; shared by URL) |
+| `/admin/pages/[slug]` | teacher | edits one uploaded page |
+| `POST /api/pages` | token | publishes a page from outside the browser |
+| `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, and `/p/[slug]/raw`) |
 
 ## Architecture
 
@@ -112,6 +116,36 @@ anything else is logged server-side and replaced with a generic message.
 Card text uses a deliberately tiny inline markup parser (`lib/inline-markup.ts`),
 not Markdown: `**bold**`, `*italic*`, `` `code` `` and nothing else. `**` is matched
 before `*`, and unclosed markers stay literal.
+
+### Uploaded pages
+
+A `Page` is an HTML document Jenn wrote elsewhere, stored whole in the `html`
+column and joined to any number of groups through `PageGroup`. It has no date
+and no relationship to a card. The HTML lives in the database rather than on
+disk so the nightly `VACUUM INTO` backup covers it for free.
+
+`/p/[slug]` renders nothing but `<iframe sandbox="allow-scripts">` around
+`/p/[slug]/raw`. `allow-scripts` without `allow-same-origin` gives the framed
+document an opaque origin: its JavaScript runs, but it cannot read cookies,
+storage, or the teacher session. **Never add `allow-same-origin`** — with
+`allow-scripts` beside it, the page can remove its own sandbox. The CSP on the
+raw route is the second layer, and **no directive in it admits `https:`** —
+`connect-src 'none'` closes fetch, XHR and beacon, but a subresource load is a
+real GET request, so `img-src https:` alone would let a page exfiltrate what a
+student typed via `<img src="https://…?d=answer">`. Nothing loads from a CDN;
+self-contained files are the only supported kind. One residual is accepted and
+unclosable: a sandboxed frame may navigate itself, and no CSP directive
+prevents that.
+
+There is no HTML sanitiser, deliberately. Sanitising would strip exactly the
+interactivity the feature exists to preserve, and the sandbox already contains
+what a sanitiser would defend against.
+
+A page's slug is derived from its title once, at creation, and never moves
+again — students bookmark these links. `POST /api/pages` exists because the
+browser Jenn writes pages in is sandboxed and cannot complete a passkey login;
+it is authenticated by `PAGES_UPLOAD_TOKEN` and returns 404 when that variable
+is unset.
 
 ## Conventions
 

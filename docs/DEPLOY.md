@@ -52,6 +52,11 @@ A schema change without its migration file will pass CI locally and then fail on
 the server, because the server runs `migrate deploy` and never generates
 migrations itself.
 
+This release adds the `Page` and `PageGroup` tables this way — an ordinary
+`migrate deploy`, no extra step. If the upload endpoint is wanted, `.env.local`
+also needs `PAGES_UPLOAD_TOKEN` added by hand before this deploy; see
+"Environment variables" in `DEPLOYMENT.md`.
+
 ## 2. Commit and push
 
 `main` is the deploy branch and CI runs on pushes to it. Push directly for small
