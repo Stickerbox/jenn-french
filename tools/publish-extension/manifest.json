@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Publish to Français Avec Jenn",
+  "version": "1.0.0",
+  "description": "Right-click a page to publish it to francaisavecjenn.ca and get a link for students.",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "scripting",
+    "activeTab",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://francaisavecjenn.ca/*",
+    "http://localhost:3000/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "options_page": "options.html",
+  "action": { "default_title": "Publish this page to Français Avec Jenn" },
+  "icons": { "128": "icon.png" }
+}

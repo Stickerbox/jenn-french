@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Publish to Français Avec Jenn</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; max-width: 520px;
+         margin: 40px auto; padding: 0 20px; color: #211c17; line-height: 1.5; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  p.sub { color: #6b6259; margin-top: 0; }
+  label { display: block; font-weight: 600; font-size: 14px; margin-top: 20px; }
+  input { width: 100%; padding: 9px 11px; margin-top: 6px; font-size: 15px;
+          border: 1px solid #cfc7bd; border-radius: 8px; }
+  button { margin-top: 20px; padding: 10px 22px; font-size: 15px; border: 0;
+           border-radius: 999px; background: #a8462f; color: #fff; cursor: pointer; }
+  button:hover { opacity: .9; }
+  #status { margin-top: 14px; min-height: 20px; font-size: 14px; color: #4a6b52; }
+  .hint { font-size: 13px; color: #6b6259; margin-top: 6px; }
+</style>
+
+<h1>Publish to Français Avec Jenn</h1>
+<p class="sub">Right-click any page and choose “Publish this page” to put it online.</p>
+
+<label>
+  Publishing token
+  <input id="token" type="password" autocomplete="off" placeholder="paste the token here">
+</label>
+<p class="hint">From the site’s <code>PAGES_UPLOAD_TOKEN</code>. Stored only on this computer.</p>
+
+<label>
+  Site address
+  <input id="site" type="url" placeholder="https://francaisavecjenn.ca">
+</label>
+
+<button id="save">Save</button>
+<div id="status"></div>
+
+<script src="options.js"></script>
+</html>
