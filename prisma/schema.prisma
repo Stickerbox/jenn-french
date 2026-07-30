@@ -8,11 +8,12 @@ datasource db {
 }
 
 model Group {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
+  slug      String      @unique
+  createdAt DateTime    @default(now())
   cards     Card[]
+  pages     PageGroup[]
 }
 
 model GlobalCard {
@@ -66,4 +67,25 @@ model Passkey {
   publicKey    Bytes
   counter      Int      @default(0)
   createdAt    DateTime @default(now())
+}
+
+model Page {
+  id        String      @id @default(cuid())
+  slug      String      @unique
+  title     String
+  html      String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  groups    PageGroup[]
+}
+
+// An explicit join model rather than Prisma's implicit many-to-many, so the
+// table has a name we chose and can be queried directly.
+model PageGroup {
+  pageId  String
+  groupId String
+  page    Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([pageId, groupId])
 }
