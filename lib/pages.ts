@@ -71,6 +71,7 @@ export async function listPagesForAdmin() {
       id: true,
       slug: true,
       title: true,
+      createdAt: true,
       groups: { select: { group: { select: { id: true, name: true } } } },
     },
   });
@@ -79,6 +80,7 @@ export async function listPagesForAdmin() {
     id: page.id,
     slug: page.slug,
     title: page.title,
+    createdAt: page.createdAt,
     groupIds: page.groups.map((g) => g.group.id),
     groupNames: page.groups.map((g) => g.group.name),
   }));
