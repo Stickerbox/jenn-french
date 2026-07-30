@@ -30,6 +30,12 @@ describe("slugify", () => {
     expect(slug.length).toBeLessThanOrEqual(60);
     expect(slug.endsWith("-")).toBe(false);
   });
+
+  it("transliterates ligatures instead of dropping them", () => {
+    expect(slugify("Cœur")).toBe("coeur");
+    expect(slugify("Sœur en français")).toBe("soeur-en-francais");
+    expect(slugify("Æsop")).toBe("aesop");
+  });
 });
 
 describe("uniqueSlug", () => {

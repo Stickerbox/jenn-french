@@ -8,8 +8,12 @@ export function slugify(title: string): string {
     .normalize("NFD")
     // Decomposed accents are their own code points after NFD, so dropping the
     // combining-marks block turns "é" into "e" instead of losing the letter.
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
+    // NFD does not decompose ligatures, so without this the letter is dropped
+    // rather than simplified: "cœur" would become "c-ur" instead of "coeur".
+    .replace(/æ/g, "ae")
+    .replace(/œ/g, "oe")
     .replace(/[^a-z0-9]+/g, "-")
     .slice(0, MAX_SLUG_LENGTH)
     .replace(/^-+|-+$/g, "");
