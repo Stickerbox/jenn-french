@@ -771,18 +771,28 @@ Create `app/p/[slug]/raw/route.ts`:
 import { NextResponse } from "next/server";
 import { getPageBySlug } from "@/lib/pages";
 
-// Defence in depth behind the iframe sandbox. `connect-src 'none'` is the line
-// that earns its place: a published page cannot make a network request, so
-// nothing it collects can leave the browser. `script-src` deliberately has no
-// https: — a page that pulls a library from a CDN will not run, which is the
-// accepted cost of self-contained pages being the only supported kind.
+// The iframe sandbox is the primary control; this is the second layer. Every
+// directive here is deliberately restricted to what the document carries
+// inside itself — no https: anywhere — because a subresource load is a real
+// network request and `img-src https:` alone would let a hostile page
+// exfiltrate whatever a student typed via `<img src="https://…?d=answer">`.
+// `connect-src 'none'` closes fetch/XHR/beacon but NOT subresource loads,
+// which is why the passive directives have to be closed too.
+//
+// Residual, accepted and unclosable: a sandboxed frame may navigate itself,
+// so `location.href = "https://…?d=…"` still leaks. No CSP directive
+// prevents it (`navigate-to` was never shipped). The sandbox does block
+// navigating the TOP window and opening popups.
+//
+// Consequence: a page that pulls a font, image, stylesheet or script from a
+// CDN will not load it. Self-contained files are the only supported kind.
 const CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
   "script-src 'unsafe-inline' 'unsafe-eval' blob:",
-  "style-src 'unsafe-inline' https:",
-  "img-src data: blob: https:",
-  "font-src data: https:",
-  "media-src data: blob: https:",
+  "style-src 'unsafe-inline'",
+  "img-src data: blob:",
+  "font-src data:",
+  "media-src data: blob:",
   "connect-src 'none'",
   "frame-ancestors 'self'",
   "form-action 'none'",
@@ -1550,10 +1560,13 @@ disk so the nightly `VACUUM INTO` backup covers it for free.
 document an opaque origin: its JavaScript runs, but it cannot read cookies,
 storage, or the teacher session. **Never add `allow-same-origin`** — with
 `allow-scripts` beside it, the page can remove its own sandbox. The CSP on the
-raw route is the second layer, and `connect-src 'none'` is the part that
-matters: a page cannot make a network request, so nothing it collects leaves
-the browser. `script-src` has no `https:`, so CDN-loaded libraries do not run;
-self-contained files are the only supported kind.
+raw route is the second layer, and **no directive in it admits `https:`** —
+`connect-src 'none'` closes fetch, XHR and beacon, but a subresource load is a
+real GET request, so `img-src https:` alone would let a page exfiltrate what a
+student typed via `<img src="https://…?d=answer">`. Nothing loads from a CDN;
+self-contained files are the only supported kind. One residual is accepted and
+unclosable: a sandboxed frame may navigate itself, and no CSP directive
+prevents that.
 
 There is no HTML sanitiser, deliberately. Sanitising would strip exactly the
 interactivity the feature exists to preserve, and the sandbox already contains
