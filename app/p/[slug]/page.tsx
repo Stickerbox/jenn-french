@@ -1,0 +1,36 @@
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { getPageBySlug } from "@/lib/pages";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const page = await getPageBySlug(slug);
+  return { title: page?.title ?? "Not found" };
+}
+
+export default async function PublishedPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const page = await getPageBySlug(slug);
+  if (!page) notFound();
+
+  // `allow-scripts` WITHOUT `allow-same-origin` is the whole security model:
+  // the framed document gets an opaque origin, so its JavaScript runs but it
+  // cannot read our cookies, our storage, or the teacher session. The two
+  // tokens together would let the page remove its own sandbox — never add it.
+  return (
+    <iframe
+      src={`/p/${slug}/raw`}
+      title={page.title}
+      sandbox="allow-scripts"
+      className="fixed inset-0 h-full w-full border-0 bg-white"
+    />
+  );
+}
