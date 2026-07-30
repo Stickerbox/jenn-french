@@ -169,10 +169,13 @@ its CSP needed no change to support it.
 - **Styling:** Tailwind v4 via PostCSS, no `tailwind.config`. Design tokens are CSS
   custom properties in `app/globals.css`, and there are two distinct palettes: the
   general app (`--color-*`) and the Québec flashcard template (`--card-*`). The
-  latter is scoped to the student card pages and to `components/ui/Tile.tsx`,
-  which the admin group and page lists also use — so Jenn sees her pages the way
-  her students do. Repeated flashcard class strings live in
-  `components/card-styles.ts` — extend that rather than duplicating the strings.
+  latter belongs to the flashcard template and travels with it rather than with
+  a route: the student card pages, the landing page's sample card, the admin
+  card editor — which is a live representation of the student's card — and
+  `components/ui/Tile.tsx`, which the admin group and page lists render so Jenn
+  sees her pages the way her students do. Repeated flashcard class strings live
+  in `components/card-styles.ts` — extend that rather than duplicating the
+  strings.
 - **Imports** use the `@/` alias for repo-root-relative paths.
 - Server actions call `revalidatePath` for the page they affect. Deletes use
   `deleteMany` so a double-click or stale tab is a no-op rather than a P2025.
