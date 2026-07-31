@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { cookieNameFor } from "@/lib/student-tokens";
+import { cookieNameFor } from "@/lib/cookie-name";
 
 // The one job here is moving ?k= out of the URL and into an httpOnly cookie,
 // so the secret stops riding in browser history on every later visit. It does

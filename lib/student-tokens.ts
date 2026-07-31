@@ -4,13 +4,7 @@ export function newToken(): string {
   return randomBytes(16).toString("hex");
 }
 
-// Named per student rather than path-scoped to /g/<slug>. A path-scoped cookie
-// would NOT be sent to /api/chat/<slug>, which is a different path — the chat
-// would silently 404 for every student. Distinct names at path "/" reach both,
-// and still let a shared family laptop hold several students' tokens at once.
-export function cookieNameFor(slug: string): string {
-  return `student-token-${slug}`;
-}
+export { cookieNameFor } from "@/lib/cookie-name";
 
 // Two plain strings rather than a request object, so the precedence rule is
 // testable without a server.
