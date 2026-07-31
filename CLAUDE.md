@@ -35,10 +35,9 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | Route | Who | Notes |
 |---|---|---|
 | `/` | public | landing page |
-| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files` and the chat need a valid token — except the everyone group, whose files are public and which has no chat |
+| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files` and the chat need the token, teacher included — a teacher session adds only the delete and read-marker controls once unlocked — except the everyone group, whose files are public and which has no chat |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
-| `/admin/[slug]` | teacher | edits one group's **override** card for `?date=` |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe |
 | `/f/[token]` | students | that student's files, at an opaque unguessable link |
 | `/admin/pages/[slug]` | teacher | edits one uploaded page |
@@ -49,15 +48,21 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 
 ## Architecture
 
-### Two-tier cards
+### Cards
 
-`GlobalCard` is the default card for a date, shown to every group. `Card` is a
-per-group override for the same date (`@@unique([groupId, date])`). `getEffectiveCard`
-(`lib/cards.ts`) fetches both in parallel and hands them to `pickEffectiveCard`
-(`lib/card-resolution.ts`), which is a pure function so the resolution rule is
-testable without a database. A date with neither row resolves to `null` and the
-page says nothing was posted — it deliberately does **not** fall back to an
-earlier day, because that made the week picker lie.
+A card belongs to a date, and every student sees the same one: `getEffectiveCard`
+(`lib/cards.ts`) reads the `GlobalCard` row for that date and takes no student
+or group id at all. A date with no row resolves to `null` and the page says
+nothing was posted — it deliberately does **not** fall back to an earlier day,
+because that made the week picker lie.
+
+Per-student overrides used to exist — a `Card` model unique on `(groupId, date)`,
+a `pickEffectiveCard` resolution rule, and an `/admin/[slug]` route to edit one —
+and were removed on 2026-07-31 with zero rows in either database, so nothing was
+lost. `getEffectiveCard` took a group id before that and preferred the override;
+if you find a reference to one of those names, or to `getArchiveDates` or
+`mergeArchiveDates` (dead code that queried the dropped table and was deleted
+with it), that is why — not a bug.
 
 ### Card sections
 
@@ -180,6 +185,19 @@ every other date here. Retention is forever, deliberately — this is a teaching
 record. Jenn can delete an individual message, and can regenerate a student's
 tokens from the admin, which revokes both at once.
 
+Jenn chats from `/g/[slug]` itself — `/admin/[slug]` no longer exists (it was
+the override-card editor removed above, and never hosted chat). She opens a
+student from the Students tab, which links to `/g/[slug]?k=<chatToken>`, and
+`chatRole` (`lib/chat-access.ts`) treats her session as the teacher there
+regardless of the token, so a message she sends stores `fromTeacher: true`.
+That is a separate question from whether the page shows her any chat at all,
+though: the floating `ChatFab` only renders when the page's own `unlocked`
+flag is true, and `unlocked` checks only the token cookie against
+`group.chatToken` — never the teacher session. A teacher who opens a
+student's page without that token sees no chat, same as anyone else. Once
+unlocked, she additionally gets the delete control and the read-marker
+(`markChatRead`) that used to live on the deleted admin route.
+
 Each student row carries two tokens. `chatToken` unlocks the files tab and the
 chat on `/g/[slug]`; `filesToken` addresses `/f/[token]` and nothing else, so
 sharing a files link never hands over the conversation. The everyone group has
@@ -227,6 +245,14 @@ resume from.
 - **Comments explain the "why", especially the counter-intuitive.** Most comments in
   this codebase record a decision and the failure that motivated it. Match that —
   don't add comments that restate the code.
+- **"Student" is the UI word, "Group" is the code word.** The admin renders
+  "Students", "Add a student", and student-facing error copy, but the
+  `Group` model, its routes (`/g/[slug]`, `/f/[token]`), Prisma queries, and
+  the `?tab=groups` URL value were left as `group` — renaming those would
+  have meant a migration and a route move for no behavioural gain. Match
+  whichever layer you're in: `group` in `lib/`, `prisma/`, and route
+  segments; `student` in copy and in new code that has no reason to touch
+  the model, like `lib/student-slug.ts` and `lib/student-tokens.ts`.
 - **Styling:** Tailwind v4 via PostCSS, no `tailwind.config`. Design tokens are CSS
   custom properties in `app/globals.css`, and there are two distinct palettes: the
   general app (`--color-*`) and the Québec flashcard template (`--card-*`). The
