@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
 import { normaliseSections, type CardSection } from "@/lib/sections";
 import { canDeleteGroup } from "@/lib/everyone";
+import { newToken } from "@/lib/student-tokens";
 
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
@@ -68,7 +69,9 @@ export async function createGroup(name: string, slug: string) {
   await requireTeacher();
 
   try {
-    await prisma.group.create({ data: { name, slug } });
+    await prisma.group.create({
+      data: { name, slug, chatToken: newToken(), filesToken: newToken() },
+    });
   } catch (err) {
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&

@@ -15,9 +15,30 @@ model Group {
   // A flag rather than a slug comparison because several rules key off it, and
   // a string compare scattered across files is a chance to forget one.
   isEveryone Boolean  @default(false)
+  // Null on the everyone group, which has no private surface at all. Two
+  // tokens rather than one so sharing a files link never hands over the chat.
+  chatToken         String?   @unique
+  filesToken        String?   @unique
+  // Stamped when Jenn opens this chat; the unread count is the student's
+  // messages newer than it. Null means she has never opened it.
+  teacherLastReadAt DateTime?
+  messages          Message[]
   createdAt DateTime    @default(now())
   cards     Card[]
   pages     PageGroup[]
+}
+
+model Message {
+  id      String @id @default(cuid())
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // Who wrote it. A boolean rather than a sender id because there are exactly
+  // two participants and one of them has no row to point at.
+  fromTeacher Boolean
+  body        String
+  createdAt   DateTime @default(now())
+
+  @@index([groupId, createdAt])
 }
 
 model GlobalCard {
