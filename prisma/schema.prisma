@@ -11,6 +11,10 @@ model Group {
   id        String      @id @default(cuid())
   name      String
   slug      String      @unique
+  // True on exactly one row — the group every student inherits pages from.
+  // A flag rather than a slug comparison because several rules key off it, and
+  // a string compare scattered across files is a chance to forget one.
+  isEveryone Boolean  @default(false)
   createdAt DateTime    @default(now())
   cards     Card[]
   pages     PageGroup[]
