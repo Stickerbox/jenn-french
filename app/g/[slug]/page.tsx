@@ -12,6 +12,8 @@ import { listPagesForGroup } from "@/lib/pages";
 import { StudentTabs } from "@/components/student/StudentTabs";
 import { FilesTab } from "@/components/student/FilesTab";
 import { ChatFab } from "@/components/chat/ChatFab";
+import { getCurrentTeacher } from "@/lib/session";
+import { markChatRead, deleteMessage } from "@/app/actions";
 
 function parseDate(value: string | undefined, latest: Date): Date {
   if (!value) return latest;
@@ -46,6 +48,12 @@ export default async function GroupPage({
     !group.isEveryone &&
     group.chatToken !== null &&
     presented === group.chatToken;
+
+  // Jenn opens a student's page from the admin. chatRole already treats her
+  // session as the teacher regardless of the token, so the only thing left is
+  // giving her the two controls that used to live on /admin/[slug].
+  const teacher = await getCurrentTeacher();
+  const viewerIsTeacher = Boolean(teacher);
 
   // The everyone group has no chat but does show its own files, so its shelf
   // is public — that is the "someday" case the spec left room for.
@@ -109,7 +117,11 @@ export default async function GroupPage({
         <ChatFab
           slug={slug}
           token={null}
-          self="student"
+          self={viewerIsTeacher ? "teacher" : "student"}
+          onOpen={
+            viewerIsTeacher ? markChatRead.bind(null, group.id) : undefined
+          }
+          onDeleteMessage={viewerIsTeacher ? deleteMessage : undefined}
           labels={{
             title: "Clavardage",
             empty: "Aucun message pour l'instant.",
@@ -117,7 +129,7 @@ export default async function GroupPage({
             send: "Envoyer",
             close: "Fermer",
             locale: "fr-CA",
-            deleteMessage: "",
+            deleteMessage: "Supprimer",
           }}
         />
       )}
