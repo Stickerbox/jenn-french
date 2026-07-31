@@ -114,7 +114,6 @@ async function GroupsTab() {
           isEveryone: g.isEveryone,
           unread: unread.get(g.id) ?? 0,
           chatToken: g.chatToken,
-          filesToken: g.filesToken,
         }))}
         onDelete={deleteGroup}
         onRegenerate={regenerateStudentLinks}

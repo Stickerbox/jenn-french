@@ -14,7 +14,6 @@ export type GroupSummary = {
   isEveryone: boolean;
   unread: number;
   chatToken: string | null;
-  filesToken: string | null;
 };
 
 export function GroupList({
@@ -24,7 +23,7 @@ export function GroupList({
 }: {
   groups: GroupSummary[];
   onDelete: (groupId: string) => Promise<void>;
-  onRegenerate: (groupId: string, slug: string) => Promise<void>;
+  onRegenerate: (groupId: string) => Promise<void>;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -50,11 +49,11 @@ export function GroupList({
     }
   }
 
-  async function handleRegenerate(id: string, slug: string) {
+  async function handleRegenerate(id: string) {
     setRegenerating(id);
     setError(null);
     try {
-      await onRegenerate(id, slug);
+      await onRegenerate(id);
       setConfirmingRegen(null);
       router.refresh();
     } catch (err) {
@@ -169,7 +168,7 @@ export function GroupList({
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleRegenerate(group.id, group.slug)}
+                        onClick={() => handleRegenerate(group.id)}
                         disabled={regenerating !== null}
                         className="mt-1 text-xs text-[var(--color-ink-muted)] underline disabled:opacity-50"
                       >

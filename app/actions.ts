@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
 import { normaliseSections, type CardSection } from "@/lib/sections";
@@ -81,14 +82,23 @@ export async function createGroup(name: string) {
     taken.map((g) => g.slug),
   );
 
-  await prisma.group.create({
-    data: {
-      name: trimmed,
-      slug,
-      chatToken: newToken(),
-      filesToken: newToken(),
-    },
-  });
+  try {
+    await prisma.group.create({
+      data: { name: trimmed, slug, chatToken: newToken(), filesToken: newToken() },
+    });
+  } catch (err) {
+    // uniqueSlug only checks the slugs that existed when we read them. A second
+    // submission landing in between computes the same candidate and loses the
+    // race — rare with one teacher, but the raw Prisma message is not something
+    // to show her.
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      throw new Error("That name is already taken — try adding a surname.");
+    }
+    throw err;
+  }
 
   revalidatePath("/admin");
 }
@@ -104,7 +114,7 @@ export async function deleteGroup(groupId: string) {
     select: { isEveryone: true },
   });
   if (group && !canDeleteGroup(group)) {
-    throw new Error("The everyone group can't be deleted.");
+    throw new Error("Everyone can't be deleted.");
   }
 
   await prisma.group.deleteMany({ where: { id: groupId } });
@@ -124,15 +134,15 @@ export async function deleteGlobalCard(dateStr: string) {
   revalidatePath("/admin");
 }
 
-export async function deleteMessage(groupSlug: string, messageId: string) {
+export async function deleteMessage(messageId: string) {
   await requireTeacher();
   await deleteMessageById(messageId);
-  revalidatePath(`/admin/${groupSlug}`);
+  revalidatePath("/admin");
 }
 
 // Revoking a leaked bookmark. Both tokens move together: a link that leaked
 // probably leaked from the same place as its sibling.
-export async function regenerateStudentLinks(groupId: string, slug: string) {
+export async function regenerateStudentLinks(groupId: string) {
   await requireTeacher();
 
   await prisma.group.update({
@@ -148,16 +158,14 @@ export async function regenerateStudentLinks(groupId: string, slug: string) {
   chatBus.publishRevoke(groupId);
 
   revalidatePath("/admin");
-  revalidatePath(`/admin/${slug}`);
 }
 
 // Stamps the chat as read at the moment Jenn actually opens the panel, not
 // whenever she happens to visit /admin/[slug] to edit a card — the two used
 // to be conflated, which silently zeroed the unread badge for messages she
 // never read.
-export async function markChatRead(groupId: string, slug: string) {
+export async function markChatRead(groupId: string) {
   await requireTeacher();
   await markTeacherRead(groupId);
   revalidatePath("/admin");
-  revalidatePath(`/admin/${slug}`);
 }
