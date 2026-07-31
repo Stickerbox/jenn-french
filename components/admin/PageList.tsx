@@ -4,7 +4,14 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { PageTile } from "@/components/ui/PageTile";
 import { HtmlPreview } from "@/components/ui/HtmlPreview";
-import { pageGrid } from "@/components/card-styles";
+import { PinIcon } from "@/components/ui/PinIcon";
+import {
+  pageGrid,
+  pageSectionHeading,
+  pageSectionList,
+} from "@/components/card-styles";
+import { sectionPages } from "@/lib/page-sections";
+import { adminSectionLabel } from "@/lib/page-section-labels";
 import { pageAudienceLabel } from "@/lib/page-tile";
 import { SearchField } from "@/components/admin/SearchField";
 import {
@@ -20,6 +27,7 @@ export type PageSummary = {
   slug: string;
   title: string;
   createdAt: Date;
+  pinnedAt: Date | null;
   groupNames: string[];
   sharedWithEveryone: boolean;
 };
@@ -97,12 +105,21 @@ function GroupChip({
 export function PageList({
   pages,
   everyoneName,
+  onTogglePin,
+  today,
 }: {
   pages: PageSummary[];
   // Read from the flagged row rather than from a constant: the name is the
   // teacher's to change, and a stale literal here would silently stop a
   // student's chip widening to their inherited pages.
   everyoneName: string | null;
+  onTogglePin: (slug: string, pinned: boolean) => Promise<void>;
+  // Passed in rather than read as `new Date()` here. This is a client
+  // component that also renders on the server, and a clock read on both sides
+  // of hydration can straddle a week boundary and produce different sections
+  // for the same list — a hydration mismatch that would appear once a week, at
+  // midnight, and be unreproducible by daylight.
+  today: Date;
 }) {
   const [query, setQuery] = useState("");
   // One group at a time rather than a set. With a handful of groups, "which
@@ -117,6 +134,10 @@ export function PageList({
     group,
     everyoneName ?? undefined,
   );
+
+  // Sections form over the FILTERED set, not the whole list — a heading above
+  // nothing would be a bug the search field caused.
+  const sections = sectionPages(visible, today);
 
   if (pages.length === 0) {
     return (
@@ -159,56 +180,93 @@ export function PageList({
         )}
       </div>
 
-      {visible.length === 0 ? (
+      {sections.length === 0 ? (
         <p className="text-center text-sm text-[var(--color-ink-muted)]">
           Nothing matches that.
         </p>
       ) : (
-        <ul className={pageGrid}>
-          {visible.map((page) => (
-            <li key={page.id}>
-              {/* The tile opens the page, the way the student's does, and the
-                  way the thumbnail already promises. /p/[slug] is the page
-                  itself, sandboxed exactly as a student gets it — a page has
-                  no group-scoped URL, so this is the link whatever groups it
-                  belongs to. Editing moved to its own icon: the preview is
-                  what she recognises a page by, so following it should show
-                  her the page, not a form. */}
-              <PageTile
-                href={`/p/${page.slug}`}
-                title={page.title}
-                eyebrow={`${formatLongDate(page.createdAt)} · ${pageAudienceLabel(page)}`}
-                preview={<HtmlPreview slug={page.slug} />}
-                action={
-                  <div className="flex items-center gap-1">
-                    <Link
-                      href={`/admin/pages/${page.slug}`}
-                      aria-label={`Edit ${page.title}`}
-                      title="Edit"
-                      className={pageActionClass}
-                    >
-                      <PencilIcon />
-                    </Link>
+        <div className={pageSectionList}>
+          {sections.map((section) => (
+            <section
+              key={`${section.key.kind}-${adminSectionLabel(section.key)}`}
+            >
+            <h3 className={pageSectionHeading}>
+              {adminSectionLabel(section.key)}
+            </h3>
 
-                    {/* No server support needed: `download` on a same-origin
-                        response forces a save-as, so the raw route keeps its
-                        exact behaviour and its CSP, and no new authenticated
-                        surface appears. That route is already public. */}
-                    <a
-                      href={`/p/${page.slug}/raw`}
-                      download={`${page.slug}.html`}
-                      aria-label={`Download ${page.title}`}
-                      title="Download"
-                      className={pageActionClass}
-                    >
-                      <DownloadIcon />
-                    </a>
-                  </div>
-                }
-              />
-            </li>
+            <ul className={pageGrid}>
+              {section.pages.map((page) => (
+                <li key={page.id}>
+                  {/* The tile opens the page, the way the student's does, and
+                      the way the thumbnail already promises. /p/[slug] is the
+                      page itself, sandboxed exactly as a student gets it — a
+                      page has no group-scoped URL, so this is the link
+                      whatever groups it belongs to. Editing moved to its own
+                      icon: the preview is what she recognises a page by, so
+                      following it should show her the page, not a form. */}
+                  <PageTile
+                    href={`/p/${page.slug}`}
+                    title={page.title}
+                    eyebrow={`${formatLongDate(page.createdAt)} · ${pageAudienceLabel(page)}`}
+                    preview={<HtmlPreview slug={page.slug} />}
+                    action={
+                      <div className="flex items-center gap-1">
+                        <Link
+                          href={`/admin/pages/${page.slug}`}
+                          aria-label={`Edit ${page.title}`}
+                          title="Edit"
+                          className={pageActionClass}
+                        >
+                          <PencilIcon />
+                        </Link>
+
+                        {/* No server support needed: `download` on a
+                            same-origin response forces a save-as, so the raw
+                            route keeps its exact behaviour and its CSP, and no
+                            new authenticated surface appears. That route is
+                            already public. */}
+                        <a
+                          href={`/p/${page.slug}/raw`}
+                          download={`${page.slug}.html`}
+                          aria-label={`Download ${page.title}`}
+                          title="Download"
+                          className={pageActionClass}
+                        >
+                          <DownloadIcon />
+                        </a>
+
+                        {/* A form, not a link: it mutates. Bound with the
+                            NEGATION of the current state, so the button says
+                            what it will do rather than what is true. */}
+                        <form
+                          action={onTogglePin.bind(
+                            null,
+                            page.slug,
+                            page.pinnedAt === null,
+                          )}
+                        >
+                          <button
+                            type="submit"
+                            aria-label={
+                              page.pinnedAt
+                                ? `Unpin ${page.title}`
+                                : `Pin ${page.title}`
+                            }
+                            title={page.pinnedAt ? "Unpin" : "Pin"}
+                            className={pageActionClass}
+                          >
+                            <PinIcon filled={page.pinnedAt !== null} />
+                          </button>
+                        </form>
+                      </div>
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

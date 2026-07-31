@@ -18,7 +18,7 @@ import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
 import { parseAdminTab } from "@/lib/admin-tab";
 import { unreadCounts } from "@/lib/messages";
-import { createPage } from "@/app/page-actions";
+import { createPage, setPagePinned } from "@/app/page-actions";
 import { listPagesForAdmin } from "@/lib/pages";
 import { PageList } from "@/components/admin/PageList";
 import { PageEditor } from "@/components/admin/PageEditor";
@@ -147,7 +147,12 @@ async function PagesTab() {
     // whole 1152px so four tiles are worth looking at. PageList caps its own
     // search field and chips, and the publish form is capped below.
     <div className="w-full">
-      <PageList pages={pages} everyoneName={everyoneName} />
+      <PageList
+        pages={pages}
+        everyoneName={everyoneName}
+        onTogglePin={setPagePinned}
+        today={new Date()}
+      />
 
       {/* Closed on arrival: the list is what she comes to this tab for, and
           the publish form is a whole screen of controls below it. */}
