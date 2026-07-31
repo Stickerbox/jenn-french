@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { Tile } from "@/components/ui/Tile";
 import { SearchField } from "@/components/admin/SearchField";
 import { filterGroups } from "@/lib/admin-search";
+import { canDeleteGroup } from "@/lib/everyone";
 
 export type GroupSummary = {
   id: string;
   name: string;
   slug: string;
   cardCount: number;
+  isEveryone: boolean;
 };
 
 export function GroupList({
@@ -69,16 +71,22 @@ export function GroupList({
                   group.cardCount === 1 ? "" : "s"
                 } · /g/${group.slug}`}
                 action={
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setError(null);
-                      setConfirming(group.id);
-                    }}
-                    className="text-sm text-[var(--color-ink-muted)] underline"
-                  >
-                    Delete
-                  </button>
+                  canDeleteGroup(group) ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null);
+                        setConfirming(group.id);
+                      }}
+                      className="text-sm text-[var(--color-ink-muted)] underline"
+                    >
+                      Delete
+                    </button>
+                  ) : (
+                    <span className="text-sm text-[var(--color-ink-muted)]">
+                      everyone
+                    </span>
+                  )
                 }
               />
 

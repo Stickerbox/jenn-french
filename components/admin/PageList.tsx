@@ -17,6 +17,7 @@ export type PageSummary = {
   title: string;
   createdAt: Date;
   groupNames: string[];
+  sharedWithEveryone: boolean;
 };
 
 const pageActionClass =
@@ -88,7 +89,16 @@ function GroupChip({
   );
 }
 
-export function PageList({ pages }: { pages: PageSummary[] }) {
+export function PageList({
+  pages,
+  everyoneName,
+}: {
+  pages: PageSummary[];
+  // Read from the flagged row rather than from a constant: the name is the
+  // teacher's to change, and a stale literal here would silently stop a
+  // student's chip widening to their inherited pages.
+  everyoneName: string | null;
+}) {
   const [query, setQuery] = useState("");
   // One group at a time rather than a set. With a handful of groups, "which
   // one am I looking at" is a question a chip row can answer at a glance,
@@ -97,7 +107,11 @@ export function PageList({ pages }: { pages: PageSummary[] }) {
   const [group, setGroup] = useState<string | null>(null);
 
   const groupNames = pageGroupNames(pages);
-  const visible = filterPagesByGroup(filterPages(pages, query), group);
+  const visible = filterPagesByGroup(
+    filterPages(pages, query),
+    group,
+    everyoneName ?? undefined,
+  );
 
   if (pages.length === 0) {
     return (
@@ -146,9 +160,11 @@ export function PageList({ pages }: { pages: PageSummary[] }) {
                 href={`/admin/pages/${page.slug}`}
                 title={page.title}
                 eyebrow={`${formatLongDate(page.createdAt)} · ${
-                  page.groupNames.length === 0
-                    ? "no groups"
-                    : page.groupNames.join(", ")
+                  page.sharedWithEveryone
+                    ? "shared with everyone"
+                    : page.groupNames.length === 0
+                      ? "no groups"
+                      : page.groupNames.join(", ")
                 }`}
                 action={
                   <div className="flex items-center gap-1">

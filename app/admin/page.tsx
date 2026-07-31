@@ -110,6 +110,7 @@ async function GroupsTab() {
           name: g.name,
           slug: g.slug,
           cardCount: g._count.cards,
+          isEveryone: g.isEveryone,
         }))}
         onDelete={deleteGroup}
       />
@@ -129,13 +130,17 @@ async function PagesTab() {
     listPagesForAdmin(),
     prisma.group.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, isEveryone: true },
     }),
   ]);
 
+  // null when no row is flagged — a state the migration makes impossible, but
+  // one the filter should degrade quietly on rather than crash.
+  const everyoneName = groups.find((g) => g.isEveryone)?.name ?? null;
+
   return (
     <div className="mx-auto w-full max-w-[560px]">
-      <PageList pages={pages} />
+      <PageList pages={pages} everyoneName={everyoneName} />
 
       {/* Closed on arrival: the list is what she comes to this tab for, and
           the publish form is a whole screen of controls below it. */}
