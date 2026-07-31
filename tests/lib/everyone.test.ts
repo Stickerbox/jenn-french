@@ -21,6 +21,10 @@ describe("canDeleteGroup", () => {
   });
 
   it("reads only the flag, so a group named 'all' is still deletable", () => {
-    expect(canDeleteGroup({ isEveryone: false, slug: "all" })).toBe(true);
+    // Bound to a variable rather than passed as a literal: TypeScript's
+    // excess-property check fires only on fresh literals at a call site, and
+    // the point here is that the extra field is ignored, not rejected.
+    const namedAll = { isEveryone: false, slug: "all" };
+    expect(canDeleteGroup(namedAll)).toBe(true);
   });
 });

@@ -8,6 +8,6 @@ export const EVERYONE_NAME = "Everyone";
 // one rule here whose failure is silent and wide: that row is what assembles
 // every student's shelf, so removing it empties all of them at once and
 // nothing reports an error.
-export function canDeleteGroup(group: { isEveryone: boolean; [key: string]: unknown }): boolean {
+export function canDeleteGroup(group: { isEveryone: boolean }): boolean {
   return !group.isEveryone;
 }
