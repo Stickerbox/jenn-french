@@ -44,46 +44,77 @@ export async function GET(
   });
   if (!role) return new NextResponse("Not found", { status: 404 });
 
-  // EventSource resends the last id it saw after a dropped connection. Replay
-  // from there so a deploy mid-lesson costs a blink rather than a message.
   const lastEventId = request.headers.get("last-event-id");
-  const backlog = lastEventId
-    ? await messagesAfter(group.id, lastEventId)
-    : await listMessages(group.id);
 
   const encoder = new TextEncoder();
   let unsubscribe = () => {};
   let heartbeat: ReturnType<typeof setInterval> | undefined;
 
+  // Safe to call more than once: EventEmitter.off and clearInterval both
+  // tolerate being called after the listener/timer is already gone.
+  const teardown = () => {
+    unsubscribe();
+    if (heartbeat) clearInterval(heartbeat);
+  };
+
   const stream = new ReadableStream({
-    start(controller) {
+    async start(controller) {
       const send = (message: StoredMessage) => {
-        // The id: line is what the browser sends back as Last-Event-ID.
-        controller.enqueue(
-          encoder.encode(
-            `id: ${message.id}\ndata: ${JSON.stringify(message)}\n\n`,
-          ),
-        );
+        try {
+          // The id: line is what the browser sends back as Last-Event-ID.
+          controller.enqueue(
+            encoder.encode(
+              `id: ${message.id}\ndata: ${JSON.stringify(message)}\n\n`,
+            ),
+          );
+        } catch {
+          // The connection died between its close and our teardown callback
+          // firing. Swallowing this matters: publish() is synchronous inside
+          // the SENDER's request, so an exception here would surface as a 500
+          // on someone else's message — one that was already saved.
+          teardown();
+        }
       };
 
+      // Subscribed BEFORE the backlog is read, with anything that arrives in
+      // between held back: subscribing afterwards leaves a window the width of
+      // a database round trip in which a message reaches neither path and is
+      // not seen again until the client next reconnects.
+      const pending: StoredMessage[] = [];
+      let replaying = true;
+      unsubscribe = chatBus.subscribe(group.id, (message) => {
+        if (replaying) pending.push(message);
+        else send(message);
+      });
+
+      // EventSource resends the last id it saw after a dropped connection. Replay
+      // from there so a deploy mid-lesson costs a blink rather than a message.
+      const backlog = lastEventId
+        ? await messagesAfter(group.id, lastEventId)
+        : await listMessages(group.id);
       for (const message of backlog) send(message);
 
-      unsubscribe = chatBus.subscribe(group.id, send);
+      replaying = false;
+      const seen = new Set(backlog.map((message) => message.id));
+      for (const message of pending) {
+        if (!seen.has(message.id)) send(message);
+      }
+
       heartbeat = setInterval(() => {
-        controller.enqueue(encoder.encode(": ping\n\n"));
+        try {
+          controller.enqueue(encoder.encode(": ping\n\n"));
+        } catch {
+          teardown();
+        }
       }, HEARTBEAT_MS);
 
       // A closed tab does not run cancel() in every runtime; the request's
       // abort signal is the reliable teardown.
-      request.signal.addEventListener("abort", () => {
-        unsubscribe();
-        if (heartbeat) clearInterval(heartbeat);
-      });
+      request.signal.addEventListener("abort", teardown);
     },
 
     cancel() {
-      unsubscribe();
-      if (heartbeat) clearInterval(heartbeat);
+      teardown();
     },
   });
 
