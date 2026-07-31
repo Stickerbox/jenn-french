@@ -143,18 +143,23 @@ async function PagesTab() {
   const everyoneName = groups.find((g) => g.isEveryone)?.name ?? null;
 
   return (
-    <div className="mx-auto w-full max-w-[560px]">
+    // No 560px cap out here, unlike the other tabs: the page grid uses the
+    // whole 1152px so four tiles are worth looking at. PageList caps its own
+    // search field and chips, and the publish form is capped below.
+    <div className="w-full">
       <PageList pages={pages} everyoneName={everyoneName} />
 
       {/* Closed on arrival: the list is what she comes to this tab for, and
           the publish form is a whole screen of controls below it. */}
-      <Collapsible label="Add a page">
-        <PageEditor
-          groups={groups}
-          submitLabel="Publish page"
-          onSubmit={createPage}
-        />
-      </Collapsible>
+      <div className="mx-auto w-full max-w-[560px]">
+        <Collapsible label="Add a page">
+          <PageEditor
+            groups={groups}
+            submitLabel="Publish page"
+            onSubmit={createPage}
+          />
+        </Collapsible>
+      </div>
     </div>
   );
 }

@@ -18,9 +18,11 @@ export function FilesTab({
   }
 
   // The old 560px cap was sized for one column of rows and would pin the grid
-  // at two columns forever.
+  // at two columns forever. 1152px is the admin's own content width, so a tile
+  // is the same size on both sides — which is the point of the two lists
+  // looking alike.
   return (
-    <ul className={cn("mx-auto max-w-[880px]", pageGrid)}>
+    <ul className={cn("mx-auto max-w-[1152px]", pageGrid)}>
       {pages.map((page) => (
         <li key={page.slug}>
           <PageTile

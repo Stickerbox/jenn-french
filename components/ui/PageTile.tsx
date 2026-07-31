@@ -27,23 +27,24 @@ export function PageTile({
     <div className={cn(pageTileFrame, className)}>
       {preview}
 
-      <div className="flex items-start justify-between gap-2 border-t border-[var(--card-line)] px-4 py-3">
-        <div className="min-w-0">
-          {/* Stretched over the whole tile rather than wrapping it: `action`
-              is itself made of anchors, and an anchor inside an anchor is
-              invalid HTML that browsers repair by splitting the element. */}
-          <Link
-            href={href}
-            className="block truncate font-[family-name:var(--card-font-serif)] text-[15px] text-[var(--card-ink)] after:absolute after:inset-0"
-          >
-            {title}
-          </Link>
-          <span className={cn("mt-0.5 block truncate", cardEyebrow)}>
-            {eyebrow}
-          </span>
-        </div>
+      <div className="min-w-0 border-t border-[var(--card-line)] px-4 py-3">
+        {/* Stretched over the whole tile rather than wrapping it: `action`
+            is itself made of anchors, and an anchor inside an anchor is
+            invalid HTML that browsers repair by splitting the element. */}
+        <Link
+          href={href}
+          className="block truncate font-[family-name:var(--card-font-serif)] text-[15px] text-[var(--card-ink)] after:absolute after:inset-0"
+        >
+          {title}
+        </Link>
+        <span className={cn("mt-0.5 block truncate", cardEyebrow)}>
+          {eyebrow}
+        </span>
 
-        {action && <div className="relative z-10 shrink-0">{action}</div>}
+        {/* Below the date and left-aligned, on their own line rather than
+            opposite the title: the title is what needs the width, and a
+            truncated title beside two icons truncates sooner than it has to. */}
+        {action && <div className="relative z-10 mt-2">{action}</div>}
       </div>
     </div>
   );

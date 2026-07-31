@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { PageTile } from "@/components/ui/PageTile";
 import { HtmlPreview } from "@/components/ui/HtmlPreview";
 import { pageGrid } from "@/components/card-styles";
@@ -26,7 +27,8 @@ export type PageSummary = {
 const pageActionClass =
   "flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]";
 
-function EyeIcon() {
+// A pencil laid across a baseline: the nib, the barrel, the line it writes on.
+function PencilIcon() {
   return (
     <svg
       width="18"
@@ -39,8 +41,8 @@ function EyeIcon() {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-      <circle cx="12" cy="12" r="3" />
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
     </svg>
   );
 }
@@ -126,30 +128,36 @@ export function PageList({
 
   return (
     <div className="mb-10">
-      <SearchField label="Search pages" value={query} onChange={setQuery} />
+      {/* The controls stay at the admin's usual 560px column while the grid
+          below breaks out to the full width. A search field as wide as four
+          tiles reads as a page-wide banner rather than a control, and the
+          tiles are the thing worth the room. */}
+      <div className="mx-auto w-full max-w-[560px]">
+        <SearchField label="Search pages" value={query} onChange={setQuery} />
 
-      {groupNames.length > 0 && (
-        <div
-          role="group"
-          aria-label="Filter by student"
-          className="mb-5 flex flex-wrap justify-center gap-2"
-        >
-          <GroupChip active={group === null} onClick={() => setGroup(null)}>
-            All
-          </GroupChip>
-          {groupNames.map((name) => (
-            <GroupChip
-              key={name}
-              active={group === name}
-              // Clicking the active chip clears it, so the row never becomes
-              // a trap she has to find "All" to escape.
-              onClick={() => setGroup(group === name ? null : name)}
-            >
-              {name}
+        {groupNames.length > 0 && (
+          <div
+            role="group"
+            aria-label="Filter by student"
+            className="mb-5 flex flex-wrap justify-center gap-2"
+          >
+            <GroupChip active={group === null} onClick={() => setGroup(null)}>
+              All
             </GroupChip>
-          ))}
-        </div>
-      )}
+            {groupNames.map((name) => (
+              <GroupChip
+                key={name}
+                active={group === name}
+                // Clicking the active chip clears it, so the row never becomes
+                // a trap she has to find "All" to escape.
+                onClick={() => setGroup(group === name ? null : name)}
+              >
+                {name}
+              </GroupChip>
+            ))}
+          </div>
+        )}
+      </div>
 
       {visible.length === 0 ? (
         <p className="text-center text-sm text-[var(--color-ink-muted)]">
@@ -159,26 +167,28 @@ export function PageList({
         <ul className={pageGrid}>
           {visible.map((page) => (
             <li key={page.id}>
+              {/* The tile opens the page, the way the student's does, and the
+                  way the thumbnail already promises. /p/[slug] is the page
+                  itself, sandboxed exactly as a student gets it — a page has
+                  no group-scoped URL, so this is the link whatever groups it
+                  belongs to. Editing moved to its own icon: the preview is
+                  what she recognises a page by, so following it should show
+                  her the page, not a form. */}
               <PageTile
-                href={`/admin/pages/${page.slug}`}
+                href={`/p/${page.slug}`}
                 title={page.title}
                 eyebrow={`${formatLongDate(page.createdAt)} · ${pageAudienceLabel(page)}`}
                 preview={<HtmlPreview slug={page.slug} />}
                 action={
                   <div className="flex items-center gap-1">
-                    {/* /p/[slug] is the page itself, sandboxed exactly as a
-                        student gets it — a page has no group-scoped URL, so
-                        this is the link whatever groups it belongs to. */}
-                    <a
-                      href={`/p/${page.slug}`}
-                      target="_blank"
-                      rel="noopener"
-                      aria-label={`View ${page.title}`}
-                      title="View"
+                    <Link
+                      href={`/admin/pages/${page.slug}`}
+                      aria-label={`Edit ${page.title}`}
+                      title="Edit"
                       className={pageActionClass}
                     >
-                      <EyeIcon />
-                    </a>
+                      <PencilIcon />
+                    </Link>
 
                     {/* No server support needed: `download` on a same-origin
                         response forces a save-as, so the raw route keeps its
