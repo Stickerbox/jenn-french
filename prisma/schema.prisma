@@ -79,6 +79,10 @@ model Page {
   title     String
   html      String
   createdAt DateTime    @default(now())
+  // Null means unpinned. A timestamp rather than a boolean so pinned pages can
+  // order by WHEN they were pinned — a boolean would leave them sorted by
+  // creation date, which is the ordering pinning exists to override.
+  pinnedAt  DateTime?
   updatedAt DateTime    @updatedAt
   groups    PageGroup[]
 }
