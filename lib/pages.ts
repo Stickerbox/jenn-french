@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { slugify, uniqueSlug } from "@/lib/page-slug";
+import { effectivePages } from "@/lib/effective-pages";
 
 export type SavePageInput = {
   // null means "derive one from the title"; a value means "create or replace
@@ -56,12 +57,24 @@ export function getPageBySlug(slug: string) {
   });
 }
 
-export function listPagesForGroup(groupId: string) {
-  return prisma.page.findMany({
-    where: { groups: { some: { groupId } } },
-    orderBy: { createdAt: "desc" },
-    select: { slug: true, title: true, createdAt: true },
-  });
+export async function listPagesForGroup(groupId: string) {
+  // Two queries rather than one OR: the everyone group's pages are the same
+  // set for every student, and keeping them separate is what lets
+  // effectivePages own the merge rule and be tested without a database.
+  const [own, everyone] = await Promise.all([
+    prisma.page.findMany({
+      where: { groups: { some: { groupId } } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, slug: true, title: true, createdAt: true },
+    }),
+    prisma.page.findMany({
+      where: { groups: { some: { group: { isEveryone: true } } } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, slug: true, title: true, createdAt: true },
+    }),
+  ]);
+
+  return effectivePages(own, everyone);
 }
 
 export async function listPagesForAdmin() {
@@ -72,7 +85,11 @@ export async function listPagesForAdmin() {
       slug: true,
       title: true,
       createdAt: true,
-      groups: { select: { group: { select: { id: true, name: true } } } },
+      groups: {
+        select: {
+          group: { select: { id: true, name: true, isEveryone: true } },
+        },
+      },
     },
   });
 
@@ -83,6 +100,10 @@ export async function listPagesForAdmin() {
     createdAt: page.createdAt,
     groupIds: page.groups.map((g) => g.group.id),
     groupNames: page.groups.map((g) => g.group.name),
+    // Drives both the tile's marker and the filter: a page shared with
+    // everyone is on every student's shelf, so it must survive a filter for
+    // any one of them.
+    sharedWithEveryone: page.groups.some((g) => g.group.isEveryone),
   }));
 }
 
