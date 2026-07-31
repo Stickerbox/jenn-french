@@ -187,4 +187,5 @@ export async function markChatRead(groupId: string, slug: string) {
   await requireTeacher();
   await markTeacherRead(groupId);
   revalidatePath("/admin");
+  revalidatePath(`/admin/${slug}`);
 }
