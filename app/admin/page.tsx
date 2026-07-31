@@ -100,10 +100,7 @@ async function DailyWordTab({
 
 async function GroupsTab() {
   const [groups, unread] = await Promise.all([
-    prisma.group.findMany({
-      orderBy: { name: "asc" },
-      include: { _count: { select: { cards: true } } },
-    }),
+    prisma.group.findMany({ orderBy: { name: "asc" } }),
     unreadCounts(),
   ]);
 
@@ -114,7 +111,6 @@ async function GroupsTab() {
           id: g.id,
           name: g.name,
           slug: g.slug,
-          cardCount: g._count.cards,
           isEveryone: g.isEveryone,
           unread: unread.get(g.id) ?? 0,
           chatToken: g.chatToken,

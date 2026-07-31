@@ -101,30 +101,9 @@ export async function deleteGroup(groupId: string) {
     throw new Error("The everyone group can't be deleted.");
   }
 
-  await prisma.$transaction([
-    prisma.card.deleteMany({ where: { groupId } }),
-    prisma.group.deleteMany({ where: { id: groupId } }),
-  ]);
+  await prisma.group.deleteMany({ where: { id: groupId } });
 
   revalidatePath("/admin");
-}
-
-export async function upsertOverrideCard(
-  groupId: string,
-  slug: string,
-  input: CardInput,
-) {
-  await requireTeacher();
-
-  const date = new Date(`${input.date}T00:00:00Z`);
-
-  await prisma.card.upsert({
-    where: { groupId_date: { groupId, date } },
-    create: { groupId, date, ...toCreateData(input) },
-    update: toUpdateData(input),
-  });
-
-  revalidatePath(`/admin/${slug}`);
 }
 
 // deleteMany rather than delete: delete throws P2025 when the row is already
@@ -137,19 +116,6 @@ export async function deleteGlobalCard(dateStr: string) {
   await prisma.globalCard.deleteMany({ where: { date } });
 
   revalidatePath("/admin");
-}
-
-export async function deleteOverrideCard(
-  groupId: string,
-  slug: string,
-  dateStr: string,
-) {
-  await requireTeacher();
-
-  const date = new Date(`${dateStr}T00:00:00Z`);
-  await prisma.card.deleteMany({ where: { groupId, date } });
-
-  revalidatePath(`/admin/${slug}`);
 }
 
 export async function deleteMessage(groupSlug: string, messageId: string) {

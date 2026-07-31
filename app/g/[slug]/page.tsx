@@ -56,7 +56,7 @@ export default async function GroupPage({
   const todayStr = new Date().toISOString().slice(0, 10);
   const today = new Date(`${todayStr}T00:00:00Z`);
   const selectedDate = parseDate(date, latestViewableDate(today));
-  const card = await getEffectiveCard(group.id, selectedDate);
+  const card = await getEffectiveCard(selectedDate);
 
   const selected = selectedDate.toISOString().slice(0, 10);
   const { start: weekStart, end: weekEnd } = weekRange(today);

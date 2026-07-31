@@ -24,7 +24,6 @@ model Group {
   teacherLastReadAt DateTime?
   messages          Message[]
   createdAt DateTime    @default(now())
-  cards     Card[]
   pages     PageGroup[]
 }
 
@@ -55,26 +54,6 @@ model GlobalCard {
   idiom         String?
   sections      Json?
   createdAt     DateTime @default(now())
-}
-
-model Card {
-  id            String   @id @default(cuid())
-  groupId       String
-  group         Group    @relation(fields: [groupId], references: [id])
-  date          DateTime
-  subject       String?
-  usage         String?
-  pronunciation String?
-  englishPrompt String
-  hint          String?
-  frenchAnswer  String
-  examples      String
-  tip           String?
-  idiom         String?
-  sections      Json?
-  createdAt     DateTime @default(now())
-
-  @@unique([groupId, date])
 }
 
 model Teacher {

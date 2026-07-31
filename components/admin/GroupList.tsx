@@ -11,7 +11,6 @@ export type GroupSummary = {
   id: string;
   name: string;
   slug: string;
-  cardCount: number;
   isEveryone: boolean;
   unread: number;
   chatToken: string | null;
@@ -88,9 +87,7 @@ export function GroupList({
               <Tile
                 href={`/admin/${group.slug}`}
                 title={group.name}
-                eyebrow={`${group.cardCount} card${
-                  group.cardCount === 1 ? "" : "s"
-                } · /g/${group.slug}${
+                eyebrow={`/g/${group.slug}${
                   group.unread > 0 ? ` · ${group.unread} unread` : ""
                 }`}
                 action={
@@ -116,12 +113,7 @@ export function GroupList({
               {confirming === group.id && (
                 <div className="mt-2 flex flex-wrap items-baseline justify-center gap-3 text-sm">
                   <span className="text-[var(--color-ink-muted)]">
-                    Delete {group.name}
-                    {group.cardCount > 0
-                      ? ` and its ${group.cardCount} card${
-                          group.cardCount === 1 ? "" : "s"
-                        }?`
-                      : "?"}
+                    Delete {group.name}?
                   </span>
                   <button
                     type="button"
