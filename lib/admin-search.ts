@@ -39,12 +39,23 @@ export function pageGroupNames<T extends SearchablePage>(pages: T[]): string[] {
 // Exact match, deliberately not the accent-insensitive compare the search box
 // uses: this name arrived from a chip built out of the data, not from someone
 // typing it, so a near-miss here would mean the chip list is wrong.
-export function filterPagesByGroup<T extends SearchablePage>(
-  pages: T[],
-  groupName: string | null,
-): T[] {
+//
+// `everyoneName` widens a student's filter to their effective shelf. Filtering
+// by Marie answers "what does Marie have?", and a page shared with everyone is
+// something Marie has. Selecting the everyone chip itself stays narrow, or it
+// would be indistinguishable from All.
+export function filterPagesByGroup<
+  T extends SearchablePage & { sharedWithEveryone?: boolean },
+>(pages: T[], groupName: string | null, everyoneName?: string): T[] {
   if (groupName === null) return pages;
-  return pages.filter((page) => page.groupNames.includes(groupName));
+
+  const inheriting = everyoneName !== undefined && groupName !== everyoneName;
+
+  return pages.filter(
+    (page) =>
+      page.groupNames.includes(groupName) ||
+      (inheriting && page.sharedWithEveryone === true),
+  );
 }
 
 export function filterGroups<T extends SearchableGroup>(

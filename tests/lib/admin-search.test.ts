@@ -137,3 +137,40 @@ describe("filterPagesByGroup", () => {
     expect(filterPagesByGroup(rich, "A1")[0].slug).toBe("n");
   });
 });
+
+describe("filterPagesByGroup with an everyone group", () => {
+  const shelf = [
+    { title: "Marie only", groupNames: ["Marie"], sharedWithEveryone: false },
+    { title: "For all", groupNames: ["Everyone"], sharedWithEveryone: true },
+    { title: "Luc only", groupNames: ["Luc"], sharedWithEveryone: false },
+  ];
+
+  it("includes the everyone pages when filtering by a student", () => {
+    expect(
+      filterPagesByGroup(shelf, "Marie", "Everyone").map((p) => p.title),
+    ).toEqual(["Marie only", "For all"]);
+  });
+
+  it("shows only the everyone pages when filtering by the everyone group", () => {
+    expect(
+      filterPagesByGroup(shelf, "Everyone", "Everyone").map((p) => p.title),
+    ).toEqual(["For all"]);
+  });
+
+  it("still returns everything when no group is chosen", () => {
+    expect(filterPagesByGroup(shelf, null, "Everyone")).toHaveLength(3);
+  });
+
+  it("does not double-list a page that is both direct and shared", () => {
+    const both = [
+      { title: "Both", groupNames: ["Marie", "Everyone"], sharedWithEveryone: true },
+    ];
+    expect(filterPagesByGroup(both, "Marie", "Everyone")).toHaveLength(1);
+  });
+
+  it("behaves as before when no everyone group name is given", () => {
+    expect(filterPagesByGroup(shelf, "Marie").map((p) => p.title)).toEqual([
+      "Marie only",
+    ]);
+  });
+});
