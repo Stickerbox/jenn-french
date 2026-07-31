@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ChatWindow, type ChatLabels } from "@/components/chat/ChatWindow";
 import type { ChatMessage } from "@/components/chat/MessageList";
 
@@ -41,15 +41,6 @@ export function ChatFab({
     [open, self, slug],
   );
 
-  // The window unmounts when closed, so its stream closes with it. That is
-  // intentional: a closed chat should not hold a connection open for a lesson
-  // that ended. The cost is that the dot only updates while it is open.
-  useEffect(() => {
-    if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setUnseen(false);
-  }, [open]);
-
   return (
     <>
       {open && (
@@ -65,7 +56,13 @@ export function ChatFab({
 
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          // Cleared here rather than in an effect watching `open`: this handler
+          // is the only thing that ever opens the panel, so an effect would be
+          // reacting to a change it already knows about, one render later.
+          if (!open) setUnseen(false);
+          setOpen(!open);
+        }}
         aria-expanded={open}
         aria-label={labels.title}
         className="fixed bottom-6 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-accent)] text-white shadow-lg transition-opacity hover:opacity-90"
