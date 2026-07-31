@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
 import { normaliseSections, type CardSection } from "@/lib/sections";
+import { canDeleteGroup } from "@/lib/everyone";
 
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
@@ -81,12 +82,19 @@ export async function createGroup(name: string, slug: string) {
   revalidatePath("/admin");
 }
 
-// Card.groupId is a required relation with no cascade, so the group's override
-// cards must be removed first or the delete fails on a foreign-key constraint.
-// Both run in one transaction: a group without its cards, or cards orphaned
-// from their group, would each be worse than failing outright.
 export async function deleteGroup(groupId: string) {
   await requireTeacher();
+
+  // Checked here rather than only in the UI: hiding a button is not a guard.
+  // This action is still reachable from a stale tab, and deleting this row
+  // would empty every student's shelf at once with nothing reporting an error.
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: { isEveryone: true },
+  });
+  if (group && !canDeleteGroup(group)) {
+    throw new Error("The everyone group can't be deleted.");
+  }
 
   await prisma.$transaction([
     prisma.card.deleteMany({ where: { groupId } }),
