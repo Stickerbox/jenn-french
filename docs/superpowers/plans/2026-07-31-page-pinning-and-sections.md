@@ -550,8 +550,8 @@ Shared presentation pieces both lists need. Nothing renders them yet.
 - Produces:
   - `PinIcon({ filled }: { filled?: boolean })`
   - `PageTile`'s new `badge?: ReactNode` prop
-  - `pageSectionHeading: string` from `components/card-styles.ts`
-  - Tasks 5 and 6 rely on all three.
+  - `pageSectionHeading: string` and `pageSectionList: string` from `components/card-styles.ts`
+  - Tasks 5 and 6 rely on all four.
 
 - [ ] **Step 1: Write the pin icon**
 
@@ -589,8 +589,17 @@ Append to `components/card-styles.ts`:
 // The heading above a run of tiles. A rule runs from the words to the end of
 // the row so the sections read as bands across the grid rather than as words
 // floating above the first tile.
+//
+// No top margin here, deliberately. Each heading is the first child of its own
+// <section>, so a `first:mt-0` would match every one of them and silently
+// remove the gap it was meant to keep. The space between sections belongs to
+// their common parent — both lists wrap the run in `pageSectionList`.
 export const pageSectionHeading =
-  "mb-3 mt-8 flex items-center gap-3 font-[family-name:var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[var(--card-bleu)] first:mt-0 after:h-px after:flex-1 after:bg-[var(--card-line)]";
+  "mb-3 flex items-center gap-3 font-[family-name:var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[var(--card-bleu)] after:h-px after:flex-1 after:bg-[var(--card-line)]";
+
+// The gap between sections, on the parent rather than on each heading, so it
+// cannot depend on where a heading sits inside its own wrapper.
+export const pageSectionList = "space-y-8";
 ```
 
 - [ ] **Step 3: Add the badge slot to `PageTile`**
@@ -687,7 +696,11 @@ Add these imports beside the existing ones:
 
 ```tsx
 import { PinIcon } from "@/components/ui/PinIcon";
-import { pageGrid, pageSectionHeading } from "@/components/card-styles";
+import {
+  pageGrid,
+  pageSectionHeading,
+  pageSectionList,
+} from "@/components/card-styles";
 import { sectionPages } from "@/lib/page-sections";
 import { adminSectionLabel } from "@/lib/page-section-labels";
 ```
@@ -739,8 +752,11 @@ Replace the whole `{visible.length === 0 ? ( ... ) : ( <ul className={pageGrid}>
           Nothing matches that.
         </p>
       ) : (
-        sections.map((section) => (
-          <section key={`${section.key.kind}-${adminSectionLabel(section.key)}`}>
+        <div className={pageSectionList}>
+          {sections.map((section) => (
+            <section
+              key={`${section.key.kind}-${adminSectionLabel(section.key)}`}
+            >
             <h3 className={pageSectionHeading}>
               {adminSectionLabel(section.key)}
             </h3>
@@ -815,10 +831,14 @@ Replace the whole `{visible.length === 0 ? ( ... ) : ( <ul className={pageGrid}>
                 </li>
               ))}
             </ul>
-          </section>
-        ))
+            </section>
+          ))}
+        </div>
       )}
 ```
+
+The `sections.map(...)` body above keeps its existing contents; only its
+wrapper and indentation change. Re-indent the block you move by two spaces.
 
 Note the empty-state condition changed from `visible.length === 0` to `sections.length === 0`. They are equivalent — `sectionPages` returns no empty sections — but reading the thing being rendered is what keeps them equivalent as the code moves.
 
@@ -873,7 +893,11 @@ Replace `components/student/FilesTab.tsx` with:
 import { PageTile } from "@/components/ui/PageTile";
 import { HtmlPreview } from "@/components/ui/HtmlPreview";
 import { PinIcon } from "@/components/ui/PinIcon";
-import { pageGrid, pageSectionHeading } from "@/components/card-styles";
+import {
+  pageGrid,
+  pageSectionHeading,
+  pageSectionList,
+} from "@/components/card-styles";
 import { sectionPages } from "@/lib/page-sections";
 import { studentSectionLabel } from "@/lib/page-section-labels";
 import { formatLongDate } from "@/lib/format";
@@ -904,7 +928,7 @@ export function FilesTab({
   // is the same size on both sides — which is the point of the two lists
   // looking alike.
   return (
-    <div className="mx-auto max-w-[1152px]">
+    <div className={cn("mx-auto max-w-[1152px]", pageSectionList)}>
       {sections.map((section) => (
         <section key={`${section.key.kind}-${studentSectionLabel(section.key)}`}>
           <h2 className={pageSectionHeading}>
