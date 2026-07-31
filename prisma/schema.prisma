@@ -23,6 +23,7 @@ model Group {
   // messages newer than it. Null means she has never opened it.
   teacherLastReadAt DateTime?
   messages          Message[]
+  whiteboards       Whiteboard[]
   createdAt DateTime    @default(now())
   pages     PageGroup[]
 }
@@ -96,4 +97,36 @@ model PageGroup {
   group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@id([pageId, groupId])
+}
+
+model Whiteboard {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // The teaching day this board belongs to, UTC midnight like every other date
+  // here. There is no title column: the archive name is this, formatted, and
+  // Jenn is never asked to name anything.
+  date      DateTime
+  // A JPEG data URL of page 1, rendered by the client and validated on the way
+  // in. Safe as a second representation of the ops only because a finished
+  // board is immutable and so can never drift from them. It exists so the
+  // archive is a plain <img> grid rather than every board's op log shipped to
+  // the client on each visit to the tab.
+  thumbnail String
+  createdAt DateTime @default(now())
+  pages     WhiteboardPage[]
+
+  @@index([groupId, createdAt])
+}
+
+model WhiteboardPage {
+  id           String     @id @default(cuid())
+  whiteboardId String
+  whiteboard   Whiteboard @relation(fields: [whiteboardId], references: [id], onDelete: Cascade)
+  // Explicit order rather than a createdAt: every page of a board is written in
+  // one transaction and would share a timestamp.
+  index        Int
+  ops          Json
+
+  @@unique([whiteboardId, index])
 }
