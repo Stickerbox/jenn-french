@@ -44,18 +44,17 @@ export default async function GroupAdminPage({
           {group.name} overrides
         </h1>
 
-        <div className="mx-auto w-full max-w-[560px] lg:mx-0">
-          <AdminDatePicker
-            basePath={`/admin/${slug}`}
-            selected={selected}
-            today={today}
-          />
-        </div>
-
         <CardEditor
           key={selected}
           initialDate={selected}
           initialValues={toCardFormValues(existingCard)}
+          datePicker={
+            <AdminDatePicker
+              basePath={`/admin/${slug}`}
+              selected={selected}
+              today={today}
+            />
+          }
           onSubmit={upsertOverrideCard.bind(null, group.id, group.slug)}
           onDelete={deleteOverrideCard.bind(null, group.id, group.slug)}
         />

@@ -97,7 +97,9 @@ export function AdminDatePicker({
   const rows = monthWeekdayRows(cursor.year, cursor.month);
 
   return (
-    <div ref={rootRef} className="relative mx-auto mb-6 w-full max-w-[560px]">
+    // No bottom margin: both places this renders are gap-6 flex columns
+    // inside CardEditor, which space it already.
+    <div ref={rootRef} className="relative mx-auto w-full max-w-[560px]">
       <span
         id="admin-date-label"
         className="block text-sm font-medium text-[var(--color-ink)]"

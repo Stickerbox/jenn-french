@@ -52,13 +52,7 @@ export function GroupList({
 
   return (
     <div className="mb-10">
-      <SearchField
-        label="Search groups"
-        value={query}
-        onChange={setQuery}
-        shown={visible.length}
-        total={groups.length}
-      />
+      <SearchField label="Search groups" value={query} onChange={setQuery} />
 
       {visible.length === 0 ? (
         <p className="text-center text-sm text-[var(--color-ink-muted)]">

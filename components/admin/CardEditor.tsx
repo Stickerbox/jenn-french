@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -30,11 +30,17 @@ import { withIds } from "@/lib/sections";
 export function CardEditor({
   initialDate,
   initialValues,
+  datePicker,
   onSubmit,
   onDelete,
 }: {
   initialDate: string;
   initialValues?: Partial<CardInput>;
+  // The date picker is rendered here rather than beside this component
+  // because where it belongs depends on the stage: the compose step is one
+  // centred column, the editing step is a two-column grid whose left edge it
+  // has to share. Only the stage knows which, and the stage lives in here.
+  datePicker?: ReactNode;
   onSubmit: (input: CardInput) => Promise<void>;
   onDelete?: (date: string) => Promise<void>;
 }) {
@@ -201,11 +207,12 @@ export function CardEditor({
       values.subject.trim() !== "";
 
     return (
-      // Same 560px wrapper as the page's other siblings: below lg this
-      // centres like everything else, but above lg the page container is
-      // 1152px, so without lg:mx-0 this block would float to the middle
-      // instead of sharing the editor column's left edge.
-      <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6 lg:mx-0">
+      // Centred at every width, matching the Groups and Pages tabs. There is
+      // no two-column grid at this stage, so nothing here has a left edge to
+      // share — that constraint only arrives once the card exists.
+      <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6">
+        {datePicker}
+
         <label className="text-sm font-medium text-[var(--color-ink)]">
           English phrase *
           <Input
@@ -268,6 +275,12 @@ export function CardEditor({
     // and that threshold, columns scale proportionally narrower instead.
     <div className="mx-auto grid w-full max-w-[560px] gap-8 lg:max-w-[1152px] lg:grid-cols-2 lg:items-start">
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        {/* Inside the form rather than above the grid: that puts the picker in
+            the left column, so it shares the editor's edge at every width
+            without a breakpoint override. Every control it renders is a
+            type="button", so it cannot submit this form. */}
+        {datePicker}
+
         <div>
           <div className={panelLabel}>Front</div>
           <div className={cardPanel}>

@@ -20,6 +20,7 @@ import { createPage } from "@/app/page-actions";
 import { listPagesForAdmin } from "@/lib/pages";
 import { PageList } from "@/components/admin/PageList";
 import { PageEditor } from "@/components/admin/PageEditor";
+import { Collapsible } from "@/components/admin/Collapsible";
 
 export default async function AdminPage({
   searchParams,
@@ -78,18 +79,16 @@ async function DailyWordTab({
 
   return (
     <>
-      {/* max-w-[560px] with lg:mx-0: below lg this centres like everything
-          else, but above lg the container is 1152px and the editor is a
-          two-column grid, so without lg:mx-0 the picker would float into the
-          gutter instead of sharing the form column's left edge. */}
-      <div className="mx-auto w-full max-w-[560px] lg:mx-0">
-        <AdminDatePicker basePath="/admin" selected={selected} today={today} />
-      </div>
-
+      {/* Handed to the editor rather than placed here: the compose step is one
+          centred column and the editing step is a two-column grid, and only
+          the editor knows which one is on screen. */}
       <CardEditor
         key={selected}
         initialDate={selected}
         initialValues={toCardFormValues(existingCard)}
+        datePicker={
+          <AdminDatePicker basePath="/admin" selected={selected} today={today} />
+        }
         onSubmit={upsertGlobalCard}
         onDelete={deleteGlobalCard}
       />
@@ -138,10 +137,15 @@ async function PagesTab() {
     <div className="mx-auto w-full max-w-[560px]">
       <PageList pages={pages} />
 
-      <h2 className="mb-4 text-center font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">
-        Add a page
-      </h2>
-      <PageEditor groups={groups} submitLabel="Publish page" onSubmit={createPage} />
+      {/* Closed on arrival: the list is what she comes to this tab for, and
+          the publish form is a whole screen of controls below it. */}
+      <Collapsible label="Add a page">
+        <PageEditor
+          groups={groups}
+          submitLabel="Publish page"
+          onSubmit={createPage}
+        />
+      </Collapsible>
     </div>
   );
 }

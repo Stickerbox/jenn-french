@@ -7,14 +7,10 @@ export function SearchField({
   label,
   value,
   onChange,
-  shown,
-  total,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  shown: number;
-  total: number;
 }) {
   return (
     <div className="mb-5">
@@ -43,14 +39,6 @@ export function SearchField({
           </button>
         )}
       </div>
-
-      {value !== "" && (
-        // The count is what tells her a short list is filtered rather than
-        // emptied — without it, searching looks like losing pages.
-        <p className="mt-2 text-center text-sm text-[var(--color-ink-muted)]">
-          {shown} of {total}
-        </p>
-      )}
     </div>
   );
 }

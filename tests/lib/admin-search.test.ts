@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { normalise, filterPages, filterGroups } from "@/lib/admin-search";
+import {
+  normalise,
+  filterPages,
+  filterGroups,
+  pageGroupNames,
+  filterPagesByGroup,
+} from "@/lib/admin-search";
 
 const pages = [
   { title: "Verbes au passé", groupNames: ["A1", "Ados"] },
@@ -84,5 +90,50 @@ describe("filterGroups", () => {
 
   it("returns nothing when nothing matches", () => {
     expect(filterGroups(groups, "zzz")).toEqual([]);
+  });
+});
+
+describe("pageGroupNames", () => {
+  it("returns the distinct group names across every page", () => {
+    expect(pageGroupNames(pages)).toEqual(["A1", "Ados"]);
+  });
+
+  it("sorts them, so the chips do not reorder as pages are added", () => {
+    expect(
+      pageGroupNames([
+        { title: "b", groupNames: ["Zèbres"] },
+        { title: "a", groupNames: ["Ados", "A1"] },
+      ]),
+    ).toEqual(["A1", "Ados", "Zèbres"]);
+  });
+
+  it("returns nothing when no page belongs to a group", () => {
+    expect(pageGroupNames([{ title: "a", groupNames: [] }])).toEqual([]);
+  });
+});
+
+describe("filterPagesByGroup", () => {
+  it("returns everything when no group is chosen", () => {
+    expect(filterPagesByGroup(pages, null)).toHaveLength(3);
+  });
+
+  it("keeps only the pages in that group", () => {
+    expect(filterPagesByGroup(pages, "A1").map((p) => p.title)).toEqual([
+      "Verbes au passé",
+      "Les nombres",
+    ]);
+  });
+
+  it("matches a group name exactly, unlike the search box", () => {
+    expect(filterPagesByGroup(pages, "a1")).toEqual([]);
+  });
+
+  it("returns nothing for a group no page belongs to", () => {
+    expect(filterPagesByGroup(pages, "Zèbres")).toEqual([]);
+  });
+
+  it("keeps the caller's own fields on the rows it returns", () => {
+    const rich = [{ title: "Les nombres", groupNames: ["A1"], slug: "n" }];
+    expect(filterPagesByGroup(rich, "A1")[0].slug).toBe("n");
   });
 });

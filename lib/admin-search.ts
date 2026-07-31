@@ -28,6 +28,25 @@ export function filterPages<T extends SearchablePage>(
   );
 }
 
+// Built from the pages themselves rather than from the full group list, so a
+// group with nothing in it never offers a filter chip that empties the screen.
+export function pageGroupNames<T extends SearchablePage>(pages: T[]): string[] {
+  return [...new Set(pages.flatMap((page) => page.groupNames))].sort((a, b) =>
+    a.localeCompare(b, "fr-CA"),
+  );
+}
+
+// Exact match, deliberately not the accent-insensitive compare the search box
+// uses: this name arrived from a chip built out of the data, not from someone
+// typing it, so a near-miss here would mean the chip list is wrong.
+export function filterPagesByGroup<T extends SearchablePage>(
+  pages: T[],
+  groupName: string | null,
+): T[] {
+  if (groupName === null) return pages;
+  return pages.filter((page) => page.groupNames.includes(groupName));
+}
+
 export function filterGroups<T extends SearchableGroup>(
   groups: T[],
   query: string,
