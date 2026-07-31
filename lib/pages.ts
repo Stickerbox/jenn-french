@@ -65,12 +65,12 @@ export async function listPagesForGroup(groupId: string) {
     prisma.page.findMany({
       where: { groups: { some: { groupId } } },
       orderBy: { createdAt: "desc" },
-      select: { id: true, slug: true, title: true, createdAt: true },
+      select: { id: true, slug: true, title: true, createdAt: true, pinnedAt: true },
     }),
     prisma.page.findMany({
       where: { groups: { some: { group: { isEveryone: true } } } },
       orderBy: { createdAt: "desc" },
-      select: { id: true, slug: true, title: true, createdAt: true },
+      select: { id: true, slug: true, title: true, createdAt: true, pinnedAt: true },
     }),
   ]);
 
@@ -85,6 +85,7 @@ export async function listPagesForAdmin() {
       slug: true,
       title: true,
       createdAt: true,
+      pinnedAt: true,
       groups: {
         select: {
           group: { select: { id: true, name: true, isEveryone: true } },
@@ -98,6 +99,7 @@ export async function listPagesForAdmin() {
     slug: page.slug,
     title: page.title,
     createdAt: page.createdAt,
+    pinnedAt: page.pinnedAt,
     groupIds: page.groups.map((g) => g.group.id),
     groupNames: page.groups.map((g) => g.group.name),
     // Drives both the tile's marker and the filter: a page shared with

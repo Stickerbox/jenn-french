@@ -37,6 +37,8 @@ function revalidatePages(slug: string) {
   revalidatePath(`/admin/pages/${slug}`);
   revalidatePath(`/p/${slug}`);
   revalidatePath("/f/[token]", "page");
+  // The files tab lives here as well, and a pin reorders it.
+  revalidatePath("/g/[slug]", "page");
 }
 
 // The admin form is rendered with the group list as it was when the page
@@ -91,6 +93,23 @@ export async function deletePage(slug: string): Promise<void> {
   await requireTeacher();
 
   await prisma.page.deleteMany({ where: { slug } });
+
+  revalidatePages(slug);
+}
+
+export async function setPagePinned(
+  slug: string,
+  pinned: boolean,
+): Promise<void> {
+  await requireTeacher();
+
+  // updateMany rather than update, for the reason deletePage uses deleteMany:
+  // a stale tab pinning a page that has since been deleted should be a no-op,
+  // not a P2025 the teacher cannot act on.
+  await prisma.page.updateMany({
+    where: { slug },
+    data: { pinnedAt: pinned ? new Date() : null },
+  });
 
   revalidatePages(slug);
 }

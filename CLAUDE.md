@@ -175,6 +175,20 @@ the preview is for. In the admin the tile links to `/p/[slug]` and a pencil icon
 links to the editor, not the reverse — following a thumbnail should show the
 page it is a thumbnail of.
 
+A page carries `pinnedAt`, null when unpinned. A timestamp rather than a
+boolean because pinned pages order among themselves by *when they were pinned* —
+a boolean would leave them sorted by creation date, the ordering pinning exists
+to override, and re-pinning would do nothing. `sectionPages`
+(`lib/page-sections.ts`) splits a list into Pinned, This week, Last week, and
+one section per older month; a pinned page appears **only** under Pinned, never
+also under its date. It returns section *keys*, not labels, because the admin
+says "This week" and the student says "Cette semaine" —
+`lib/page-section-labels.ts` holds both mappings. `thisWeek` has no upper
+bound: `weekRange` ends on Friday, so a closed range would drop a page added on
+the Saturday into a month section below pages a week older than it. Sections
+form over the admin's *filtered* set, so a search never leaves a heading above
+nothing. Jenn pins from the tile footer; students see a marker and no control.
+
 A page's slug is derived from its title once, at creation, and never moves
 again — students bookmark these links. `POST /api/pages` exists because the
 browser Jenn writes pages in is sandboxed and cannot complete a passkey login;
