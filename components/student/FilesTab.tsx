@@ -43,7 +43,7 @@ export function FilesTab({
             {studentSectionLabel(section.key)}
           </h2>
 
-          <ul className={cn(pageGrid)}>
+          <ul className={pageGrid}>
             {section.pages.map((page) => (
               <li key={page.slug}>
                 <PageTile

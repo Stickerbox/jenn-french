@@ -116,3 +116,43 @@ describe("sectionPages", () => {
     expect(result).toHaveLength(1);
   });
 });
+
+// The `at()` helper above builds everything at UTC midnight, which is exactly
+// why the suite above couldn't have caught weekRange preserving time-of-day:
+// midnight compared against midnight never exposes a boundary bug that only
+// shows up once the clock has moved past 00:00.
+describe("sectionPages with non-midnight times", () => {
+  const atTime = (iso: string) => new Date(iso);
+  const pageAt = (id: string, created: string, pinned?: string) => ({
+    id,
+    createdAt: atTime(created),
+    pinnedAt: pinned ? atTime(pinned) : null,
+  });
+
+  it("puts a page created Monday morning in this week when viewed Wednesday afternoon", () => {
+    const viewedWednesday = atTime("2026-08-05T16:00:00Z");
+    const result = sectionPages(
+      [pageAt("mon", "2026-08-03T10:00:00Z")],
+      viewedWednesday,
+    );
+    expect(kinds(result)).toEqual(["thisWeek"]);
+  });
+
+  it("puts a page created the previous Monday in last week, not a month section", () => {
+    const viewedWednesday = atTime("2026-08-05T16:00:00Z");
+    const result = sectionPages(
+      [pageAt("prevMon", "2026-07-27T09:00:00Z")],
+      viewedWednesday,
+    );
+    expect(kinds(result)).toEqual(["lastWeek"]);
+  });
+
+  it("puts a page created Sunday night in last week, since Sunday belongs to the week that just ended", () => {
+    const viewedWednesday = atTime("2026-08-05T16:00:00Z");
+    const result = sectionPages(
+      [pageAt("sun", "2026-08-02T23:00:00Z")],
+      viewedWednesday,
+    );
+    expect(kinds(result)).toEqual(["lastWeek"]);
+  });
+});

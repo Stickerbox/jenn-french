@@ -19,7 +19,12 @@ export function sectionPages<T extends Sectionable>(
   pages: T[],
   today: Date,
 ): PageSection<T>[] {
-  const thisWeekStart = weekRange(today).start;
+  // weekRange preserves its argument's time of day, so a raw `new Date()` would
+  // make the boundary "Monday at the current hour" and drop a page published
+  // this Monday morning into last week from lunchtime onward. Every date in this
+  // project is UTC midnight; normalise before comparing against one.
+  const midnight = new Date(`${today.toISOString().slice(0, 10)}T00:00:00Z`);
+  const thisWeekStart = weekRange(midnight).start;
   const lastWeekStart = new Date(thisWeekStart);
   lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - 7);
 

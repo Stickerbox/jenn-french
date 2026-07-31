@@ -18,6 +18,12 @@ describe("adminSectionLabel", () => {
       "JULY 2026",
     );
   });
+
+  it("names January, the month index most likely to be off by one", () => {
+    expect(adminSectionLabel({ kind: "month", year: 2026, month: 0 })).toBe(
+      "JANUARY 2026",
+    );
+  });
 });
 
 describe("studentSectionLabel", () => {
