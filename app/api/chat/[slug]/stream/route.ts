@@ -3,9 +3,10 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
 import { chatRole } from "@/lib/chat-access";
-import { chatBus } from "@/lib/chat-bus";
+import { chatBus, type BoardFrame } from "@/lib/chat-bus";
 import { listMessages, messagesAfter, type StoredMessage } from "@/lib/messages";
 import { readToken, cookieNameFor } from "@/lib/student-tokens";
+import { liveBoards } from "@/lib/whiteboard-live";
 
 // Without this Next may try to evaluate the handler at build time, which for a
 // stream that never ends means a build that never finishes.
@@ -49,6 +50,7 @@ export async function GET(
   const encoder = new TextEncoder();
   let unsubscribe = () => {};
   let unsubscribeRevoke = () => {};
+  let unsubscribeBoard = () => {};
   let heartbeat: ReturnType<typeof setInterval> | undefined;
 
   // Safe to call more than once: EventEmitter.off and clearInterval both
@@ -56,6 +58,7 @@ export async function GET(
   const teardown = () => {
     unsubscribe();
     unsubscribeRevoke();
+    unsubscribeBoard();
     if (heartbeat) clearInterval(heartbeat);
   };
 
@@ -78,6 +81,24 @@ export async function GET(
         }
       };
 
+      // NO id: line, and a named event. Both matter:
+      //
+      // - Per the SSE spec an event without an id leaves the client's
+      //   last-event-id buffer untouched, so ephemeral board traffic cannot
+      //   corrupt the chat's replay anchor. Boards are deliberately NOT
+      //   replayed from the database, because there is nothing there to replay.
+      // - onmessage fires only for unnamed events, so the chat handler in
+      //   ChatFab cannot see these and adding them cannot break chat.
+      const sendBoard = (frame: BoardFrame) => {
+        try {
+          controller.enqueue(
+            encoder.encode(`event: board\ndata: ${JSON.stringify(frame)}\n\n`),
+          );
+        } catch {
+          teardown();
+        }
+      };
+
       // Subscribed BEFORE the backlog is read, with anything that arrives in
       // between held back: subscribing afterwards leaves a window the width of
       // a database round trip in which a message reaches neither path and is
@@ -87,6 +108,17 @@ export async function GET(
       unsubscribe = chatBus.subscribe(group.id, (message) => {
         if (replaying) pending.push(message);
         else send(message);
+      });
+
+      // Subscribed before the snapshot is sent, for the same reason the message
+      // channel subscribes before its backlog: doing it afterwards leaves a
+      // window the width of the snapshot in which an op reaches neither path
+      // and is never seen again.
+      const pendingBoard: BoardFrame[] = [];
+      let replayingBoard = true;
+      unsubscribeBoard = chatBus.subscribeBoard(group.id, (frame) => {
+        if (replayingBoard) pendingBoard.push(frame);
+        else sendBoard(frame);
       });
 
       // A token check only happens at connect, so a link regenerated after
@@ -115,6 +147,22 @@ export async function GET(
       for (const message of pending) {
         if (!seen.has(message.id)) send(message);
       }
+
+      // A student who opens their page mid-board must see the whole thing, not
+      // the tail. The in-memory board holds the full log, so this is the same
+      // idea as the message backlog above, pointed at memory instead of Prisma.
+      const live = liveBoards.get(group.id);
+      if (live) {
+        sendBoard({
+          kind: "ops",
+          ops: live.ops,
+          pending: live.pending,
+          currentPage: live.currentPage,
+        });
+      }
+
+      replayingBoard = false;
+      for (const frame of pendingBoard) sendBoard(frame);
 
       heartbeat = setInterval(() => {
         try {
