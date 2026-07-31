@@ -7,13 +7,23 @@
 # there is nothing to scrape and nothing to copy by hand.
 #
 # Usage:
-#   publish-dia-artifact.sh              # the newest artifact
-#   publish-dia-artifact.sh --list       # the ten newest, with dates
-#   publish-dia-artifact.sh <name>       # a named artifact, e.g. montreal_french
+#   publish-dia-artifact.sh                        # the newest artifact
+#   publish-dia-artifact.sh --list                 # the ten newest, with dates
+#   publish-dia-artifact.sh <name>                 # e.g. montreal_french
+#   publish-dia-artifact.sh --token <value> [name] # supply the token inline
 #
-# The token is read from, in order: $PAGES_UPLOAD_TOKEN, then
-# ~/.config/francaisavecjenn/token. The site defaults to production and can be
-# overridden with $JENN_SITE (e.g. http://localhost:3000 while testing).
+# Options go before the artifact name.
+#
+# The token is read from, in order: --token, then $PAGES_UPLOAD_TOKEN, then
+# ~/.config/francaisavecjenn/token. Nothing is written to disk, so --token has to
+# be repeated on every run.
+#
+# A token in an argument is visible to `ps` for same-user processes and lands in
+# shell history. The token file avoids both; --token exists because it needs no
+# setup at all.
+#
+# The site defaults to production and can be overridden with $JENN_SITE (e.g.
+# http://localhost:3000 while testing).
 
 set -euo pipefail
 
@@ -23,9 +33,43 @@ TOKEN_FILE="$HOME/.config/francaisavecjenn/token"
 
 die() { echo "✗ $1" >&2; exit 1; }
 
+# Options are consumed up front so they work in any order. The previous form
+# tested "$1" positionally, which meant only a leading --local was recognised.
+CLI_TOKEN=""
+WANT_LIST=0
+USE_LOCAL=0
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --token)
+      [ $# -ge 2 ] || die "--token needs a value."
+      CLI_TOKEN="$2"
+      shift 2
+      ;;
+    --token=*)
+      CLI_TOKEN="${1#--token=}"
+      [ -n "$CLI_TOKEN" ] || die "--token needs a value."
+      shift
+      ;;
+    --local) USE_LOCAL=1; shift ;;
+    --list)  WANT_LIST=1;  shift ;;
+    --)      shift; break ;;
+    -*)      die "Unknown option '$1'. Try --list, --local, or --token <value>." ;;
+    *)       break ;;
+  esac
+done
+
+# An option written after the artifact name would land here as a second
+# positional and be ignored silently, which looks exactly like the token not
+# working. Fail with the reason instead.
+if [ $# -gt 1 ]; then
+  die "Unexpected argument '$2'. Options go before the artifact name."
+fi
+
 # --local aims at the dev server and takes the token from the repo's own
 # .env.local, so testing never involves pasting the production token anywhere.
-if [ "${1:-}" = "--local" ]; then
+# An explicit --token still wins — it is checked first when the token resolves.
+if [ "$USE_LOCAL" = "1" ]; then
   SITE="http://localhost:3000"
   ENV_LOCAL="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.env.local"
   if [ -f "$ENV_LOCAL" ]; then
@@ -33,7 +77,6 @@ if [ "${1:-}" = "--local" ]; then
     export PAGES_UPLOAD_TOKEN
   fi
   curl -sS -o /dev/null "$SITE/" 2>/dev/null || die "Nothing answering on $SITE. Run 'npm run dev' first."
-  shift
 fi
 
 [ -d "$ARTIFACTS" ] || die "No Dia artifacts folder. Is Dia installed?"
@@ -47,7 +90,7 @@ list_artifacts() {
     sort -rn
 }
 
-if [ "${1:-}" = "--list" ]; then
+if [ "$WANT_LIST" = "1" ]; then
   echo "Recent Dia artifacts:"
   list_artifacts | head -10 | while read -r mtime path; do
     name=$(basename "$(dirname "$(dirname "$path")")")
@@ -75,35 +118,95 @@ if [ "$EXTRAS" != "0" ]; then
   echo "  and anything it loads from those files will be missing. Continuing anyway."
 fi
 
-if [ -n "${PAGES_UPLOAD_TOKEN:-}" ]; then
+# --token first: an explicit value beats anything ambient, including the
+# .env.local read that --local performs.
+if [ -n "$CLI_TOKEN" ]; then
+  TOKEN="$CLI_TOKEN"
+elif [ -n "${PAGES_UPLOAD_TOKEN:-}" ]; then
   TOKEN="$PAGES_UPLOAD_TOKEN"
 elif [ -f "$TOKEN_FILE" ]; then
   TOKEN=$(tr -d '[:space:]' < "$TOKEN_FILE")
 else
-  die "No token. Put it in $TOKEN_FILE (see tools/publish-extension/README.md)."
+  die "No token. Pass --token <value>, set \$PAGES_UPLOAD_TOKEN, or put it in $TOKEN_FILE."
 fi
 
-TITLE=$(python3 -c '
-import re, sys, html
-source = open(sys.argv[1], encoding="utf-8").read()
-match = re.search(r"<title[^>]*>(.*?)</title>", source, re.S | re.I)
-print(html.unescape(match.group(1)).strip() if match else sys.argv[2])
-' "$INDEX" "$NAME")
+# Everything below reads and encodes with osascript rather than python3. macOS
+# ships no usable python3 — /usr/bin/python3 is an xcode-select stub that only
+# offers to install the command line tools — and this runs on a machine that has
+# none. osascript -l JavaScript is core OS, present since 10.10, and brings a
+# real JSON encoder rather than one hand-rolled in awk.
+#
+# The title matters more than it looks: the server derives the page slug from it
+# when the payload sends no slug, and a slug never moves again once created. A
+# mangled title bakes in a mangled bookmark.
+TITLE=$(osascript -l JavaScript -e '
+ObjC.import("Foundation");
+// &amp; decodes LAST. Doing it first would turn a deliberately double-escaped
+// &amp;lt; into a bare <, losing the escaping the author asked for.
+function decode(s) {
+  return s
+    .replace(/&#x([0-9a-fA-F]+);/g, function (_, h) { return String.fromCodePoint(parseInt(h, 16)); })
+    .replace(/&#(\d+);/g, function (_, d) { return String.fromCodePoint(parseInt(d, 10)); })
+    .replace(/&quot;/g, "\"").replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+function run(argv) {
+  var s = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null);
+  // A nil return covers both an unreadable file and one that is not UTF-8.
+  // Checking .js === undefined is the working test; s.isNil is a *method*, so
+  // referencing it without calling it is always truthy.
+  if (s.js === undefined) { return "__PUBLISH_UNREADABLE__"; }
+  var m = s.js.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return decode(m ? m[1] : argv[1]).trim();
+}' "$INDEX" "$NAME")
 
-BODY=$(python3 -c '
-import json, sys
-print(json.dumps({
-    "title": sys.argv[1],
-    "html": open(sys.argv[2], encoding="utf-8").read(),
-}))
-' "$TITLE" "$INDEX")
+if [ "$TITLE" = "__PUBLISH_UNREADABLE__" ]; then
+  die "Could not read '$INDEX' as UTF-8 text."
+fi
+
+# decode() above knows the five core entities and every numeric reference, which
+# is all a UTF-8 artifact ever contains. A surviving &name; means something like
+# &eacute;, and textutil is the only stock tool that knows the full table.
+#
+# -inputencoding UTF-8 is not optional. The string is already UTF-8 by this
+# point, and without the flag textutil reads those bytes as Latin-1 and turns
+# Crêpes into CrÃªpes.
+#
+# Known and accepted: textutil parses its input as HTML, so a title containing
+# literal tag-like text would have it stripped. That needs a title holding both
+# an exotic entity and something shaped like a tag, and the damage is cosmetic.
+if printf '%s' "$TITLE" | grep -q '&[a-zA-Z][a-zA-Z0-9]*;'; then
+  ENTDIR=$(mktemp -d)
+  printf '%s' "$TITLE" > "$ENTDIR/title.html"
+  # Written as `if DECODED=$(...)` rather than `DECODED=$(...) && ...` because
+  # under `set -e` the && form makes it ambiguous whether a failure aborts.
+  # A failure here is not fatal — the partially decoded title still publishes.
+  if DECODED=$(textutil -convert txt -inputencoding UTF-8 -stdout "$ENTDIR/title.html" 2>/dev/null); then
+    TITLE="$DECODED"
+  fi
+  rm -rf "$ENTDIR"
+fi
+
+# Only the file *path* crosses the process boundary, so 2 MB of arbitrary HTML
+# never meets shell word-splitting or quoting.
+BODY=$(osascript -l JavaScript -e '
+ObjC.import("Foundation");
+function run(argv) {
+  var s = $.NSString.stringWithContentsOfFileEncodingError(argv[1], $.NSUTF8StringEncoding, null);
+  return JSON.stringify({ title: argv[0], html: s.js });
+}' "$TITLE" "$INDEX")
 
 echo "Publishing \"${TITLE}\" ($(wc -c < "$INDEX" | tr -d ' ') bytes) to ${SITE} ..."
 
-RESPONSE=$(curl -sS -w '\n%{http_code}' -X POST "$SITE/api/pages" \
+# The body arrives on stdin, not in an argument. ARG_MAX is 1 MB while the
+# endpoint accepts 2 MB, so `-d "$BODY"` died with "argument list too long"
+# before sending anything for pages in between — a raw shell error rather than
+# this script's own reporting. Piping leaves the size ceiling where it belongs,
+# in MAX_PAGE_BYTES on the server.
+RESPONSE=$(printf '%s' "$BODY" | curl -sS -w '\n%{http_code}' -X POST "$SITE/api/pages" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d "$BODY")
+  --data-binary @-)
 
 STATUS=$(echo "$RESPONSE" | tail -1)
 PAYLOAD=$(echo "$RESPONSE" | sed '$d')
@@ -112,7 +215,7 @@ if [ "$STATUS" != "201" ]; then
   die "The site said $STATUS: $PAYLOAD"
 fi
 
-URL=$(echo "$PAYLOAD" | python3 -c 'import json,sys; print(json.load(sys.stdin)["url"])')
+URL=$(osascript -l JavaScript -e 'function run(argv) { return JSON.parse(argv[0]).url; }' "$PAYLOAD")
 SLUG="${URL##*/p/}"
 
 echo "✓ $URL"
