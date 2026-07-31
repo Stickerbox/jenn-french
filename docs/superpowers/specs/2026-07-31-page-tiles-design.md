@@ -47,25 +47,36 @@ Unchanged, deliberately:
 
 ## The preview
 
-`HtmlPreview` frames the existing `/p/[slug]/raw` at a fixed layout size and
-scales it down with CSS:
+`HtmlPreview` frames the existing `/p/[slug]/raw` oversized and scales it down
+with CSS:
 
 ```
-wrapper:  container-type: inline-size; aspect-ratio: 4 / 3; overflow: hidden
-iframe:   width: 900px; height: 675px;
-          transform: scale(calc(100cqw / 900)); transform-origin: top left
+wrapper:  position: relative; aspect-ratio: 4 / 3; overflow: hidden
+iframe:   position: absolute; top: 0; left: 0;
+          width: 500%; height: 500%;
+          transform: scale(0.2); transform-origin: top left
 ```
 
-Container query units carry the whole rule. There is no `ResizeObserver`, no
-measured width in state, and no breakpoint-specific scale factor: the frame
-fits its column exactly at every column count, including ones added later.
-675 = 900 × 3/4, so the scaled frame fills the 4:3 wrapper with no letterbox.
+The frame is sized as a *percentage* of the tile and scaled by a fixed factor,
+rather than sized in pixels and scaled by a computed factor. This matters: the
+obvious formulation — a 900px frame at `scale(calc(100cqw / 900))` — is invalid
+CSS. Dividing a length by a number yields a length, and `scale()` takes a
+unitless number, so that rule is dropped. Percentage width sidesteps the
+arithmetic entirely: 500% of the column, scaled by 1/5, is the column, at every
+column width, with no measurement and no `ResizeObserver`.
 
-The 900px is load-bearing and not an arbitrary large number. An iframe sized to
-the tile — 160px on a phone — makes the page lay itself out in *its own* mobile
-breakpoint, so the thumbnail would show a layout that opening the page never
-produces. Laying out at desktop width and scaling is what makes the preview a
+The consequence is that the frame's layout width is not fixed — it is five
+times the tile's, so roughly 700–1200px across the phone and desktop cases.
+That range is the point. An iframe sized *to* the tile (160px on a phone) makes
+the page lay itself out in **its own** mobile breakpoint, so the thumbnail would
+show a layout that opening the page never produces. Any width in the 700–1200px
+band clears the breakpoints a page is likely to define and renders it the way a
+laptop would. Laying out wide and scaling down is what makes the preview a
 preview.
+
+The 4:3 wrapper and the 5×/0.2 pair agree: the frame's layout height is 500% of
+a box that is 3/4 as tall as it is wide, so the scaled frame fills the wrapper
+exactly, with no letterbox and no overflow.
 
 ### The frame is more sandboxed than the page
 
