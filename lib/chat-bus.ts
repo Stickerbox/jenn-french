@@ -26,6 +26,19 @@ if (process.env.NODE_ENV !== "production") {
 // filter by shape instead of the emitter filtering by name.
 const revokeEvent = (groupId: string) => `revoke:${groupId}`;
 
+// A distinct event name per channel, so a listener filters by subscription
+// rather than by inspecting the shape of what it received.
+const boardEvent = (groupId: string) => `board:${groupId}`;
+
+export type BoardFrame =
+  | { kind: "open"; currentPage: number }
+  // `ops` are committed and append on the viewer; `pending` is the stroke under
+  // her cursor and REPLACES the viewer's copy each time, which is what makes a
+  // long line grow rather than duplicate.
+  | { kind: "ops"; ops: unknown[]; pending: unknown; currentPage: number }
+  | { kind: "saved" }
+  | { kind: "closed" };
+
 export const chatBus = {
   publish(groupId: string, message: StoredMessage) {
     emitter.emit(groupId, message);
@@ -52,6 +65,17 @@ export const chatBus = {
     emitter.on(revokeEvent(groupId), listener);
     return () => {
       emitter.off(revokeEvent(groupId), listener);
+    };
+  },
+
+  publishBoard(groupId: string, frame: BoardFrame) {
+    emitter.emit(boardEvent(groupId), frame);
+  },
+
+  subscribeBoard(groupId: string, listener: (frame: BoardFrame) => void) {
+    emitter.on(boardEvent(groupId), listener);
+    return () => {
+      emitter.off(boardEvent(groupId), listener);
     };
   },
 };

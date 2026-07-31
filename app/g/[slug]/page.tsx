@@ -12,10 +12,12 @@ import { listPagesForGroup } from "@/lib/pages";
 import { StudentTabs } from "@/components/student/StudentTabs";
 import { FilesTab } from "@/components/student/FilesTab";
 import { ChatFab } from "@/components/chat/ChatFab";
+import { StreamProvider } from "@/components/StreamProvider";
 import { getCurrentTeacher } from "@/lib/session";
 import { listWhiteboards } from "@/lib/whiteboards";
 import { boardLabels } from "@/lib/whiteboard-names";
 import { BoardTab } from "@/components/whiteboard/BoardTab";
+import { LiveBanner } from "@/components/whiteboard/LiveBanner";
 import { markChatRead, deleteMessage, deleteWhiteboard } from "@/app/actions";
 
 function parseDate(value: string | undefined, latest: Date): Date {
@@ -82,6 +84,48 @@ export default async function GroupPage({
   const selected = selectedDate.toISOString().slice(0, 10);
   const { start: weekStart, end: weekEnd } = weekRange(today);
 
+  // Extracted so the same tab body can render inside StreamProvider when the
+  // visitor is unlocked and bare when they are not. Anything in here that calls
+  // useStream — the live banner — has to be guarded on `unlocked` for that
+  // reason: outside the provider the hook throws.
+  const body = (
+    <>
+      {/* Guarded on `unlocked` as well as the tab: LiveBanner calls useStream,
+          and `body` also renders outside the provider for a visitor who only
+          has the public card. The board tab shows the thing itself. */}
+      {unlocked && tab !== "board" && <LiveBanner slug={slug} />}
+
+      {tab === "card" ? (
+        <>
+          <WeekDayPicker slug={slug} today={today} selected={selected} />
+          {card ? (
+            <Flashcard card={card} />
+          ) : (
+            <p className="text-center font-[family-name:var(--font-body)] text-[var(--color-ink-muted)]">
+              Nothing posted yet — check back soon!
+            </p>
+          )}
+        </>
+      ) : tab === "files" ? (
+        <FilesTab pages={pages} />
+      ) : (
+        <BoardTab
+          slug={slug}
+          isTeacher={viewerIsTeacher}
+          boards={boards.map((board) => ({
+            id: board.id,
+            label: labels.get(board.id) ?? "",
+            thumbnail: board.thumbnail,
+            pageCount: board.pageCount,
+          }))}
+          onDelete={
+            viewerIsTeacher ? deleteWhiteboard.bind(null, group.id) : undefined
+          }
+        />
+      )}
+    </>
+  );
+
   return (
     <main
       className="min-h-screen px-4 py-12"
@@ -116,56 +160,30 @@ export default async function GroupPage({
         />
       )}
 
-      {tab === "card" ? (
-        <>
-          <WeekDayPicker slug={slug} today={today} selected={selected} />
-          {card ? (
-            <Flashcard card={card} />
-          ) : (
-            <p className="text-center font-[family-name:var(--font-body)] text-[var(--color-ink-muted)]">
-              Nothing posted yet — check back soon!
-            </p>
-          )}
-        </>
-      ) : tab === "files" ? (
-        <FilesTab pages={pages} />
+      {unlocked ? (
+        <StreamProvider slug={slug}>
+          {body}
+          <ChatFab
+            slug={slug}
+            token={null}
+            self={viewerIsTeacher ? "teacher" : "student"}
+            onOpen={
+              viewerIsTeacher ? markChatRead.bind(null, group.id) : undefined
+            }
+            onDeleteMessage={viewerIsTeacher ? deleteMessage : undefined}
+            labels={{
+              title: "Clavardage",
+              empty: "Aucun message pour l'instant.",
+              placeholder: "Écrivez un message…",
+              send: "Envoyer",
+              close: "Fermer",
+              locale: "fr-CA",
+              deleteMessage: "Supprimer",
+            }}
+          />
+        </StreamProvider>
       ) : (
-        <BoardTab
-          slug={slug}
-          isTeacher={viewerIsTeacher}
-          boards={boards.map((board) => ({
-            id: board.id,
-            label: labels.get(board.id) ?? "",
-            thumbnail: board.thumbnail,
-            pageCount: board.pageCount,
-          }))}
-          onDelete={
-            viewerIsTeacher
-              ? deleteWhiteboard.bind(null, group.id)
-              : undefined
-          }
-        />
-      )}
-
-      {unlocked && (
-        <ChatFab
-          slug={slug}
-          token={null}
-          self={viewerIsTeacher ? "teacher" : "student"}
-          onOpen={
-            viewerIsTeacher ? markChatRead.bind(null, group.id) : undefined
-          }
-          onDeleteMessage={viewerIsTeacher ? deleteMessage : undefined}
-          labels={{
-            title: "Clavardage",
-            empty: "Aucun message pour l'instant.",
-            placeholder: "Écrivez un message…",
-            send: "Envoyer",
-            close: "Fermer",
-            locale: "fr-CA",
-            deleteMessage: "Supprimer",
-          }}
-        />
+        body
       )}
     </main>
   );

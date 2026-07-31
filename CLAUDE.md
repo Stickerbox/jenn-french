@@ -45,6 +45,9 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `POST /api/chat/[slug]` | token or teacher | send one message |
 | `GET /api/chat/[slug]/stream` | token or teacher | the SSE stream |
 | `POST /api/whiteboard/[slug]/finish` | teacher | saves a whole board |
+| `POST /api/whiteboard/[slug]/open` | teacher | starts a live board |
+| `POST /api/whiteboard/[slug]/ops` | teacher | appends and fans out ops |
+| `POST /api/whiteboard/[slug]/discard` | teacher | drops a live board, saving nothing |
 | `GET /api/whiteboard/[slug]/[id]` | token or teacher | a board's ops, for the JPEG export |
 | `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, `/api/chat/*`, `/api/whiteboard/*`, and `/p/[slug]/raw`) |
 
@@ -334,6 +337,41 @@ its first letter.
 Text is typed inline through `TextLayer`, a transparent `<textarea>` positioned
 over the canvas. Its font family, size and 1.25 line height must stay in step
 with what `drawOps` renders, or committing makes the text visibly jump.
+
+A live board is an in-memory record in `lib/whiteboard-live.ts`, keyed by group
+id and held on `globalThis` like `lib/prisma.ts` and `lib/chat-bus.ts`. **It
+inherits the single-process constraint**: under pm2 cluster mode a live board
+would be invisible to viewers on other workers, silently — the same trap the
+chat has.
+
+It exists only to fan out and to snapshot a student who connects mid-board.
+**The client's log is authoritative for saving**, so `/finish` writes the ops
+from its request body and a server restart mid-board costs the live view, not
+the board.
+
+Board traffic rides the **existing** chat SSE stream — no second endpoint and no
+second access check, since `chatRole` already decides who may listen. Two
+properties make that safe rather than merely convenient: board frames carry
+**no `id:` line**, so per the SSE spec they leave `Last-EventID` untouched and
+cannot corrupt the chat's replay anchor; and `onmessage` fires only for unnamed
+events, so the chat handler cannot see them. Boards are deliberately not
+replayed from the database, because there is nothing there to replay.
+
+`components/StreamProvider.tsx` owns the single `EventSource`. It used to live
+inside `ChatFab`, and was moved because two connections would each replay the
+whole chat backlog at connect. It is opened on mount and held for the life of
+the page, not the life of a panel — which is what lets a live board reach a
+student sitting on the Card tab.
+
+Which page Jenn is presenting travels as `currentPage` beside the ops and is
+never stored: a saved board has no current page.
+
+The editor's flush diffs its log against a high-water mark, and `undo` shortens
+that log rather than appending a `remove`, so the mark is clamped back to the
+log's length before each flush — without that the next stroke slices to nothing
+and the student silently misses one. The undone op stays on their screen until
+the board is saved; the live view is best effort and `/finish` sends the whole
+log regardless.
 
 Two things in `BoardEditor` are shaped by `react-hooks/refs`, which forbids
 reading a ref during render: the measuring canvas is a **module-level**

@@ -8,6 +8,7 @@ import {
   dropTrailingEmptyPages,
   foldOps,
   type Colour,
+  type DrawOp,
   type Op,
 } from "@/lib/whiteboard-ops";
 import { hitTest, opBounds } from "@/lib/whiteboard-hit";
@@ -62,6 +63,82 @@ export function BoardEditor({
   const [pageCount, setPageCount] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [liveError, setLiveError] = useState(false);
+
+  // Opened once, on mount. A failure here is not fatal: she can still draw and
+  // save, the student simply will not watch it happen — which is exactly what
+  // Part 1 was.
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(`/api/whiteboard/${slug}/open`, { method: "POST" }).then(
+      (response) => {
+        if (!cancelled && !response.ok) setLiveError(true);
+      },
+      () => {
+        if (!cancelled) setLiveError(true);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  // Mirrors of the drawing state, so the flush timer always reads current
+  // values without being torn down and rebuilt on every stroke.
+  const opsRef = useRef<Op[]>([]);
+  const pageRef = useRef(0);
+  const pendingRef = useRef<DrawOp | null>(null);
+  const flushed = useRef(0);
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // At most one request every 150ms. Committed ops go in `ops` and append on
+  // the viewer; the stroke under her cursor goes in `pending` and REPLACES the
+  // viewer's copy, which is what makes a long line grow rather than duplicate.
+  // Worst case is roughly seven requests a second — fine for one teacher and one
+  // student, and the ops route does no database round trip per call.
+  function flushSoon() {
+    if (flushTimer.current) return;
+    flushTimer.current = setTimeout(() => {
+      flushTimer.current = null;
+
+      // undo() shortens the log rather than appending a remove, so the high
+      // water mark can end up past the end of it. Left unclamped, the slice
+      // below would come back empty for the next stroke too and the student
+      // would silently miss one. The undone op itself stays on their screen
+      // until the board is saved — the live view is best effort, and what
+      // /finish stores is the client's log either way.
+      flushed.current = Math.min(flushed.current, opsRef.current.length);
+
+      const committed = opsRef.current.slice(flushed.current);
+      const inProgress = pendingRef.current;
+      if (committed.length === 0 && !inProgress) return;
+
+      const sent = committed.length;
+      flushed.current += sent;
+
+      void fetch(`/api/whiteboard/${slug}/ops`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ops: committed,
+          pending: inProgress,
+          currentPage: pageRef.current,
+        }),
+      }).catch(() => {
+        // Rewind so the next flush retries them. Her local log is untouched, so
+        // the saved board is correct whether or not this ever succeeds.
+        flushed.current -= sent;
+      });
+    }, 150);
+  }
+
+  useEffect(() => {
+    opsRef.current = ops;
+    pageRef.current = page;
+    flushSoon();
+    // flushSoon only reads refs, so it is stable and needs no dependency entry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ops, page]);
 
   const surface = useRef<HTMLDivElement | null>(null);
   const drawing = useRef<number[] | null>(null);
@@ -152,11 +229,31 @@ export function BoardEditor({
     if (tool === "arrow") {
       // An arrow is two points, so the preview replaces rather than extends.
       setPreview([drawing.current[0], drawing.current[1], x, y]);
+      pendingRef.current = {
+        id: "pending",
+        page,
+        kind: "arrow",
+        x1: drawing.current[0],
+        y1: drawing.current[1],
+        x2: x,
+        y2: y,
+        colour,
+      };
+      flushSoon();
       return;
     }
 
     drawing.current.push(x, y);
     setPreview([...drawing.current]);
+    pendingRef.current = {
+      id: "pending",
+      page,
+      kind: "stroke",
+      points: [...drawing.current],
+      colour,
+      width: 5,
+    };
+    flushSoon();
   }
 
   function handlePointerUp(event: React.PointerEvent) {
@@ -177,6 +274,11 @@ export function BoardEditor({
     const started = drawing.current;
     drawing.current = null;
     setPreview(null);
+
+    // The append below puts the finished stroke in the log; the server clears
+    // `pending` for us the moment a committed op arrives, so there is nothing
+    // to retract and no id to reconcile.
+    pendingRef.current = null;
 
     if (tool === "arrow") {
       append({
@@ -476,7 +578,20 @@ export function BoardEditor({
 
         <div className="flex items-center gap-2">
           {error && <span className="text-sm text-[var(--card-rouge)]">{error}</span>}
-          <button type="button" onClick={onCancel} className="rounded-full border border-[var(--card-line)] px-4 py-2 text-sm">
+          {liveError && (
+            <span className="text-sm text-[var(--card-moss)]">
+              Diffusion en direct indisponible — le tableau sera visible après
+              l&apos;enregistrement.
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              void fetch(`/api/whiteboard/${slug}/discard`, { method: "POST" });
+              onCancel();
+            }}
+            className="rounded-full border border-[var(--card-line)] px-4 py-2 text-sm"
+          >
             Annuler
           </button>
           <button type="button" onClick={save} disabled={saving} className="rounded-full bg-[var(--card-bleu)] px-5 py-2 text-sm text-white disabled:opacity-50">

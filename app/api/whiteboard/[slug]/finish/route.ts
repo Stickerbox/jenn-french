@@ -13,6 +13,8 @@ import {
 } from "@/lib/whiteboard-ops";
 import { isThumbnail } from "@/lib/whiteboard-thumbnail";
 import { createWhiteboard } from "@/lib/whiteboards";
+import { chatBus } from "@/lib/chat-bus";
+import { liveBoards } from "@/lib/whiteboard-live";
 
 // A long board is a few hundred strokes of JSON plus a thumbnail. 2MB is
 // generous for that and still bounds what one request can make the process
@@ -89,17 +91,24 @@ export async function POST(
     if (op.page < pageCount) pages[op.page].push(op);
   }
 
-  // Part 1 has no live board to take a date from, so the board belongs to
-  // today. Part 2 stamps this at /open instead, so a lesson crossing UTC
-  // midnight keeps the day it started.
-  const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  // Part 1 had no live board and fell back to today. Now a board that was
+  // opened before UTC midnight keeps the day it started; the fallback stays for
+  // the case where the server restarted mid-board, which /finish still survives
+  // because the body is authoritative.
+  const live = liveBoards.get(group.id);
+  const date =
+    live?.date ??
+    new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
 
   const id = await createWhiteboard({
     groupId: group.id,
-    date: today,
+    date,
     thumbnail: body.thumbnail,
     pages,
   });
+
+  liveBoards.discard(group.id);
+  chatBus.publishBoard(group.id, { kind: "saved" });
 
   return NextResponse.json({ id }, { status: 201 });
 }
