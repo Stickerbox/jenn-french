@@ -40,7 +40,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/admin/[slug]` | teacher | edits one group's **override** card for `?date=` |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe |
-| `/g/[slug]/pages` | students | that group's uploaded pages (unlinked; shared by URL) |
+| `/g/[slug]/pages` | students | that group's uploaded pages, including everything shared with everyone |
 | `/admin/pages/[slug]` | teacher | edits one uploaded page |
 | `POST /api/pages` | token | publishes a page from outside the browser |
 | `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, and `/p/[slug]/raw`) |
@@ -155,6 +155,18 @@ state and `HtmlDropZone` takes a file, so the round trip for a correction is
 download → edit in the tool she wrote it in → re-upload. The download is a
 plain `<a download>` pointing at `/p/[slug]/raw`, which is why that route and
 its CSP needed no change to support it.
+
+One group is flagged `isEveryone` — on production it is `all` / "Everyone", the
+row students already bookmark as `/g/all`. Every page assigned to it appears on
+every student's shelf: `listPagesForGroup` fetches both sets and hands them to
+`effectivePages` (`lib/effective-pages.ts`), so callers never learn inheritance
+happened. That row cannot be deleted — `canDeleteGroup` is checked in
+`deleteGroup` as well as in the UI, because deleting it would empty every
+student's shelf at once and nothing would report an error.
+
+In the admin, filtering the Pages tab by a student shows that student's
+effective shelf rather than their assignments: the chip answers "what does
+Marie have?", and a page shared with everyone is something Marie has.
 
 ## Conventions
 
