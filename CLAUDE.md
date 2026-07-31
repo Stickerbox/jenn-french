@@ -151,6 +151,30 @@ There is no HTML sanitiser, deliberately. Sanitising would strip exactly the
 interactivity the feature exists to preserve, and the sandbox already contains
 what a sanitiser would defend against.
 
+Both page lists — the student's shelf and the admin Pages tab — render
+`PageTile` in a grid, each tile previewing its page live: `HtmlPreview` frames
+`/p/[slug]/raw` at 500% and scales it by 0.2, so the page lays out at roughly
+laptop width and is clipped to the tile. A frame sized *to* the tile would
+render the page's own mobile breakpoint instead, a layout opening it never
+produces. That frame is `sandbox=""` — **never add `allow-scripts` to a preview
+frame.** A shelf mounts a dozen documents at once, and an animation or an
+autoplaying `<audio>` inside a 160px thumbnail has no control surface to stop
+it; the reasoning that justifies `allow-scripts` on `/p/[slug]`, where the
+student chose to open the page, does not transfer. The cost is accepted: a page
+drawn entirely by JavaScript previews blank, and that is undetectable from
+outside an opaque origin. `PageTile` takes its preview as a `ReactNode` slot
+rather than a slug, so planned support for links to pages we don't host adds a
+renderer instead of changing the tile — a cross-origin URL usually cannot be
+framed at all, so it will not be `HtmlPreview` with a different `src`.
+
+Both grids are 1152px wide — the admin's content width — so a tile is the same
+size on both sides. On the Pages tab that means the grid deliberately breaks out
+of the 560px column the search field and filter chips stay in: four tiles at
+560px were 128px each, too small to recognise a page by, which is the only thing
+the preview is for. In the admin the tile links to `/p/[slug]` and a pencil icon
+links to the editor, not the reverse — following a thumbnail should show the
+page it is a thumbnail of.
+
 A page's slug is derived from its title once, at creation, and never moves
 again — students bookmark these links. `POST /api/pages` exists because the
 browser Jenn writes pages in is sandboxed and cannot complete a passkey login;
@@ -263,8 +287,10 @@ resume from.
   latter belongs to the flashcard template and travels with it rather than with
   a route: the student card pages, the landing page's sample card, the admin
   card editor — which is a live representation of the student's card — and
-  `components/ui/Tile.tsx`, which the admin group and page lists render so Jenn
-  sees her pages the way her students do. Repeated flashcard class strings live
+  `components/ui/Tile.tsx` and `components/ui/PageTile.tsx`, which the admin
+  student and page lists render so Jenn sees her pages the way her students do.
+  (`Tile` is the row; `PageTile` is the previewed tile. The page lists use
+  `PageTile`, the students list still uses `Tile`.) Repeated flashcard class strings live
   in `components/card-styles.ts` — extend that rather than duplicating the
   strings.
 - **Imports** use the `@/` alias for repo-root-relative paths.

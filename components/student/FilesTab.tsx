@@ -1,5 +1,8 @@
-import { Tile } from "@/components/ui/Tile";
+import { PageTile } from "@/components/ui/PageTile";
+import { HtmlPreview } from "@/components/ui/HtmlPreview";
+import { pageGrid } from "@/components/card-styles";
 import { formatLongDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export function FilesTab({
   pages,
@@ -14,14 +17,19 @@ export function FilesTab({
     );
   }
 
+  // The old 560px cap was sized for one column of rows and would pin the grid
+  // at two columns forever. 1152px is the admin's own content width, so a tile
+  // is the same size on both sides — which is the point of the two lists
+  // looking alike.
   return (
-    <ul className="mx-auto flex max-w-[560px] flex-col gap-3">
+    <ul className={cn("mx-auto max-w-[1152px]", pageGrid)}>
       {pages.map((page) => (
         <li key={page.slug}>
-          <Tile
+          <PageTile
             href={`/p/${page.slug}`}
             title={page.title}
             eyebrow={formatLongDate(page.createdAt)}
+            preview={<HtmlPreview slug={page.slug} />}
           />
         </li>
       ))}

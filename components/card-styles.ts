@@ -57,3 +57,15 @@ export const cardProse = "whitespace-pre-line text-[15px] leading-relaxed";
 // preview needs it too.
 export const panelLabel =
   "mb-2 font-[family-name:var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[var(--color-ink-muted)]";
+
+// Both page lists — the student's shelf and the admin's Pages tab — share this
+// grid so the two stay the same shape. Two columns on a phone rather than one:
+// the shelf is opened on phones, and a single column of thumbnails is a longer
+// scroll than the row list it replaced, which would make the redesign cost
+// something to the people it is for.
+export const pageGrid = "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4";
+
+// `overflow-hidden` is not decoration: it is what clips the oversized preview
+// frame inside HtmlPreview to the tile.
+export const pageTileFrame =
+  "relative flex h-full flex-col overflow-hidden rounded-[14px] border border-[var(--card-line)] bg-[var(--card-paper)] shadow-[var(--card-shadow)] transition-opacity hover:opacity-85";
