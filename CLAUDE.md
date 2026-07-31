@@ -35,7 +35,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | Route | Who | Notes |
 |---|---|---|
 | `/` | public | landing page |
-| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files` and the chat need the token, teacher included — a teacher session adds only the delete and read-marker controls once unlocked — except the everyone group, whose files are public and which has no chat |
+| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the token, teacher included — a teacher session adds only the delete and read-marker controls once unlocked, plus *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe |
@@ -44,7 +44,9 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `POST /api/pages` | token | publishes a page from outside the browser |
 | `POST /api/chat/[slug]` | token or teacher | send one message |
 | `GET /api/chat/[slug]/stream` | token or teacher | the SSE stream |
-| `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, `/api/chat/*`, and `/p/[slug]/raw`) |
+| `POST /api/whiteboard/[slug]/finish` | teacher | saves a whole board |
+| `GET /api/whiteboard/[slug]/[id]` | token or teacher | a board's ops, for the JPEG export |
+| `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, `/api/chat/*`, `/api/whiteboard/*`, and `/p/[slug]/raw`) |
 
 ## Architecture
 
@@ -276,6 +278,44 @@ under the default 60-second `proxy_read_timeout`. Messages are ordered by
 landing in the same millisecond made `gt createdAt` drop the second one on
 every future reconnect, since a `Last-Event-ID` replay has no other anchor to
 resume from.
+
+### Whiteboards
+
+A `Whiteboard` belongs to a group and holds `WhiteboardPage` rows, each an
+append-only list of vector ops in a Json column. **Erase and undo append a
+`remove` op rather than editing the log**, which is what makes the stored board
+identical to what was drawn and lets `foldOps` (`lib/whiteboard-ops.ts`) be the
+single thing that turns ops into something drawable — the editor, the archive
+thumbnail and the JPEG export all go through it, so they cannot disagree.
+
+Ops are in a fixed 1600×1000 logical space. That is not a detail: Jenn's window,
+the student's window, a 320px thumbnail and a stacked JPEG are four pixel sizes
+rendering the same input, and without one logical space they render differently.
+Colours are literal hex rather than the `--card-*` tokens they mirror, because
+export draws into a canvas where there is no CSS to resolve a custom property.
+
+Everything read out of an `ops` column goes through `readOps`, which discards
+malformed entries rather than throwing — the same contract `readSections` has,
+for the same reason.
+
+A board is **immutable once saved**: there is no `finishedAt` column because a
+row only exists because *Terminé* was pressed, and no edit path. That
+immutability is also what makes the `thumbnail` column safe — a second
+representation of the ops that can never drift from them.
+
+Only the teacher creates or deletes one; both parties read and download. Access
+is `chatRole` (`lib/chat-access.ts`), reused rather than reimplemented, so the
+everyone group is refused before anything else — it has no `chatToken`, so it
+can never have a whiteboard. **The Whiteboard tab is present for anyone
+unlocked**, empty state and all, because Jenn needs it to create the first board
+and the student needs it to watch one being drawn.
+
+Downloading gives **one** JPEG with every page stacked, not one file per page:
+multiple programmatic downloads make browsers prompt, and a zip would be this
+project's first utility dependency. `exportLayout` caps the canvas area, because
+iOS Safari returns a blank image rather than an error past ~16.7M pixels — and
+it **floors** the scaled width and height, since rounding both up puts their
+product back over the cap it just enforced.
 
 ## Conventions
 

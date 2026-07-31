@@ -1,11 +1,16 @@
-export type StudentTab = "card" | "files";
+export type StudentTab = "card" | "files" | "board";
 
-// `hasFiles` is the whole point of the second argument: an untokened visitor
-// has no files tab, and a forwarded ?tab=files link must land them on the card
-// rather than on a tab that should not exist for them.
+// A record rather than positional booleans: two flags called with the wrong
+// order is a silent bug, and a third would make it likely.
+//
+// Availability is the whole point of the second argument. An untokened visitor
+// has neither of the extra tabs, and a forwarded ?tab= link must land them on
+// the card rather than on a tab that should not exist for them.
 export function parseStudentTab(
   value: string | undefined,
-  hasFiles: boolean,
+  available: { files: boolean; board: boolean },
 ): StudentTab {
-  return value === "files" && hasFiles ? "files" : "card";
+  if (value === "files" && available.files) return "files";
+  if (value === "board" && available.board) return "board";
+  return "card";
 }
