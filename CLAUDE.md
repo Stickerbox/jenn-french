@@ -317,6 +317,31 @@ iOS Safari returns a blank image rather than an error past ~16.7M pixels — and
 it **floors** the scaled width and height, since rounding both up puts their
 product back over the cap it just enforced.
 
+**Every edit is a remove plus a re-add.** Move, recolour, retype, resize and
+delete all funnel through `reviseOp` (`lib/whiteboard-revise.ts`), which returns
+a `remove` naming the old op and a fresh op carrying the change. `foldPage` knows
+nothing about any of it. The consequence to remember: a revised element has a
+**new id**, so the editor's selection has to follow it or the next edit targets
+an op that no longer exists.
+
+`lib/whiteboard-hit.ts` decides what a click landed on. Its text measurer is
+**injected** so the module stays pure and testable with a fake; the editor passes
+one backed by a detached canvas. It measures distance to a stroke's *segments*,
+not its vertices — the earlier `nearestOp` did the latter, which meant clicking
+the middle of a long underline hit nothing and a text op was only selectable near
+its first letter.
+
+Text is typed inline through `TextLayer`, a transparent `<textarea>` positioned
+over the canvas. Its font family, size and 1.25 line height must stay in step
+with what `drawOps` renders, or committing makes the text visibly jump.
+
+Two things in `BoardEditor` are shaped by `react-hooks/refs`, which forbids
+reading a ref during render: the measuring canvas is a **module-level**
+singleton rather than a `useRef`, and the surface's rect is captured into state
+when a text draft opens rather than measured in the render that positions the
+textarea. Both values are read during render — to draw the selection outline and
+to place the textarea — so neither can live in a ref.
+
 ## Conventions
 
 - **Logic belongs in `lib/`.** Anything with a rule in it — date handling, card

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
@@ -10,15 +10,36 @@ import {
   type Colour,
   type Op,
 } from "@/lib/whiteboard-ops";
+import { hitTest, opBounds } from "@/lib/whiteboard-hit";
+import { toLogical, type Box } from "@/lib/whiteboard-geometry";
+import { reviseOp, stepTextSize, type Revision } from "@/lib/whiteboard-revise";
+import { BoardToolbar, type Tool } from "@/components/whiteboard/BoardToolbar";
+import { TextLayer, type TextDraft } from "@/components/whiteboard/TextLayer";
 import {
   BOARD_PAPER,
   BoardCanvas,
   drawOps,
 } from "@/components/whiteboard/BoardCanvas";
 
-type Tool = "pen" | "text" | "arrow" | "eraser";
-
 const THUMBNAIL_WIDTH = 320;
+
+// hitTest and opBounds are pure and take a measurer; this is the real one.
+// One detached canvas for the module rather than one per editor mount, because
+// creating one per hit test would allocate on every mouse move — and because a
+// measuring cache is not component state, so holding it in a ref would mean
+// reading a ref during render to draw the selection outline.
+let scratch: CanvasRenderingContext2D | null = null;
+function measure(text: string, size: number): number {
+  if (!scratch) {
+    scratch = document.createElement("canvas").getContext("2d");
+  }
+  if (!scratch) return text.length * size * 0.5; // rough, but never NaN
+  scratch.font = `${size}px Georgia, "Times New Roman", serif`;
+  const context = scratch;
+  return Math.max(
+    ...text.split("\n").map((line) => context.measureText(line).width),
+  );
+}
 
 let counter = 0;
 // crypto.randomUUID is fine here, but a short monotonic id keeps the payload
@@ -46,48 +67,70 @@ export function BoardEditor({
   const drawing = useRef<number[] | null>(null);
   const [preview, setPreview] = useState<number[] | null>(null);
 
+  const [selected, setSelected] = useState<string | null>(null);
+  const [draft, setDraft] = useState<TextDraft | null>(null);
+  // The surface's rect, captured when a draft opens rather than read during
+  // render: TextLayer positions itself from it, and the element's geometry is
+  // only knowable in an event handler. A resize mid-typing leaves it stale
+  // until the draft commits, which is a transient state and not worth a
+  // listener.
+  const [draftBox, setDraftBox] = useState<Box | null>(null);
+  const dragFrom = useRef<[number, number] | null>(null);
+  const [dragBy, setDragBy] = useState<[number, number] | null>(null);
+
   const scene = foldOps(ops);
   const visible = scene[page] ?? [];
 
-  // Pointer coordinates are in CSS pixels; ops are in the logical space. This
-  // is the only place the two meet.
-  function toLogical(event: React.PointerEvent): [number, number] {
-    const box = surface.current?.getBoundingClientRect();
-    if (!box) return [0, 0];
-    return [
-      ((event.clientX - box.left) / box.width) * BOARD_WIDTH,
-      ((event.clientY - box.top) / box.height) * BOARD_HEIGHT,
-    ];
+  function boxOf(): Box {
+    const rect = surface.current?.getBoundingClientRect();
+    return rect ?? { left: 0, top: 0, width: 0, height: 0 };
+  }
+
+  // Takes the two fields it needs rather than a React.PointerEvent, because
+  // onDoubleClick hands back a MouseEvent and the two do not unify.
+  function pointer(event: { clientX: number; clientY: number }): [number, number] {
+    return toLogical(boxOf(), event.clientX, event.clientY);
   }
 
   function append(op: Op) {
     setOps((current) => [...current, op]);
   }
 
+  function revise(id: string, change: Revision) {
+    const target = visible.find((op) => op.id === id);
+    if (!target) return;
+    const newId = nextId();
+    const [remove, next] = reviseOp(target, change, newId);
+    setOps((current) => [...current, remove, next]);
+    // A revised element is a NEW element as far as the log is concerned, so the
+    // selection has to follow or the next edit would target a removed op.
+    setSelected(newId);
+  }
+
   function handlePointerDown(event: React.PointerEvent) {
     if (saving) return;
+    // A click anywhere commits an open text draft, the same as blurring it.
+    if (draft) return;
+
     event.currentTarget.setPointerCapture(event.pointerId);
-    const [x, y] = toLogical(event);
+    const [x, y] = pointer(event);
+
+    if (tool === "select") {
+      const id = hitTest(visible, x, y, measure);
+      setSelected(id);
+      if (id) dragFrom.current = [x, y];
+      return;
+    }
 
     if (tool === "text") {
-      // A prompt() rather than an in-canvas editable text box. Deliberate
-      // minimalism for Part 1: an inline editor means caret handling, IME
-      // support and a second focus surface over a canvas, and none of that is
-      // needed to find out whether the whiteboard earns its place here.
-      const text = window.prompt("Texte :");
-      if (text && text.trim().length > 0) {
-        append({ id: nextId(), page, kind: "text", x, y, text, colour, size: 44 });
-      }
+      setDraftBox(boxOf());
+      setDraft({ x, y, value: "", colour, size: 44, editing: null });
       return;
     }
 
     if (tool === "eraser") {
-      // Nearest op within a generous radius, so a trackpad click does not have
-      // to be precise. Erase appends a remove; it never edits the log.
-      const target = nearestOp(visible, x, y);
-      if (target) {
-        append({ id: nextId(), page, kind: "remove", targets: [target] });
-      }
+      const id = hitTest(visible, x, y, measure);
+      if (id) append({ id: nextId(), page, kind: "remove", targets: [id] });
       return;
     }
 
@@ -96,8 +139,15 @@ export function BoardEditor({
   }
 
   function handlePointerMove(event: React.PointerEvent) {
+    if (tool === "select") {
+      if (!dragFrom.current) return;
+      const [x, y] = pointer(event);
+      setDragBy([x - dragFrom.current[0], y - dragFrom.current[1]]);
+      return;
+    }
+
     if (!drawing.current) return;
-    const [x, y] = toLogical(event);
+    const [x, y] = pointer(event);
 
     if (tool === "arrow") {
       // An arrow is two points, so the preview replaces rather than extends.
@@ -110,8 +160,20 @@ export function BoardEditor({
   }
 
   function handlePointerUp(event: React.PointerEvent) {
+    if (tool === "select") {
+      const offset = dragBy;
+      dragFrom.current = null;
+      setDragBy(null);
+      // A click without movement is a selection, not a zero-length move — and
+      // a move of nothing would still cost two ops in the log.
+      if (selected && offset && (Math.abs(offset[0]) > 2 || Math.abs(offset[1]) > 2)) {
+        revise(selected, { dx: offset[0], dy: offset[1] });
+      }
+      return;
+    }
+
     if (!drawing.current) return;
-    const [x, y] = toLogical(event);
+    const [x, y] = pointer(event);
     const started = drawing.current;
     drawing.current = null;
     setPreview(null);
@@ -140,6 +202,72 @@ export function BoardEditor({
     });
   }
 
+  // Double-click a text element to retype it. MouseEvent, not PointerEvent —
+  // that is what onDoubleClick provides. Select only: in pen mode a double
+  // click has already drawn two dots, and opening an editor over them is not
+  // what she asked for.
+  function handleDoubleClick(event: React.MouseEvent) {
+    if (tool !== "select") return;
+    const [x, y] = pointer(event);
+    const id = hitTest(visible, x, y, measure);
+    const target = visible.find((op) => op.id === id);
+    if (!target || target.kind !== "text") return;
+    setSelected(id);
+    setDraftBox(boxOf());
+    setDraft({
+      x: target.x,
+      y: target.y,
+      value: target.text,
+      colour: target.colour,
+      size: target.size,
+      editing: target.id,
+    });
+  }
+
+  function commitDraft() {
+    if (!draft) return;
+    const value = draft.value.trim();
+    const editing = draft.editing;
+    setDraft(null);
+
+    if (value.length === 0) {
+      // An empty draft over an existing element deletes it — the same thing
+      // selecting it and pressing Delete would do, and what she means by
+      // clearing the box.
+      if (editing) append({ id: nextId(), page, kind: "remove", targets: [editing] });
+      return;
+    }
+
+    if (editing) {
+      revise(editing, { text: value });
+      return;
+    }
+
+    const id = nextId();
+    append({
+      id,
+      page,
+      kind: "text",
+      x: draft.x,
+      y: draft.y,
+      text: value,
+      colour: draft.colour,
+      size: draft.size,
+    });
+    setSelected(id);
+  }
+
+  function handleColour(next: Colour) {
+    // With something selected the swatch recolours it; with nothing selected it
+    // arms the next thing drawn. Two behaviours, one control, because that is
+    // what every drawing tool does and what she will expect.
+    if (selected) {
+      revise(selected, { colour: next });
+      return;
+    }
+    setColour(next);
+  }
+
   function undo() {
     setOps((current) => current.slice(0, -1));
   }
@@ -154,6 +282,23 @@ export function BoardEditor({
     setPageCount((count) => count + 1);
     setPage(pageCount);
   }
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      // Not while typing: Backspace in the textarea must delete a character.
+      if (draft) return;
+      if (!selected) return;
+      if (event.key !== "Backspace" && event.key !== "Delete") return;
+      event.preventDefault();
+      setOps((current) => [
+        ...current,
+        { id: nextId(), page, kind: "remove", targets: [selected] },
+      ]);
+      setSelected(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected, draft, page]);
 
   async function save() {
     setSaving(true);
@@ -181,48 +326,25 @@ export function BoardEditor({
     }
   }
 
+  const selectedOp = selected ? visible.find((op) => op.id === selected) : undefined;
+  const selectedBounds = selectedOp ? opBounds(selectedOp, measure) : null;
+
   return (
     <div className="mx-auto w-full max-w-[1100px]">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        {(["pen", "text", "arrow", "eraser"] as Tool[]).map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => setTool(option)}
-            aria-pressed={tool === option}
-            className={`rounded-full border border-[var(--card-line)] px-4 py-2 font-[family-name:var(--card-font-serif)] text-sm ${
-              tool === option
-                ? "bg-[var(--card-bleu)] text-white"
-                : "bg-[var(--card-paper)] text-[var(--card-moss)]"
-            }`}
-          >
-            {{ pen: "Crayon", text: "Texte", arrow: "Flèche", eraser: "Gomme" }[option]}
-          </button>
-        ))}
-
-        <span className="mx-1 flex gap-1">
-          {PALETTE.map((swatch) => (
-            <button
-              key={swatch}
-              type="button"
-              onClick={() => setColour(swatch)}
-              aria-label={swatch}
-              aria-pressed={colour === swatch}
-              style={{ background: swatch }}
-              className={`h-8 w-8 rounded-full ${
-                colour === swatch ? "ring-2 ring-offset-2 ring-[var(--card-ink)]" : ""
-              }`}
-            />
-          ))}
-        </span>
-
-        <button type="button" onClick={undo} className="rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-4 py-2 text-sm">
-          Annuler la dernière
-        </button>
-        <button type="button" onClick={clearPage} className="rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-4 py-2 text-sm">
-          Effacer la page
-        </button>
-      </div>
+      <BoardToolbar
+        tool={tool}
+        colour={colour}
+        hasSelection={selected !== null}
+        onTool={(next) => {
+          setTool(next);
+          // Leaving select mode drops the selection, so its outline and size
+          // controls do not linger over a tool that cannot act on them.
+          if (next !== "select") setSelected(null);
+        }}
+        onColour={handleColour}
+        onUndo={undo}
+        onClearPage={clearPage}
+      />
 
       <div
         ref={surface}
@@ -230,12 +352,29 @@ export function BoardEditor({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
         // Without this a drag on a touch screen scrolls the page instead of
         // drawing, and the stroke is lost.
         style={{ touchAction: "none", aspectRatio: `${BOARD_WIDTH} / ${BOARD_HEIGHT}` }}
-        className="relative w-full cursor-crosshair overflow-hidden rounded-xl border border-[var(--card-line)] bg-[var(--card-paper-back)]"
+        className={`relative w-full overflow-hidden rounded-xl border border-[var(--card-line)] bg-[var(--card-paper-back)] ${
+          tool === "select" ? "cursor-default" : "cursor-crosshair"
+        }`}
       >
-        <BoardCanvas ops={visible} className="absolute inset-0 h-full w-full" />
+        <BoardCanvas
+          ops={
+            dragBy && selectedOp
+              ? visible.filter((op) => op.id !== selectedOp.id)
+              : visible
+          }
+          className="absolute inset-0 h-full w-full"
+        />
+        {dragBy && selectedOp && (
+          <BoardCanvas
+            background={null}
+            className="absolute inset-0 h-full w-full"
+            ops={[reviseOp(selectedOp, { dx: dragBy[0], dy: dragBy[1] }, "drag")[1]]}
+          />
+        )}
         {preview && (
           <BoardCanvas
             className="absolute inset-0 h-full w-full"
@@ -264,6 +403,32 @@ export function BoardEditor({
             ]}
           />
         )}
+        {selectedBounds && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: `${(selectedBounds.x / BOARD_WIDTH) * 100}%`,
+              top: `${(selectedBounds.y / BOARD_HEIGHT) * 100}%`,
+              width: `${(selectedBounds.width / BOARD_WIDTH) * 100}%`,
+              height: `${(selectedBounds.height / BOARD_HEIGHT) * 100}%`,
+              // Percentages rather than pixels so the outline tracks the element
+              // through a window resize without a listener.
+              outline: "2px dashed var(--card-bleu)",
+              outlineOffset: 4,
+              pointerEvents: "none",
+            }}
+          />
+        )}
+        {draft && draftBox && (
+          <TextLayer
+            draft={draft}
+            box={draftBox}
+            onChange={(value) => setDraft({ ...draft, value })}
+            onCommit={commitDraft}
+            onCancel={() => setDraft(null)}
+          />
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -280,6 +445,33 @@ export function BoardEditor({
           <button type="button" onClick={addPage} className="rounded-full border border-[var(--card-line)] px-3 py-1">
             + Page
           </button>
+
+          {selectedOp?.kind === "text" && (
+            <span className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label="Réduire le texte"
+                title="Réduire le texte"
+                onClick={() =>
+                  revise(selectedOp.id, { size: stepTextSize(selectedOp.size, -1) })
+                }
+                className="rounded-full border border-[var(--card-line)] px-3 py-1 text-xs"
+              >
+                A−
+              </button>
+              <button
+                type="button"
+                aria-label="Agrandir le texte"
+                title="Agrandir le texte"
+                onClick={() =>
+                  revise(selectedOp.id, { size: stepTextSize(selectedOp.size, 1) })
+                }
+                className="rounded-full border border-[var(--card-line)] px-3 py-1 text-sm"
+              >
+                A+
+              </button>
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -294,40 +486,6 @@ export function BoardEditor({
       </div>
     </div>
   );
-}
-
-function nearestOp(
-  ops: ReturnType<typeof foldOps>[number],
-  x: number,
-  y: number,
-): string | null {
-  let best: string | null = null;
-  let bestDistance = 60; // logical units — a forgiving radius for a trackpad
-
-  for (const op of ops) {
-    const points: [number, number][] =
-      op.kind === "stroke"
-        ? Array.from({ length: op.points.length / 2 }, (_, i) => [
-            op.points[i * 2],
-            op.points[i * 2 + 1],
-          ])
-        : op.kind === "arrow"
-          ? [
-              [op.x1, op.y1],
-              [op.x2, op.y2],
-            ]
-          : [[op.x, op.y]];
-
-    for (const [px, py] of points) {
-      const distance = Math.hypot(px - x, py - y);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = op.id;
-      }
-    }
-  }
-
-  return best;
 }
 
 // Page 1 at a small size. Rendered here because there is no server-side canvas
