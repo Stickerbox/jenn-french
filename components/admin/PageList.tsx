@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Tile } from "@/components/ui/Tile";
+import { PageTile } from "@/components/ui/PageTile";
+import { HtmlPreview } from "@/components/ui/HtmlPreview";
+import { pageGrid } from "@/components/card-styles";
+import { pageAudienceLabel } from "@/lib/page-tile";
 import { SearchField } from "@/components/admin/SearchField";
 import {
   filterPages,
@@ -21,7 +24,7 @@ export type PageSummary = {
 };
 
 const pageActionClass =
-  "flex h-9 w-9 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]";
+  "flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]";
 
 function EyeIcon() {
   return (
@@ -153,19 +156,14 @@ export function PageList({
           Nothing matches that.
         </p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className={pageGrid}>
           {visible.map((page) => (
             <li key={page.id}>
-              <Tile
+              <PageTile
                 href={`/admin/pages/${page.slug}`}
                 title={page.title}
-                eyebrow={`${formatLongDate(page.createdAt)} · ${
-                  page.sharedWithEveryone
-                    ? "shared with everyone"
-                    : page.groupNames.length === 0
-                      ? "no students"
-                      : page.groupNames.join(", ")
-                }`}
+                eyebrow={`${formatLongDate(page.createdAt)} · ${pageAudienceLabel(page)}`}
+                preview={<HtmlPreview slug={page.slug} />}
                 action={
                   <div className="flex items-center gap-1">
                     {/* /p/[slug] is the page itself, sandboxed exactly as a
