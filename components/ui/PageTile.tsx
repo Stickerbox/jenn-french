@@ -37,9 +37,11 @@ export function PageTile({
         >
           {title}
         </Link>
-        <span className={cn("mt-0.5 block truncate", cardEyebrow)}>
-          {eyebrow}
-        </span>
+        {/* Wraps rather than truncating: at a tile's width the admin's eyebrow
+            is a date AND an audience, and truncating cut it to
+            "31 JUILLET 2026 · NO STUDEN…". Tiles in a row stretch to the
+            tallest, so a second line costs alignment nothing. */}
+        <span className={cn("mt-0.5 block", cardEyebrow)}>{eyebrow}</span>
 
         {/* Below the date and left-aligned, on their own line rather than
             opposite the title: the title is what needs the width, and a
