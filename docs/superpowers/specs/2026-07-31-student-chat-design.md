@@ -40,19 +40,25 @@ New:
 - `lib/chat-bus.ts` — the in-process fan-out
 - `lib/messages.ts` — Prisma reads and writes for chat
 - `lib/chat-day.ts` — `groupByDay(messages)` for the day separators
+- `lib/student-tab.ts` — `parseStudentTab`
 - `app/api/chat/[slug]/route.ts` — `POST` a message
 - `app/api/chat/[slug]/stream/route.ts` — the SSE stream
 - `app/f/[token]/page.tsx` — the opaque files list
-- `components/chat/ChatPanel.tsx`, `MessageList.tsx`, `MessageInput.tsx`
-- `components/student/FilesSection.tsx`
-- `prisma/migrations/<...>_add_chat/` — `Message`, three `Group` columns
+- `components/chat/ChatFab.tsx` — the button, its unread dot, and the panel's
+  open state
+- `components/chat/ChatWindow.tsx` — the floating panel
+- `components/chat/MessageList.tsx`, `MessageInput.tsx`
+- `components/student/StudentTabs.tsx` — the two-tab strip
+- `components/student/FilesTab.tsx`
+- `prisma/migrations/<...>_add_chat/` — `Message`, and four `Group` columns:
+  `isEveryone`, `chatToken`, `filesToken`, `teacherLastReadAt`
 - `tests/lib/` — one test file per new pure module above
 
 Changed:
 
 - `prisma/schema.prisma` — `Message` model, `Group.isEveryone`,
   `Group.chatToken`, `Group.filesToken`, `Group.teacherLastReadAt`
-- `app/g/[slug]/page.tsx` — becomes the hub
+- `app/g/[slug]/page.tsx` — gains the tab strip and the chat button
 - `lib/pages.ts` — `listPagesForGroup` folds in the everyone group's pages
 - `app/actions.ts` — `deleteGroup` refuses the everyone group; new
   `deleteMessage`, `regenerateStudentLinks`
@@ -114,20 +120,75 @@ question Jenn is asking when she clicks it. An inherited tile is marked
 `shared with everyone` so it is obvious why it is there and why unticking Marie
 would not remove it.
 
-The everyone group's own shelf is reachable at `/g/all`, which grows a files
-section when it has any. Today it has none, so `/g/all` is the card alone, as it
-is now.
+The everyone group's own shelf is reachable at `/g/all`, which grows a Files tab
+when it has any. Today it has none, so `/g/all` is the card alone, as it is now.
+
+## The student's screen
+
+Two tabs and a floating chat button. The tabs mirror `/admin`'s strip so the
+two halves of the site work the same way, in the flashcard palette rather than
+the admin one.
+
+```
+        ⚜ La carte du jour ⚜
+         Français Avec Jenn
+
+        ( La carte )  ( Les fichiers )
+     ───────────────────────────────────
+
+        ┌─────────────────────────┐
+        │                         │
+        │   the flashcard         │
+        │                         │
+        └─────────────────────────┘
+
+                                    ╭───╮
+                                    │ 💬│ ← fixed, bottom-right
+                                    ╰───╯
+```
+
+`?tab=` with two values, `card` (the default) and `files`, parsed by
+`parseStudentTab` in `lib/student-tab.ts` — a separate module from
+`parseAdminTab` rather than a generalised one, because the two tab sets share a
+shape and nothing else. It rides alongside the existing `?date=`, which the card
+tab still uses and the files tab ignores.
+
+**The strip only appears when there is more than one tab.** With no files —
+every student on day one, and `/g/all` today — the page is the card alone,
+exactly as it is now, with no navigation suggesting a room that is empty. It
+appears the moment a page is shared, including one inherited from the everyone
+group.
+
+The chat is a fixed button at the bottom right, on both tabs, opening a panel
+that leaves the page visible behind it:
+
+- ~380px wide and ~520px tall on a desktop, anchored above the button.
+- Below `sm`, it fills the width with a margin and sits about two-thirds up the
+  viewport — a 380px window on a phone is the full width anyway, and a
+  full-screen takeover would make the card unreachable without closing it.
+- A dot on the button when Jenn has written since the student last opened it.
+  That marker is the last-seen message id in `localStorage`, not a column: it
+  is genuinely per-device, needs no write path from an unauthenticated visitor,
+  and the cost of clearing it is one re-read.
+- `role="dialog"`, not modal — the point is that the card stays readable while
+  they type. Escape closes it, focus moves in on open and returns to the button
+  on close, and the button carries `aria-expanded` and `aria-controls`.
+
+The button renders only when the group has chat: never on the everyone group,
+and never without a valid token. An untokened visitor sees no button, not a
+disabled one — nothing on the public card hints that a private conversation
+exists.
 
 ## Access
 
 Two random tokens per student, both null on the everyone group:
 
-- `chatToken` — unlocks the hub's files and chat sections
+- `chatToken` — unlocks the Files tab and the chat
 - `filesToken` — addresses the opaque files list
 
 Two rather than one so that sharing a files link never hands over the chat. The
-relationship is one-way and deliberate: `chatToken` opens the hub, which
-contains the files, so it grants everything `filesToken` does. `filesToken`
+relationship is one-way and deliberate: `chatToken` opens the Files tab as
+well as the chat, so it grants everything `filesToken` does. `filesToken`
 grants only the shelf.
 
 **The card stays public.** An untokened visit to `/g/marie` renders what it
@@ -137,15 +198,16 @@ nothing, and there is no login wall in front of the site's first purpose.
 
 The token arrives once as `?k=`, is exchanged for an httpOnly cookie scoped to
 that group's path, and is then dropped from the URL by a redirect. After the
-first visit the student's plain `/g/marie` bookmark shows the full hub, and the
+first visit the student's plain `/g/marie` bookmark shows both tabs, and the
 secret has stopped riding in history on every later visit.
 
 | Route | Who | What |
 |---|---|---|
-| `/g/all` | public | the card; files when any exist |
-| `/g/marie` | public | the card |
-| `/g/marie?k=…` | token | card + files + chat; sets cookie, redirects |
-| `/g/marie` + cookie | student | card + files + chat |
+| `/g/all` | public | the card; a Files tab once it has any |
+| `/g/marie` | public | the card, no tabs, no chat button |
+| `/g/marie?k=…` | token | sets the cookie, redirects to `/g/marie` |
+| `/g/marie` + cookie | student | Card and Files tabs, chat button |
+| `/g/marie?tab=files` | student | the Files tab; falls back to the card untokened |
 | `/f/<filesToken>` | token | that student's shelf, nothing else |
 
 `/f/[token]` carries no name, no slug and no structure: seen over a shoulder or
@@ -239,7 +301,7 @@ in `CLAUDE.md` so it is a position rather than an omission.
 
 ## Build order
 
-This spec covers two features that happen to meet at the hub, and they are
+This spec covers two features that meet only at the Files tab, and they are
 independent enough to ship separately:
 
 **Part 1 — the everyone group and page inheritance.** `isEveryone`, its delete
@@ -247,9 +309,10 @@ guard, `effectivePages`, the admin's inherited-page marker. No tokens, no
 chat, no new routes. Shippable on its own, and it makes every new student
 start with a shelf instead of nothing.
 
-**Part 2 — chat.** The tokens, the hub, `/f/[token]`, `Message`, the SSE
-stream, Jenn's chat and unread counts. Depends on Part 1 only for the hub's
-files section, which is a component by then.
+**Part 2 — chat.** The tokens, the two-tab student screen, `/f/[token]`,
+`Message`, the SSE stream, the chat button and panel, Jenn's chat and unread
+counts. Depends on Part 1 only for what the Files tab lists, which is a
+function by then.
 
 Two plans, in that order. Part 1 is small and touches the code just deployed;
 Part 2 is most of the work and all of the new surface area. Building them as
@@ -259,8 +322,13 @@ a streaming endpoint at once.
 ## Testing
 
 Pure modules with tests, per the existing convention:
-`effective-pages`, `chat-day`, `chat-token`, `everyone`. Components, Prisma
-access and the SSE route are not unit-tested, as with everything else here.
+`effective-pages`, `chat-day`, `student-tokens`, `student-tab`, `everyone`.
+Components, Prisma access and the SSE route are not unit-tested, as with
+everything else here.
+
+`parseStudentTab` carries one rule worth a test of its own: `?tab=files` from an
+untokened visitor resolves to the card, so a forwarded link cannot land a
+stranger on a tab that should not exist for them.
 
 The everyone-group delete guard gets a test at the `lib/` level — it is the one
 rule in this design whose failure is silent and wide.
