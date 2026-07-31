@@ -17,6 +17,7 @@ import { getCurrentTeacher } from "@/lib/session";
 import { listWhiteboards } from "@/lib/whiteboards";
 import { boardLabels } from "@/lib/whiteboard-names";
 import { BoardTab } from "@/components/whiteboard/BoardTab";
+import { LiveBanner } from "@/components/whiteboard/LiveBanner";
 import { markChatRead, deleteMessage, deleteWhiteboard } from "@/app/actions";
 
 function parseDate(value: string | undefined, latest: Date): Date {
@@ -89,6 +90,11 @@ export default async function GroupPage({
   // reason: outside the provider the hook throws.
   const body = (
     <>
+      {/* Guarded on `unlocked` as well as the tab: LiveBanner calls useStream,
+          and `body` also renders outside the provider for a visitor who only
+          has the public card. The board tab shows the thing itself. */}
+      {unlocked && tab !== "board" && <LiveBanner slug={slug} />}
+
       {tab === "card" ? (
         <>
           <WeekDayPicker slug={slug} today={today} selected={selected} />

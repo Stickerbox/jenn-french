@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BoardEditor } from "@/components/whiteboard/BoardEditor";
 import { BoardTile } from "@/components/whiteboard/BoardTile";
+import { BoardCanvas } from "@/components/whiteboard/BoardCanvas";
+import { useStream } from "@/components/StreamProvider";
+import { foldPage } from "@/lib/whiteboard-ops";
 
 export type BoardSummary = {
   id: string;
@@ -25,6 +28,7 @@ export function BoardTab({
 }) {
   const [drawing, setDrawing] = useState(false);
   const router = useRouter();
+  const { board } = useStream();
 
   if (drawing) {
     return (
@@ -38,6 +42,33 @@ export function BoardTab({
           router.refresh();
         }}
       />
+    );
+  }
+
+  // The student's live view. Above the archive rather than replacing it, so
+  // switching to this tab mid-lesson does not hide the boards they already have.
+  if (board && !isTeacher) {
+    const page = [
+      ...foldPage(board.ops).filter((op) => op.page === board.currentPage),
+      // The stroke still under her cursor, drawn last so it sits on top. It is
+      // not in the log and never will be — the committed version arrives on
+      // pointerup and the server clears this in the same breath.
+      ...(board.pending && board.pending.page === board.currentPage
+        ? [board.pending]
+        : []),
+    ];
+    return (
+      <div className="mx-auto w-full max-w-[1100px]">
+        <div
+          style={{ aspectRatio: "1600 / 1000" }}
+          className="w-full overflow-hidden rounded-xl border border-[var(--card-line)]"
+        >
+          <BoardCanvas ops={page} className="h-full w-full" />
+        </div>
+        <p className="mt-3 text-center font-[family-name:var(--card-font-serif)] text-sm italic text-[var(--card-moss)]">
+          Page {board.currentPage + 1} — Jenn dessine…
+        </p>
+      </div>
     );
   }
 
