@@ -16,6 +16,7 @@ import { GroupList } from "@/components/admin/GroupList";
 import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
 import { parseAdminTab } from "@/lib/admin-tab";
+import { unreadCounts } from "@/lib/messages";
 import { createPage } from "@/app/page-actions";
 import { listPagesForAdmin } from "@/lib/pages";
 import { PageList } from "@/components/admin/PageList";
@@ -97,10 +98,13 @@ async function DailyWordTab({
 }
 
 async function GroupsTab() {
-  const groups = await prisma.group.findMany({
-    orderBy: { name: "asc" },
-    include: { _count: { select: { cards: true } } },
-  });
+  const [groups, unread] = await Promise.all([
+    prisma.group.findMany({
+      orderBy: { name: "asc" },
+      include: { _count: { select: { cards: true } } },
+    }),
+    unreadCounts(),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-[560px]">
@@ -111,6 +115,9 @@ async function GroupsTab() {
           slug: g.slug,
           cardCount: g._count.cards,
           isEveryone: g.isEveryone,
+          unread: unread.get(g.id) ?? 0,
+          chatToken: g.chatToken,
+          filesToken: g.filesToken,
         }))}
         onDelete={deleteGroup}
       />

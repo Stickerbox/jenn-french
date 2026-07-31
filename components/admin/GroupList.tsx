@@ -13,6 +13,9 @@ export type GroupSummary = {
   slug: string;
   cardCount: number;
   isEveryone: boolean;
+  unread: number;
+  chatToken: string | null;
+  filesToken: string | null;
 };
 
 export function GroupList({
@@ -69,7 +72,9 @@ export function GroupList({
                 title={group.name}
                 eyebrow={`${group.cardCount} card${
                   group.cardCount === 1 ? "" : "s"
-                } · /g/${group.slug}`}
+                } · /g/${group.slug}${
+                  group.unread > 0 ? ` · ${group.unread} unread` : ""
+                }`}
                 action={
                   canDeleteGroup(group) ? (
                     <button
@@ -117,6 +122,17 @@ export function GroupList({
                     {deleting === group.id ? "Deleting…" : "Delete"}
                   </button>
                 </div>
+              )}
+
+              {group.chatToken && (
+                <p className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
+                  Chat link:{" "}
+                  <code className="break-all">
+                    /g/{group.slug}?k={group.chatToken}
+                  </code>
+                  <br />
+                  Files link: <code className="break-all">/f/{group.filesToken}</code>
+                </p>
               )}
             </li>
           ))}

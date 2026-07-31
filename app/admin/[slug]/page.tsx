@@ -7,6 +7,8 @@ import { CardEditor } from "@/components/admin/CardEditor";
 import { AdminDatePicker } from "@/components/admin/AdminDatePicker";
 import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
+import { ChatFab } from "@/components/chat/ChatFab";
+import { markTeacherRead } from "@/lib/messages";
 
 export default async function GroupAdminPage({
   params,
@@ -26,6 +28,7 @@ export default async function GroupAdminPage({
     include: { cards: { orderBy: { date: "desc" } } },
   });
   if (!group) notFound();
+  if (!group.isEveryone) await markTeacherRead(group.id);
 
   const today = new Date().toISOString().slice(0, 10);
   const selected = parseAdminDate(date, today);
@@ -81,6 +84,22 @@ export default async function GroupAdminPage({
             {group.cards.length === 0 && <li>No overrides yet.</li>}
           </ul>
         </div>
+
+        {!group.isEveryone && (
+          <ChatFab
+            slug={group.slug}
+            token={null}
+            self="teacher"
+            labels={{
+              title: `Chat with ${group.name}`,
+              empty: "No messages yet.",
+              placeholder: "Write a message…",
+              send: "Send",
+              close: "Close",
+              locale: "en-CA",
+            }}
+          />
+        )}
       </div>
     </main>
   );

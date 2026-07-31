@@ -7,6 +7,7 @@ import { getCurrentTeacher } from "@/lib/session";
 import { normaliseSections, type CardSection } from "@/lib/sections";
 import { canDeleteGroup } from "@/lib/everyone";
 import { newToken } from "@/lib/student-tokens";
+import { deleteMessageById } from "@/lib/messages";
 
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
@@ -147,5 +148,25 @@ export async function deleteOverrideCard(
   const date = new Date(`${dateStr}T00:00:00Z`);
   await prisma.card.deleteMany({ where: { groupId, date } });
 
+  revalidatePath(`/admin/${slug}`);
+}
+
+export async function deleteMessage(groupSlug: string, messageId: string) {
+  await requireTeacher();
+  await deleteMessageById(messageId);
+  revalidatePath(`/admin/${groupSlug}`);
+}
+
+// Revoking a leaked bookmark. Both tokens move together: a link that leaked
+// probably leaked from the same place as its sibling.
+export async function regenerateStudentLinks(groupId: string, slug: string) {
+  await requireTeacher();
+
+  await prisma.group.update({
+    where: { id: groupId },
+    data: { chatToken: newToken(), filesToken: newToken() },
+  });
+
+  revalidatePath("/admin");
   revalidatePath(`/admin/${slug}`);
 }
