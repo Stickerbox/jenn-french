@@ -99,6 +99,11 @@ rewritten underneath it. A student loading a page in that window may get a chunk
 error and need to refresh. For a class-hours deploy this is worth knowing; it has
 not been worth solving.
 
+**Do not switch pm2 to cluster mode.** Chat fan-out is an in-process
+`EventEmitter`; with more than one worker a message reaches only the viewers
+connected to the same one, and nothing reports the loss. See the chat section
+of `CLAUDE.md`.
+
 ---
 
 ## One-off: re-dating cards to the five-day week

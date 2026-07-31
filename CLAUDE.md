@@ -35,15 +35,17 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | Route | Who | Notes |
 |---|---|---|
 | `/` | public | landing page |
-| `/g/[slug]` | students | the card for `?date=`, defaulting to today |
+| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files` and the chat need a valid token — except the everyone group, whose files are public and which has no chat |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/admin/[slug]` | teacher | edits one group's **override** card for `?date=` |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe |
-| `/g/[slug]/pages` | students | that group's uploaded pages, including everything shared with everyone |
+| `/f/[token]` | students | that student's files, at an opaque unguessable link |
 | `/admin/pages/[slug]` | teacher | edits one uploaded page |
 | `POST /api/pages` | token | publishes a page from outside the browser |
-| `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, and `/p/[slug]/raw`) |
+| `POST /api/chat/[slug]` | token or teacher | send one message |
+| `GET /api/chat/[slug]/stream` | token or teacher | the SSE stream |
+| `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, `/api/chat/*`, and `/p/[slug]/raw`) |
 
 ## Architecture
 
@@ -167,6 +169,53 @@ student's shelf at once and nothing would report an error.
 In the admin, filtering the Pages tab by a student shows that student's
 effective shelf rather than their assignments: the chip answers "what does
 Marie have?", and a page shared with everyone is something Marie has.
+
+### Lesson chat
+
+A `Message` belongs to a group and carries `fromTeacher` rather than a sender
+id, because there are exactly two participants and one of them has no row to
+point at. There is no session or lesson model: the log is continuous and
+`groupByDay` (`lib/chat-day.ts`) computes the date separators, in UTC like
+every other date here. Retention is forever, deliberately — this is a teaching
+record. Jenn can delete an individual message, and can regenerate a student's
+tokens from the admin, which revokes both at once.
+
+Each student row carries two tokens. `chatToken` unlocks the files tab and the
+chat on `/g/[slug]`; `filesToken` addresses `/f/[token]` and nothing else, so
+sharing a files link never hands over the conversation. The everyone group has
+neither, and `chatRole` (`lib/chat-access.ts`) refuses it before it checks
+anything else — not even the teacher can open a conversation there. **The
+daily card stays public**: an untokened visit to `/g/marie` renders exactly
+what it rendered before chat existed, which is what keeps every old bookmark
+working and means a forwarded plain link leaks nothing. The everyone group's
+files tab is the one deliberate exception, public without a token, because
+that shelf has no conversation to protect. A wrong token is a 404, never a
+403.
+
+`middleware.ts` exists for one job: moving `?k=` out of the URL into an
+httpOnly cookie, so the secret stops riding in browser history. The cookie's
+*name* is per-student (`cookieNameFor(slug)`), but its path is `/` rather than
+`/g/<slug>` — a path-scoped cookie would never be sent to `/api/chat/<slug>`,
+so the name is what keeps students separated, not the path. `cookieNameFor`
+lives in its own dependency-free `lib/cookie-name.ts`, imported by both
+`middleware.ts` and `lib/student-tokens.ts`: middleware runs on the Edge
+runtime, and `lib/student-tokens.ts` needs Node's `crypto` to mint tokens, so
+importing it from middleware would drag `crypto` into the Edge bundle. Merging
+the two modules back would break every `/g/*` request. Middleware does not
+validate the token — that needs the database. The page validates what it is
+handed.
+
+Delivery is SSE (`app/api/chat/[slug]/stream`) with an in-process
+`EventEmitter` (`lib/chat-bus.ts`). **That emitter is correct only because pm2
+runs this app as a single process in fork mode.** Under cluster mode a message
+would reach only the viewers on the same worker, silently. Two details keep the
+stream alive behind nginx without any nginx change: `X-Accel-Buffering: no`
+disables its response buffering, and a `: ping` comment every 20 seconds stays
+under the default 60-second `proxy_read_timeout`. Messages are ordered by
+`(createdAt, id)`, not `createdAt` alone — a review found that two messages
+landing in the same millisecond made `gt createdAt` drop the second one on
+every future reconnect, since a `Last-Event-ID` replay has no other anchor to
+resume from.
 
 ## Conventions
 
