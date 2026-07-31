@@ -1,10 +1,17 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getEffectiveCard } from "@/lib/cards";
 import { Flashcard } from "@/components/Flashcard";
 import { WeekDayPicker } from "@/components/WeekDayPicker";
 import { weekRange, formatWeekRange, latestViewableDate } from "@/lib/week";
+import { parseStudentTab } from "@/lib/student-tab";
+import { readToken, cookieNameFor } from "@/lib/student-tokens";
+import { listPagesForGroup } from "@/lib/pages";
+import { StudentTabs } from "@/components/student/StudentTabs";
+import { FilesTab } from "@/components/student/FilesTab";
+import { ChatFab } from "@/components/chat/ChatFab";
 
 function parseDate(value: string | undefined, latest: Date): Date {
   if (!value) return latest;
@@ -21,13 +28,30 @@ export default async function GroupPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; tab?: string }>;
 }) {
   const { slug } = await params;
-  const { date } = await searchParams;
+  const { date, tab: tab_ } = await searchParams;
 
   const group = await prisma.group.findUnique({ where: { slug } });
   if (!group) notFound();
+
+  // The card is public; everything else needs the token. An untokened visitor
+  // sees exactly what this page rendered before chat existed.
+  const presented = readToken(
+    undefined,
+    (await cookies()).get(cookieNameFor(slug))?.value,
+  );
+  const unlocked =
+    !group.isEveryone &&
+    group.chatToken !== null &&
+    presented === group.chatToken;
+
+  // The everyone group has no chat but does show its own files, so its shelf
+  // is public — that is the "someday" case the spec left room for.
+  const pages =
+    unlocked || group.isEveryone ? await listPagesForGroup(group.id) : [];
+  const tab = parseStudentTab(tab_, pages.length > 0);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const today = new Date(`${todayStr}T00:00:00Z`);
@@ -62,14 +86,39 @@ export default async function GroupPage({
         </div>
       </header>
 
-      <WeekDayPicker slug={slug} today={today} selected={selected} />
+      {pages.length > 0 && (
+        <StudentTabs slug={slug} active={tab} date={selected} />
+      )}
 
-      {card ? (
-        <Flashcard card={card} />
+      {tab === "card" ? (
+        <>
+          <WeekDayPicker slug={slug} today={today} selected={selected} />
+          {card ? (
+            <Flashcard card={card} />
+          ) : (
+            <p className="text-center font-[family-name:var(--font-body)] text-[var(--color-ink-muted)]">
+              Nothing posted yet — check back soon!
+            </p>
+          )}
+        </>
       ) : (
-        <p className="text-center font-[family-name:var(--font-body)] text-[var(--color-ink-muted)]">
-          Nothing posted yet — check back soon!
-        </p>
+        <FilesTab pages={pages} />
+      )}
+
+      {unlocked && (
+        <ChatFab
+          slug={slug}
+          token={null}
+          self="student"
+          labels={{
+            title: "Clavardage",
+            empty: "Aucun message pour l'instant.",
+            placeholder: "Écrivez un message…",
+            send: "Envoyer",
+            close: "Fermer",
+            locale: "fr-CA",
+          }}
+        />
       )}
     </main>
   );
