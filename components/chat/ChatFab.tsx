@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChatWindow, type ChatLabels } from "@/components/chat/ChatWindow";
-import type { ChatMessage } from "@/components/chat/MessageList";
+import { useStream } from "@/components/StreamProvider";
 
 // Per-device by design: the student has no account to hang a read marker on,
 // and tracking it server-side would mean a write path from an unauthenticated
@@ -26,12 +26,15 @@ export function ChatFab({
 }) {
   const [open, setOpen] = useState(false);
   const [unseen, setUnseen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-  // The onmessage handler below is set up once per mount (see the effect's
-  // deps) and closes over `open` from that render. Reading it through a ref
-  // keeps the handler current without tearing down and reopening the
-  // connection every time the panel toggles.
+  // The connection itself lives in StreamProvider now: the whiteboard needs the
+  // same stream, and two EventSources would each replay the whole chat backlog
+  // from the database at connect.
+  const { messages, removeMessage } = useStream();
+
+  // The unread effect below closes over `open` from the render that ran it.
+  // Reading it through a ref keeps that check current without making the
+  // effect re-run every time the panel toggles.
   const openRef = useRef(open);
   useEffect(() => {
     openRef.current = open;
@@ -39,40 +42,23 @@ export function ChatFab({
 
   const query = token ? `?k=${encodeURIComponent(token)}` : "";
 
-  // Opened on mount and held open for as long as this component is mounted —
-  // not just while the panel is open. The unread dot can only ever reflect a
-  // message this component actually observed, so a stream that closes with
-  // the panel would make the dot dead code, which is the bug this fixes: one
-  // connection per open student page is what makes an unread marker possible
-  // without server-side read state.
+  // Was inside the stream handler before the connection moved to the provider.
+  // Same rule, same localStorage key: the newest message from the other party,
+  // compared against the last one this device saw.
   useEffect(() => {
-    const source = new EventSource(`/api/chat/${slug}/stream${query}`);
+    const fromOther = messages.filter(
+      (m) => m.fromTeacher !== (self === "teacher"),
+    );
+    const newest = fromOther[fromOther.length - 1];
+    if (!newest) return;
 
-    source.onmessage = (event) => {
-      const raw = JSON.parse(event.data) as ChatMessage & {
-        createdAt: string;
-      };
-      const message = { ...raw, createdAt: new Date(raw.createdAt) };
-
-      setMessages((current) =>
-        // De-duplicated by id because a reconnect replays, and because the
-        // sender receives its own message back through the stream.
-        current.some((m) => m.id === message.id)
-          ? current
-          : [...current, message],
-      );
-
-      if (message.fromTeacher === (self === "teacher")) return; // own message
-      if (openRef.current) {
-        window.localStorage.setItem(seenKey(slug), message.id);
-        setUnseen(false);
-      } else {
-        setUnseen(window.localStorage.getItem(seenKey(slug)) !== message.id);
-      }
-    };
-
-    return () => source.close();
-  }, [slug, query, self]);
+    if (openRef.current) {
+      window.localStorage.setItem(seenKey(slug), newest.id);
+      setUnseen(false);
+    } else {
+      setUnseen(window.localStorage.getItem(seenKey(slug)) !== newest.id);
+    }
+  }, [messages, self, slug]);
 
   async function send(body: string) {
     const response = await fetch(`/api/chat/${slug}${query}`, {
@@ -91,7 +77,7 @@ export function ChatFab({
   async function handleDeleteMessage(id: string) {
     if (!onDeleteMessage) return;
     await onDeleteMessage(id);
-    setMessages((current) => current.filter((m) => m.id !== id));
+    removeMessage(id);
   }
 
   function handleToggle() {
