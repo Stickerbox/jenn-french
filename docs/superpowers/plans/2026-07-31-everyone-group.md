@@ -522,11 +522,13 @@ git commit -m "feat: filter the admin pages list by a student's effective shelf"
 **Files:**
 - Modify: `components/admin/PageList.tsx` — `PageSummary`, the eyebrow, the filter call
 - Modify: `components/admin/GroupList.tsx` — `GroupSummary`, hide delete on the everyone group
-- Modify: `app/admin/page.tsx` — pass `isEveryone` through `GroupsTab`, pass the everyone name to `PageList`
+- Modify: `app/admin/page.tsx` — pass `isEveryone` through `GroupsTab`, pass the everyone group's real name to `PageList`
 
 **Interfaces:**
-- Consumes: `filterPagesByGroup` with its third argument (Task 5), `sharedWithEveryone` (Task 4), `EVERYONE_NAME` (Task 1).
-- Produces: `PageSummary` gains `sharedWithEveryone: boolean`; `GroupSummary` gains `isEveryone: boolean`.
+- Consumes: `filterPagesByGroup` with its third argument (Task 5), `sharedWithEveryone` (Task 4), `canDeleteGroup` (Task 1).
+- Produces: `PageSummary` gains `sharedWithEveryone: boolean`; `GroupSummary` gains `isEveryone: boolean`; `PageList` gains a required `everyoneName: string | null` prop.
+
+**Do not import `EVERYONE_NAME` for the filter.** The everyone group's *name* is Jenn's to change — production's row is called "Everyone" but the local one is called "all", and she can rename it from the admin at any time. A hardcoded constant compared against `groupNames` would silently stop widening the moment those diverge, and nothing would report it. The name must come from the data.
 
 - [ ] **Step 1: Mark inherited pages and widen the filter**
 
@@ -534,10 +536,19 @@ In `components/admin/PageList.tsx`:
 
 Add `sharedWithEveryone: boolean;` to the `PageSummary` type.
 
-Add the import:
+Add an `everyoneName` prop, and pass it to the filter:
 
-```ts
-import { EVERYONE_NAME } from "@/lib/everyone";
+```tsx
+export function PageList({
+  pages,
+  everyoneName,
+}: {
+  pages: PageSummary[];
+  // Read from the flagged row rather than from a constant: the name is the
+  // teacher's to change, and a stale literal here would silently stop a
+  // student's chip widening to their inherited pages.
+  everyoneName: string | null;
+}) {
 ```
 
 Change the filter call so a student's chip shows their effective shelf:
@@ -546,7 +557,7 @@ Change the filter call so a student's chip shows their effective shelf:
   const visible = filterPagesByGroup(
     filterPages(pages, query),
     group,
-    EVERYONE_NAME,
+    everyoneName ?? undefined,
   );
 ```
 
@@ -612,6 +623,26 @@ In `app/admin/page.tsx`, in `GroupsTab`, add `isEveryone` to the mapped groups:
 ```
 
 `prisma.group.findMany` with `include: { _count: … }` already returns every scalar column, so `isEveryone` is present with no query change.
+
+Then in `PagesTab`, feed `PageList` the everyone group's real name. The tab already queries groups for the editor's assignment pills, so add `isEveryone` to that `select` and find the flagged row:
+
+```tsx
+  const [pages, groups] = await Promise.all([
+    listPagesForAdmin(),
+    prisma.group.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, isEveryone: true },
+    }),
+  ]);
+
+  // null when no row is flagged — a state the migration makes impossible, but
+  // one the filter should degrade quietly on rather than crash.
+  const everyoneName = groups.find((g) => g.isEveryone)?.name ?? null;
+```
+
+and pass it: `<PageList pages={pages} everyoneName={everyoneName} />`.
+
+`PageEditor` takes `{ id, name }[]`; the extra `isEveryone` field on those objects is structurally compatible and needs no change there.
 
 - [ ] **Step 4: Verify**
 
@@ -770,5 +801,7 @@ Checked against the spec's Part 1 scope:
 Deliberately **not** here, per the spec's build order: tokens, `Message`, SSE, `/f/[token]`, the student tab strip, the chat button, unread counts, `teacherLastReadAt`, and the removal of `app/g/[slug]/pages/page.tsx`. All are Part 2.
 
 Name consistency verified across tasks: `EVERYONE_SLUG`, `EVERYONE_NAME`, `canDeleteGroup`, `effectivePages`, `sharedWithEveryone`, `isEveryone`, `filterPagesByGroup`'s third parameter `everyoneName`.
+
+Amended during execution: Task 6 originally passed the hardcoded `EVERYONE_NAME` as that third argument. The everyone group's name is the teacher's to change — production's row is "Everyone", the local one is "all" — so a constant compared against `groupNames` would silently stop widening a student's chip the moment the two diverged. Task 6 now reads the name from the flagged row instead. `EVERYONE_NAME` survives only as the value the migration seeds a rebuilt box with.
 
 One risk worth naming for the implementer: Task 3 hand-edits a generated migration, which is the only step here whose failure is invisible locally and only shows up on the server. Step 4 verifies both of the seed's branches — the `INSERT` on an empty database and the `UPDATE` on a populated one — on throwaway copies. It deliberately does **not** run `prisma migrate reset`: the local `dev.db` holds the only passkey for local `/admin`, and resetting it costs a manual passkey re-registration for no verification benefit.
