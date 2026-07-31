@@ -30,6 +30,7 @@ export function PageEditor({
   // re-submits the identical html and page-actions needs no change.
   const [html, setHtml] = useState(initial?.html ?? "");
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fileSize, setFileSize] = useState<number | null>(null);
   const [groupIds, setGroupIds] = useState<string[]>(initial?.groupIds ?? []);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -46,6 +47,7 @@ export function PageEditor({
     setError(null);
     setHtml(text);
     setFileName(file.name);
+    setFileSize(file.size);
     if (!title || titleFromFile) {
       setTitle(file.name.replace(/\.html?$/i, ""));
       setTitleFromFile(true);
@@ -70,6 +72,7 @@ export function PageEditor({
         setTitle("");
         setHtml("");
         setFileName(null);
+        setFileSize(null);
         setGroupIds([]);
         setTitleFromFile(false);
       }
@@ -150,6 +153,7 @@ export function PageEditor({
         Page file
         <HtmlDropZone
           fileName={fileName}
+          fileSize={fileSize}
           hasExisting={Boolean(initial)}
           onFile={handleFile}
           onError={setError}

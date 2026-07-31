@@ -78,9 +78,11 @@ navigations to distinct URLs, not panels swapped in place, and labelling them
 `role="tab"` would promise keyboard behaviour that browser navigation does not
 provide.
 
-The Daily word link carries the current `?date=` so that leaving the tab and
-coming back lands on the day she was working on. The Groups and Pages links
-carry no date — neither screen has one.
+Every link carries the current `?date=`, not only the Daily word one. A bug
+surfaced during implementation: dropping the param on the Groups or Pages
+link sent `parseAdminDate` back to today, so one detour through either tab
+silently moved her off the day she was working on. Carrying the date on all
+three keeps that from happening, even though Groups and Pages ignore it.
 
 A tab that is not active does not run its queries. `app/admin/page.tsx`
 branches on the parsed tab and fetches only what that tab renders: the daily

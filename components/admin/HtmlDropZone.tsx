@@ -3,14 +3,17 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { cn } from "@/lib/utils";
 import { MAX_PAGE_BYTES } from "@/lib/page-html";
+import { formatFileSize } from "@/lib/file-size";
 
 export function HtmlDropZone({
   fileName,
+  fileSize,
   hasExisting,
   onFile,
   onError,
 }: {
   fileName: string | null;
+  fileSize: number | null;
   // Distinguishes "nothing chosen and nothing stored" on the create form from
   // "nothing chosen this session, but a file is already published" on the
   // edit screen. Without it the edit screen would look empty and unsaved.
@@ -43,7 +46,9 @@ export function HtmlDropZone({
   }
 
   const status = fileName
-    ? fileName
+    ? fileSize !== null
+      ? `${fileName} · ${formatFileSize(fileSize)}`
+      : fileName
     : hasExisting
       ? "A file is published. Drop a new one to replace it."
       : "Drop an HTML file here, or click to choose one";
@@ -56,6 +61,12 @@ export function HtmlDropZone({
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
+      // Click-to-open on the whole zone, matching the drop target: a plain
+      // mouse affordance, not a second control. Making the div itself
+      // keyboard-operable (role="button" + key handlers) would add a
+      // redundant tab stop right next to the real "Choose a file" button,
+      // which already is one.
+      onClick={() => inputRef.current?.click()}
       className={cn(
         "mt-1 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors",
         dragging
@@ -68,7 +79,13 @@ export function HtmlDropZone({
       </p>
       <button
         type="button"
-        onClick={() => inputRef.current?.click()}
+        onClick={(event) => {
+          // The zone itself already opens the picker on click; without this
+          // the button's own click would bubble up and fire it a second time,
+          // opening the OS file dialog twice in a row.
+          event.stopPropagation();
+          inputRef.current?.click();
+        }}
         className="mt-3 rounded-full border border-[var(--color-field-border)] bg-[var(--color-bg)] px-5 py-2 text-sm font-medium text-[var(--color-ink)] transition-opacity hover:opacity-80"
       >
         {fileName || hasExisting ? "Choose a different file" : "Choose a file"}
@@ -78,6 +95,7 @@ export function HtmlDropZone({
         type="file"
         accept=".html,.htm,text/html"
         onChange={handleChange}
+        aria-label="HTML file to publish"
         className="sr-only"
       />
     </div>
