@@ -2,7 +2,11 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getCurrentTeacher } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { upsertOverrideCard, deleteOverrideCard } from "@/app/actions";
+import {
+  upsertOverrideCard,
+  deleteOverrideCard,
+  deleteMessage,
+} from "@/app/actions";
 import { CardEditor } from "@/components/admin/CardEditor";
 import { AdminDatePicker } from "@/components/admin/AdminDatePicker";
 import { toCardFormValues } from "@/lib/cards";
@@ -97,7 +101,9 @@ export default async function GroupAdminPage({
               send: "Send",
               close: "Close",
               locale: "en-CA",
+              deleteMessage: "Delete message",
             }}
+            onDeleteMessage={deleteMessage.bind(null, group.slug)}
           />
         )}
       </div>

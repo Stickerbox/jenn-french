@@ -6,6 +6,7 @@ import {
   createGroup,
   deleteGlobalCard,
   deleteGroup,
+  regenerateStudentLinks,
 } from "@/app/actions";
 import { logout } from "@/app/auth-actions";
 import { CardEditor } from "@/components/admin/CardEditor";
@@ -120,6 +121,7 @@ async function GroupsTab() {
           filesToken: g.filesToken,
         }))}
         onDelete={deleteGroup}
+        onRegenerate={regenerateStudentLinks}
       />
 
       <h2 className="mb-4 text-center font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">

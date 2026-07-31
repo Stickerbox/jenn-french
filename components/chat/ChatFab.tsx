@@ -14,11 +14,13 @@ export function ChatFab({
   token,
   self,
   labels,
+  onDeleteMessage,
 }: {
   slug: string;
   token: string | null;
   self: "teacher" | "student";
   labels: ChatLabels;
+  onDeleteMessage?: (id: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [unseen, setUnseen] = useState(false);
@@ -51,6 +53,7 @@ export function ChatFab({
           labels={labels}
           onClose={() => setOpen(false)}
           onMessages={onMessages}
+          onDeleteMessage={onDeleteMessage}
         />
       )}
 

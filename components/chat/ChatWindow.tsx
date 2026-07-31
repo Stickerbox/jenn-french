@@ -11,6 +11,7 @@ export type ChatLabels = {
   send: string;
   close: string;
   locale: string;
+  deleteMessage: string;
 };
 
 export function ChatWindow({
@@ -20,6 +21,7 @@ export function ChatWindow({
   labels,
   onClose,
   onMessages,
+  onDeleteMessage,
 }: {
   slug: string;
   token: string | null;
@@ -27,6 +29,7 @@ export function ChatWindow({
   labels: ChatLabels;
   onClose: () => void;
   onMessages: (messages: ChatMessage[]) => void;
+  onDeleteMessage?: (id: string) => Promise<void>;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const panel = useRef<HTMLDivElement>(null);
@@ -75,6 +78,15 @@ export function ChatWindow({
     // which is also what gives it its real id and timestamp.
   }
 
+  // The SSE stream only ever carries insertions, so a delete has to be
+  // reflected locally by hand — nothing else will tell this client the
+  // message is gone.
+  async function handleDeleteMessage(id: string) {
+    if (!onDeleteMessage) return;
+    await onDeleteMessage(id);
+    setMessages((current) => current.filter((m) => m.id !== id));
+  }
+
   return (
     <div
       ref={panel}
@@ -105,6 +117,8 @@ export function ChatWindow({
           self={self}
           emptyLabel={labels.empty}
           locale={labels.locale}
+          onDeleteMessage={onDeleteMessage ? handleDeleteMessage : undefined}
+          deleteLabel={labels.deleteMessage}
         />
       </div>
 

@@ -21,14 +21,18 @@ export type GroupSummary = {
 export function GroupList({
   groups,
   onDelete,
+  onRegenerate,
 }: {
   groups: GroupSummary[];
   onDelete: (groupId: string) => Promise<void>;
+  onRegenerate: (groupId: string, slug: string) => Promise<void>;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmingRegen, setConfirmingRegen] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const visible = filterGroups(groups, query);
@@ -44,6 +48,20 @@ export function GroupList({
       setError(err instanceof Error ? err.message : "Could not delete the group");
     } finally {
       setDeleting(null);
+    }
+  }
+
+  async function handleRegenerate(id: string, slug: string) {
+    setRegenerating(id);
+    setError(null);
+    try {
+      await onRegenerate(id, slug);
+      setConfirmingRegen(null);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not make new links");
+    } finally {
+      setRegenerating(null);
     }
   }
 
@@ -125,14 +143,55 @@ export function GroupList({
               )}
 
               {group.chatToken && (
-                <p className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
-                  Chat link:{" "}
-                  <code className="break-all">
-                    /g/{group.slug}?k={group.chatToken}
-                  </code>
-                  <br />
-                  Files link: <code className="break-all">/f/{group.filesToken}</code>
-                </p>
+                <div className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
+                  <p>
+                    Chat link:{" "}
+                    <code className="break-all">
+                      /g/{group.slug}?k={group.chatToken}
+                    </code>
+                    <br />
+                    Files link:{" "}
+                    <code className="break-all">/f/{group.filesToken}</code>
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setConfirmingRegen(group.id);
+                    }}
+                    className="mt-1 text-xs text-[var(--color-ink-muted)] underline"
+                  >
+                    Make new links
+                  </button>
+
+                  {confirmingRegen === group.id && (
+                    <div className="mt-2 flex flex-wrap items-baseline gap-3">
+                      <span>
+                        Make new links for {group.name}? Their old links stop
+                        working.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingRegen(null)}
+                        disabled={regenerating !== null}
+                        className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRegenerate(group.id, group.slug)}
+                        disabled={regenerating !== null}
+                        className="mt-1 text-xs text-[var(--color-ink-muted)] underline disabled:opacity-50"
+                      >
+                        {regenerating === group.id
+                          ? "Making new links…"
+                          : "Make new links"}
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </li>
           ))}

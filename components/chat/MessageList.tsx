@@ -16,11 +16,15 @@ export function MessageList({
   self,
   emptyLabel,
   locale,
+  onDeleteMessage,
+  deleteLabel,
 }: {
   messages: ChatMessage[];
   self: "teacher" | "student";
   emptyLabel: string;
   locale: string;
+  onDeleteMessage?: (id: string) => void;
+  deleteLabel: string;
 }) {
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -57,13 +61,30 @@ export function MessageList({
               <div
                 key={message.id}
                 className={cn(
-                  "max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words",
-                  mine
-                    ? "self-end bg-[var(--color-accent)] text-white"
-                    : "self-start bg-[var(--color-field)] text-[var(--color-ink)]",
+                  "group/msg flex max-w-[85%] items-center gap-1",
+                  mine ? "flex-row-reverse self-end" : "self-start",
                 )}
               >
-                {message.body}
+                <div
+                  className={cn(
+                    "rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words",
+                    mine
+                      ? "bg-[var(--color-accent)] text-white"
+                      : "bg-[var(--color-field)] text-[var(--color-ink)]",
+                  )}
+                >
+                  {message.body}
+                </div>
+                {onDeleteMessage && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteMessage(message.id)}
+                    aria-label={`${deleteLabel}: ${message.body.slice(0, 40)}`}
+                    className="text-xs text-[var(--color-ink-muted)] opacity-0 transition-opacity group-hover/msg:opacity-100 focus:opacity-100"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             );
           })}

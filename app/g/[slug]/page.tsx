@@ -117,6 +117,7 @@ export default async function GroupPage({
             send: "Envoyer",
             close: "Fermer",
             locale: "fr-CA",
+            deleteMessage: "",
           }}
         />
       )}
