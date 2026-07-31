@@ -230,6 +230,18 @@ disagreeing.
 thing in the log and halving its JSON size matters when it is also the thing
 being sent every 150 ms.
 
+**Editing an element is a remove plus a re-add.** Moving something, retyping its
+words and changing its size all append a `remove` naming the old id followed by
+a fresh op carrying the new geometry, text or size. `foldPage` needs no change
+whatsoever — this is the mechanism the eraser already uses, pointed at a
+different intent.
+
+The alternative, a `move` op carrying an offset that the fold applies, keeps the
+log smaller and preserves an element's identity across edits. It was rejected
+because it turns `foldPage` from a filter into a geometry transformer, and
+obliges every future op type to define how it moves. Two extra ops per edit is
+nothing on a lesson-length board.
+
 **Which page she is looking at is not an op.** The live record carries a
 `currentPage`, published alongside ops so the student's view follows hers while
 she presents. It is deliberately outside the log, because a *saved* board has no
@@ -272,7 +284,28 @@ breaks out of that column; nothing else does.
 ## Tools
 
 Pen, text placed anywhere, arrows and lines, and a fixed colour palette. Plus
-eraser, undo, clear page, add page, and page navigation.
+select, eraser, undo, clear page, add page, and page navigation.
+
+**Text is typed inline on the canvas**, not into a dialog. Clicking with the
+text tool opens a borderless transparent `<textarea>` at that point, matched to
+the font, size and colour the op will render with, so what she types is what
+appears. Escape cancels, blur or Cmd/Ctrl+Enter commits, plain Enter is a
+newline — the renderer already splits on `\n` and never wraps, which is also
+why resizing a text block cannot reflow it.
+
+**Select is direct manipulation**: click an element to select it, drag it to
+move it, press Delete to remove it. Pressing a colour swatch with something
+selected **recolours that element** rather than arming the next one. A selected
+text element additionally offers double-click to re-edit its words and a
+stepper to change its size. Every one of those is a remove-plus-re-add (see
+Ops), so none of them mutate anything — and because a revision mints a new id,
+the selection has to follow it.
+
+**The toolbar is icons, not words.** `lucide-react` is already a dependency.
+Every icon button carries a French `aria-label` and a `title`, because an
+icon-only control that cannot be hovered or read aloud is a control only its
+author can use. *Terminé* and *Annuler* stay as words: they are decisions, not
+tools, and they are the two places where being unambiguous beats being compact.
 
 Five preset swatches, not a colour picker — the colours mean something
 (masculine/feminine, right/wrong, emphasis) and five named choices communicate
