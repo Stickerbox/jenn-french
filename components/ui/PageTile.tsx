@@ -8,6 +8,7 @@ export function PageTile({
   title,
   eyebrow,
   preview,
+  badge,
   action,
   className,
 }: {
@@ -20,12 +21,24 @@ export function PageTile({
   // is previewing. A cross-origin URL generally cannot be framed at all, so
   // that renderer will not be HtmlPreview with a different src.
   preview: ReactNode;
+  // A marker over the preview's corner — today a pin. A slot for the same
+  // reason as `preview`: the tile does not learn what a pin is, and a later
+  // marker needs no change here. Decorative only; it never takes a click.
+  badge?: ReactNode;
   action?: ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn(pageTileFrame, className)}>
       {preview}
+
+      {/* pointer-events-none so the marker never eats the tile's stretched
+          link. The interactive pin lives in `action`, in the footer. */}
+      {badge && (
+        <div className="pointer-events-none absolute right-2 top-2 z-10">
+          {badge}
+        </div>
+      )}
 
       <div className="min-w-0 border-t border-[var(--card-line)] px-4 py-3">
         {/* Stretched over the whole tile rather than wrapping it: `action`

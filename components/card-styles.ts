@@ -69,3 +69,9 @@ export const pageGrid = "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4";
 // frame inside HtmlPreview to the tile.
 export const pageTileFrame =
   "relative flex h-full flex-col overflow-hidden rounded-[14px] border border-[var(--card-line)] bg-[var(--card-paper)] shadow-[var(--card-shadow)] transition-opacity hover:opacity-85";
+
+// The heading above a run of tiles. A rule runs from the words to the end of
+// the row so the sections read as bands across the grid rather than as words
+// floating above the first tile.
+export const pageSectionHeading =
+  "mb-3 mt-8 flex items-center gap-3 font-[family-name:var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[var(--card-bleu)] first:mt-0 after:h-px after:flex-1 after:bg-[var(--card-line)]";
