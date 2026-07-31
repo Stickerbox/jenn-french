@@ -6,13 +6,13 @@ import {
   upsertOverrideCard,
   deleteOverrideCard,
   deleteMessage,
+  markChatRead,
 } from "@/app/actions";
 import { CardEditor } from "@/components/admin/CardEditor";
 import { AdminDatePicker } from "@/components/admin/AdminDatePicker";
 import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
 import { ChatFab } from "@/components/chat/ChatFab";
-import { markTeacherRead } from "@/lib/messages";
 
 export default async function GroupAdminPage({
   params,
@@ -32,7 +32,6 @@ export default async function GroupAdminPage({
     include: { cards: { orderBy: { date: "desc" } } },
   });
   if (!group) notFound();
-  if (!group.isEveryone) await markTeacherRead(group.id);
 
   const today = new Date().toISOString().slice(0, 10);
   const selected = parseAdminDate(date, today);
@@ -104,6 +103,7 @@ export default async function GroupAdminPage({
               deleteMessage: "Delete message",
             }}
             onDeleteMessage={deleteMessage.bind(null, group.slug)}
+            onOpen={markChatRead.bind(null, group.id, group.slug)}
           />
         )}
       </div>

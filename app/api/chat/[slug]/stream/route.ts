@@ -48,12 +48,14 @@ export async function GET(
 
   const encoder = new TextEncoder();
   let unsubscribe = () => {};
+  let unsubscribeRevoke = () => {};
   let heartbeat: ReturnType<typeof setInterval> | undefined;
 
   // Safe to call more than once: EventEmitter.off and clearInterval both
   // tolerate being called after the listener/timer is already gone.
   const teardown = () => {
     unsubscribe();
+    unsubscribeRevoke();
     if (heartbeat) clearInterval(heartbeat);
   };
 
@@ -85,6 +87,20 @@ export async function GET(
       unsubscribe = chatBus.subscribe(group.id, (message) => {
         if (replaying) pending.push(message);
         else send(message);
+      });
+
+      // A token check only happens at connect, so a link regenerated after
+      // this stream opened would otherwise relay forever on the old token.
+      // Closing the connection here is what forces the client to reconnect —
+      // and re-authenticate against the new token — instead of quietly
+      // keeping a leaked link alive until it happens to drop on its own.
+      unsubscribeRevoke = chatBus.subscribeRevoke(group.id, () => {
+        teardown();
+        try {
+          controller.close();
+        } catch {
+          // Already closed by the client or another teardown path.
+        }
       });
 
       // EventSource resends the last id it saw after a dropped connection. Replay

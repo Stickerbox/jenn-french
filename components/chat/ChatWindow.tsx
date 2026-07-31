@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { MessageList, type ChatMessage } from "@/components/chat/MessageList";
 import { MessageInput } from "@/components/chat/MessageInput";
 
@@ -14,49 +14,25 @@ export type ChatLabels = {
   deleteMessage: string;
 };
 
+// Presentational only: the stream, the message list, and the send function all
+// live in ChatFab now, so this panel can mount and unmount with `open` without
+// tearing down the connection that the unread dot depends on.
 export function ChatWindow({
-  slug,
-  token,
   self,
   labels,
+  messages,
+  onSend,
   onClose,
-  onMessages,
   onDeleteMessage,
 }: {
-  slug: string;
-  token: string | null;
   self: "teacher" | "student";
   labels: ChatLabels;
+  messages: ChatMessage[];
+  onSend: (body: string) => Promise<void>;
   onClose: () => void;
-  onMessages: (messages: ChatMessage[]) => void;
-  onDeleteMessage?: (id: string) => Promise<void>;
+  onDeleteMessage?: (id: string) => void;
 }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const panel = useRef<HTMLDivElement>(null);
-
-  const query = token ? `?k=${encodeURIComponent(token)}` : "";
-
-  useEffect(() => {
-    const source = new EventSource(`/api/chat/${slug}/stream${query}`);
-
-    source.onmessage = (event) => {
-      const raw = JSON.parse(event.data) as ChatMessage & { createdAt: string };
-      const message = { ...raw, createdAt: new Date(raw.createdAt) };
-      setMessages((current) =>
-        // De-duplicated by id because a reconnect replays, and because the
-        // sender receives its own message back through the stream.
-        current.some((m) => m.id === message.id)
-          ? current
-          : [...current, message],
-      );
-    };
-
-    return () => source.close();
-  }, [slug, query]);
-
-  useEffect(() => {
-    onMessages(messages);
-  }, [messages, onMessages]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -66,26 +42,6 @@ export function ChatWindow({
     panel.current?.focus();
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
-
-  async function send(body: string) {
-    const response = await fetch(`/api/chat/${slug}${query}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body }),
-    });
-    if (!response.ok) throw new Error("send failed");
-    // Nothing is appended here — the message arrives back through the stream,
-    // which is also what gives it its real id and timestamp.
-  }
-
-  // The SSE stream only ever carries insertions, so a delete has to be
-  // reflected locally by hand — nothing else will tell this client the
-  // message is gone.
-  async function handleDeleteMessage(id: string) {
-    if (!onDeleteMessage) return;
-    await onDeleteMessage(id);
-    setMessages((current) => current.filter((m) => m.id !== id));
-  }
 
   return (
     <div
@@ -117,13 +73,13 @@ export function ChatWindow({
           self={self}
           emptyLabel={labels.empty}
           locale={labels.locale}
-          onDeleteMessage={onDeleteMessage ? handleDeleteMessage : undefined}
+          onDeleteMessage={onDeleteMessage}
           deleteLabel={labels.deleteMessage}
         />
       </div>
 
       <MessageInput
-        onSend={send}
+        onSend={onSend}
         placeholder={labels.placeholder}
         sendLabel={labels.send}
       />

@@ -21,6 +21,11 @@ if (process.env.NODE_ENV !== "production") {
   globalForBus.chatEmitter = emitter;
 }
 
+// A distinct event name from the message channel: a revoke has no payload
+// worth conflating with a message, and mixing them would make every listener
+// filter by shape instead of the emitter filtering by name.
+const revokeEvent = (groupId: string) => `revoke:${groupId}`;
+
 export const chatBus = {
   publish(groupId: string, message: StoredMessage) {
     emitter.emit(groupId, message);
@@ -32,6 +37,21 @@ export const chatBus = {
     emitter.on(groupId, listener);
     return () => {
       emitter.off(groupId, listener);
+    };
+  },
+
+  // A token check at connect is not revocation — a stream opened before
+  // "make new links" was clicked would otherwise relay forever on the old
+  // token. This is what lets regenerateStudentLinks force every open
+  // connection for that group to reconnect and re-authenticate.
+  publishRevoke(groupId: string) {
+    emitter.emit(revokeEvent(groupId));
+  },
+
+  subscribeRevoke(groupId: string, listener: () => void) {
+    emitter.on(revokeEvent(groupId), listener);
+    return () => {
+      emitter.off(revokeEvent(groupId), listener);
     };
   },
 };

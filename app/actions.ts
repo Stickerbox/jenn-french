@@ -7,7 +7,8 @@ import { getCurrentTeacher } from "@/lib/session";
 import { normaliseSections, type CardSection } from "@/lib/sections";
 import { canDeleteGroup } from "@/lib/everyone";
 import { newToken } from "@/lib/student-tokens";
-import { deleteMessageById } from "@/lib/messages";
+import { deleteMessageById, markTeacherRead } from "@/lib/messages";
+import { chatBus } from "@/lib/chat-bus";
 
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
@@ -167,6 +168,23 @@ export async function regenerateStudentLinks(groupId: string, slug: string) {
     data: { chatToken: newToken(), filesToken: newToken() },
   });
 
+  // A token check only happens when a stream connects, so without this a tab
+  // left open on a leaked link would keep receiving messages after the link
+  // was supposedly revoked, until that connection happened to drop on its
+  // own. Published after the update commits, so a stream that reconnects
+  // immediately always sees the new token already in place.
+  chatBus.publishRevoke(groupId);
+
   revalidatePath("/admin");
   revalidatePath(`/admin/${slug}`);
+}
+
+// Stamps the chat as read at the moment Jenn actually opens the panel, not
+// whenever she happens to visit /admin/[slug] to edit a card — the two used
+// to be conflated, which silently zeroed the unread badge for messages she
+// never read.
+export async function markChatRead(groupId: string, slug: string) {
+  await requireTeacher();
+  await markTeacherRead(groupId);
+  revalidatePath("/admin");
 }
