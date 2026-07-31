@@ -200,8 +200,12 @@ unlocked, she additionally gets the delete control and the read-marker
 
 Each student row carries two tokens. `chatToken` unlocks the files tab and the
 chat on `/g/[slug]`; `filesToken` addresses `/f/[token]` and nothing else, so
-sharing a files link never hands over the conversation. The everyone group has
-neither, and `chatRole` (`lib/chat-access.ts`) refuses it before it checks
+sharing a files link never hands over the conversation. As of 2026-07-31 the
+admin shows only the chat link, so `filesToken` has no UI surface, though it
+remains minted and rotated alongside `chatToken` and reachable only by reading
+it from the database; restoring the files link means adding a control back to
+the Students tab, not changing the model. The everyone group has neither, and
+`chatRole` (`lib/chat-access.ts`) refuses it before it checks
 anything else — not even the teacher can open a conversation there. **The
 daily card stays public**: an untokened visit to `/g/marie` renders exactly
 what it rendered before chat existed, which is what keeps every old bookmark
