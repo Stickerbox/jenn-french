@@ -8,14 +8,21 @@ export function StudentTabs({
   slug,
   active,
   date,
+  has,
 }: {
   slug: string;
   active: StudentTab;
   date: string;
+  has: { files: boolean; board: boolean };
 }) {
   const tabs: { tab: StudentTab; label: string; href: string }[] = [
     { tab: "card", label: "La carte", href: `/g/${slug}?date=${date}` },
-    { tab: "files", label: "Les fichiers", href: `/g/${slug}?tab=files` },
+    ...(has.files
+      ? [{ tab: "files" as const, label: "Les fichiers", href: `/g/${slug}?tab=files` }]
+      : []),
+    ...(has.board
+      ? [{ tab: "board" as const, label: "Le tableau", href: `/g/${slug}?tab=board` }]
+      : []),
   ];
 
   return (

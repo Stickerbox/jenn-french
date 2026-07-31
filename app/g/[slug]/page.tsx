@@ -13,7 +13,10 @@ import { StudentTabs } from "@/components/student/StudentTabs";
 import { FilesTab } from "@/components/student/FilesTab";
 import { ChatFab } from "@/components/chat/ChatFab";
 import { getCurrentTeacher } from "@/lib/session";
-import { markChatRead, deleteMessage } from "@/app/actions";
+import { listWhiteboards } from "@/lib/whiteboards";
+import { boardLabels } from "@/lib/whiteboard-names";
+import { BoardTab } from "@/components/whiteboard/BoardTab";
+import { markChatRead, deleteMessage, deleteWhiteboard } from "@/app/actions";
 
 function parseDate(value: string | undefined, latest: Date): Date {
   if (!value) return latest;
@@ -59,7 +62,17 @@ export default async function GroupPage({
   // is public — that is the "someday" case the spec left room for.
   const pages =
     unlocked || group.isEveryone ? await listPagesForGroup(group.id) : [];
-  const tab = parseStudentTab(tab_, pages.length > 0);
+
+  // The board tab needs no "does one exist" check: it is present for anyone who
+  // is unlocked, and shows an empty state otherwise. Jenn needs it to create
+  // the first board, and the student needs it to watch the first being drawn.
+  const boards = unlocked ? await listWhiteboards(group.id) : [];
+  const labels = boardLabels(boards);
+
+  const tab = parseStudentTab(tab_, {
+    files: pages.length > 0,
+    board: unlocked,
+  });
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const today = new Date(`${todayStr}T00:00:00Z`);
@@ -94,8 +107,13 @@ export default async function GroupPage({
         </div>
       </header>
 
-      {pages.length > 0 && (
-        <StudentTabs slug={slug} active={tab} date={selected} />
+      {(pages.length > 0 || unlocked) && (
+        <StudentTabs
+          slug={slug}
+          active={tab}
+          date={selected}
+          has={{ files: pages.length > 0, board: unlocked }}
+        />
       )}
 
       {tab === "card" ? (
@@ -109,8 +127,24 @@ export default async function GroupPage({
             </p>
           )}
         </>
-      ) : (
+      ) : tab === "files" ? (
         <FilesTab pages={pages} />
+      ) : (
+        <BoardTab
+          slug={slug}
+          isTeacher={viewerIsTeacher}
+          boards={boards.map((board) => ({
+            id: board.id,
+            label: labels.get(board.id) ?? "",
+            thumbnail: board.thumbnail,
+            pageCount: board.pageCount,
+          }))}
+          onDelete={
+            viewerIsTeacher
+              ? deleteWhiteboard.bind(null, group.id)
+              : undefined
+          }
+        />
       )}
 
       {unlocked && (
