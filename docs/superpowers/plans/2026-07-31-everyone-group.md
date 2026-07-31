@@ -265,21 +265,42 @@ SELECT 'everyone-seeded', 'Everyone', 'all', true, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (SELECT 1 FROM "Group" WHERE "isEveryone" = true);
 ```
 
-- [ ] **Step 4: Re-apply and verify the seed ran**
+- [ ] **Step 4: Verify both seed branches on a throwaway database**
 
-The migration was already applied in Step 2, before you added the seed. Reset and re-apply so your local database reflects the final file:
+Step 2 applied the migration before the seed existed, so `dev.db` has the column but no flagged row, and Prisma will not re-run a migration it has recorded.
 
-```bash
-npx prisma migrate reset --force
-```
+**Do not run `prisma migrate reset`.** The local `dev.db` holds the only passkey for local `/admin`, and resetting it means re-registering one by hand. Verify on a copy instead.
 
-Then confirm:
+Exercise the create-if-absent branch against an empty database:
 
 ```bash
-sqlite3 prisma/dev.db "SELECT slug, name, isEveryone FROM \"Group\";"
+rm -f /tmp/seed-check.db
+DATABASE_URL="file:/tmp/seed-check.db" npx prisma migrate deploy
+sqlite3 /tmp/seed-check.db 'SELECT slug, name, isEveryone FROM "Group";'
 ```
 
-Expected: the `all` row present with `isEveryone` = 1. Any other groups you had locally are gone — `reset` drops the database. That is fine for dev data; do not run `reset` against anything else.
+Expected: exactly one row — `all|Everyone|1`. That proves the `INSERT` fires on a rebuilt box.
+
+Then exercise the update branch, which is what production will take, on a copy of your real database taken *before* this migration:
+
+```bash
+rm -f /tmp/update-check.db
+sqlite3 prisma/dev.db ".backup /tmp/update-check.db"
+sqlite3 /tmp/update-check.db 'UPDATE "Group" SET "isEveryone" = 0;'
+sqlite3 /tmp/update-check.db 'UPDATE "Group" SET "isEveryone" = 1 WHERE "slug" = '"'"'all'"'"';'
+sqlite3 /tmp/update-check.db 'SELECT slug, isEveryone FROM "Group";'
+```
+
+Expected: the `all` row at 1 and every other group at 0 — one flagged row, no duplicate created.
+
+Finally bring your own `dev.db` to the same state the migration would have left it in, by running the seed statements against it directly. They are idempotent:
+
+```bash
+sqlite3 prisma/dev.db 'UPDATE "Group" SET "isEveryone" = 1 WHERE "slug" = '"'"'all'"'"';'
+sqlite3 prisma/dev.db 'SELECT slug, name, isEveryone FROM "Group";'
+```
+
+Expected: your existing groups intact, with `all` flagged. Clean up: `rm -f /tmp/seed-check.db /tmp/update-check.db`.
 
 - [ ] **Step 5: Verify**
 
@@ -750,4 +771,4 @@ Deliberately **not** here, per the spec's build order: tokens, `Message`, SSE, `
 
 Name consistency verified across tasks: `EVERYONE_SLUG`, `EVERYONE_NAME`, `canDeleteGroup`, `effectivePages`, `sharedWithEveryone`, `isEveryone`, `filterPagesByGroup`'s third parameter `everyoneName`.
 
-One risk worth naming for the implementer: Task 3 Step 4 runs `npx prisma migrate reset --force`, which drops the local dev database. That is intended — it is the only way to see the hand-edited seed actually run — but it destroys local test data, and it must never be pointed at production.
+One risk worth naming for the implementer: Task 3 hand-edits a generated migration, which is the only step here whose failure is invisible locally and only shows up on the server. Step 4 verifies both of the seed's branches — the `INSERT` on an empty database and the `UPDATE` on a populated one — on throwaway copies. It deliberately does **not** run `prisma migrate reset`: the local `dev.db` holds the only passkey for local `/admin`, and resetting it costs a manual passkey re-registration for no verification benefit.
