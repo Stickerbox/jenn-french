@@ -249,8 +249,7 @@ git commit -m "feat: group chat messages into days"
 - Produces:
   - `newToken(): string` — 32 hex characters from `crypto.randomBytes(16)`
   - `readToken(fromQuery: string | undefined, fromCookie: string | undefined): string | null`
-  - `STUDENT_COOKIE = "student-token"`
-  - `cookiePathFor(slug: string): string`
+  - `cookieNameFor(slug: string): string` — `student-token-<slug>`
 
 `readToken` takes two plain strings rather than a request, so the precedence rule is testable without a server. The query wins over the cookie: a freshly shared link must override a stale cookie from a rotated token, or a student whose link Jenn regenerated could never get back in.
 
@@ -260,12 +259,7 @@ Create `tests/lib/student-tokens.test.ts`:
 
 ```ts
 import { describe, it, expect } from "vitest";
-import {
-  newToken,
-  readToken,
-  cookiePathFor,
-  STUDENT_COOKIE,
-} from "@/lib/student-tokens";
+import { newToken, readToken, cookieNameFor } from "@/lib/student-tokens";
 
 describe("newToken", () => {
   it("is 32 hex characters", () => {
@@ -301,13 +295,13 @@ describe("readToken", () => {
   });
 });
 
-describe("cookiePathFor", () => {
-  it("scopes the cookie to that student's page", () => {
-    expect(cookiePathFor("marie")).toBe("/g/marie");
+describe("cookieNameFor", () => {
+  it("names the cookie after the student", () => {
+    expect(cookieNameFor("marie")).toBe("student-token-marie");
   });
 
-  it("names the cookie the same for every student", () => {
-    expect(STUDENT_COOKIE).toBe("student-token");
+  it("gives two students two different cookies", () => {
+    expect(cookieNameFor("marie")).not.toBe(cookieNameFor("luc"));
   });
 });
 ```
@@ -324,17 +318,16 @@ Create `lib/student-tokens.ts`:
 ```ts
 import { randomBytes } from "crypto";
 
-export const STUDENT_COOKIE = "student-token";
-
 export function newToken(): string {
   return randomBytes(16).toString("hex");
 }
 
-// Scoped to one student's page, so a browser holding several students' tokens
-// (a family sharing a laptop) sends only the right one, and a leaked cookie
-// from one student is useless on another's page.
-export function cookiePathFor(slug: string): string {
-  return `/g/${slug}`;
+// Named per student rather than path-scoped to /g/<slug>. A path-scoped cookie
+// would NOT be sent to /api/chat/<slug>, which is a different path — the chat
+// would silently 404 for every student. Distinct names at path "/" reach both,
+// and still let a shared family laptop hold several students' tokens at once.
+export function cookieNameFor(slug: string): string {
+  return `student-token-${slug}`;
 }
 
 // Two plain strings rather than a request object, so the precedence rule is
@@ -770,7 +763,7 @@ export function chatRole(input: {
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/lib/chat-access.test.ts`
-Expected: PASS, 9 tests.
+Expected: PASS, 8 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -789,7 +782,7 @@ git commit -m "feat: decide who may read and write a student's chat"
 - Test: `tests/lib/chat-body.test.ts`
 
 **Interfaces:**
-- Consumes: `chatRole` (Task 6), `createMessage` (Task 5), `readToken`, `STUDENT_COOKIE` (Task 3), `getCurrentTeacher` from `@/lib/session`.
+- Consumes: `chatRole` (Task 6), `createMessage` (Task 5), `readToken`, `cookieNameFor` (Task 3), `getCurrentTeacher` from `@/lib/session`.
 - Produces: `POST /api/chat/[slug]`; `MAX_MESSAGE_LENGTH = 4000`, `parseMessageBody(value: unknown): string | null`.
 
 A route handler rather than a server action because the student is unauthenticated in this app's sense — server actions all begin with `requireTeacher()`, and this is the second endpoint (with `/api/pages`) that deliberately does not.
@@ -887,7 +880,7 @@ import { getCurrentTeacher } from "@/lib/session";
 import { chatRole } from "@/lib/chat-access";
 import { createMessage } from "@/lib/messages";
 import { parseMessageBody } from "@/lib/chat-body";
-import { readToken, STUDENT_COOKIE } from "@/lib/student-tokens";
+import { readToken, cookieNameFor } from "@/lib/student-tokens";
 
 export async function POST(
   request: Request,
@@ -913,7 +906,7 @@ export async function POST(
       url.searchParams.get("k") ?? undefined,
       request.headers
         .get("cookie")
-        ?.match(new RegExp(`${STUDENT_COOKIE}=([^;]+)`))?.[1],
+        ?.match(new RegExp(`(?:^|;\\s*)${cookieNameFor(slug)}=([^;]+)`))?.[1],
     ),
   });
   if (!role) return new NextResponse("Not found", { status: 404 });
@@ -938,7 +931,7 @@ export async function POST(
 - [ ] **Step 6: Verify**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
-Expected: PASS. `npm test` should now report 26 files and 284 tests (252 + 6 + 7 + 9 + 9 + 8 from Tasks 1, 2, 3, 6, 7).
+Expected: PASS. `npm test` should now report **28 files and 290 tests** (252 baseline + 6 + 7 + 9 + 8 + 8 from Tasks 1, 2, 3, 6, 7). Report the real numbers if they differ.
 
 - [ ] **Step 7: Commit**
 
@@ -955,7 +948,7 @@ git commit -m "feat: accept a chat message from the teacher or a student"
 - Create: `app/api/chat/[slug]/stream/route.ts`
 
 **Interfaces:**
-- Consumes: `chatRole` (Task 6), `chatBus`, `listMessages`, `messagesAfter` (Task 5), `readToken`, `STUDENT_COOKIE` (Task 3).
+- Consumes: `chatRole` (Task 6), `chatBus`, `listMessages`, `messagesAfter` (Task 5), `readToken`, `cookieNameFor` (Task 3).
 - Produces: `GET /api/chat/[slug]/stream` — an SSE stream.
 
 Not unit-tested, per convention. The rules it depends on are already tested in Tasks 5 and 6.
@@ -971,7 +964,7 @@ import { getCurrentTeacher } from "@/lib/session";
 import { chatRole } from "@/lib/chat-access";
 import { chatBus } from "@/lib/chat-bus";
 import { listMessages, messagesAfter, type StoredMessage } from "@/lib/messages";
-import { readToken, STUDENT_COOKIE } from "@/lib/student-tokens";
+import { readToken, cookieNameFor } from "@/lib/student-tokens";
 
 // Nginx's proxy_read_timeout is 60s by default and would drop a lesson that
 // went quiet. A comment line every 20s is invisible to EventSource and keeps
@@ -1000,7 +993,7 @@ export async function GET(
       url.searchParams.get("k") ?? undefined,
       request.headers
         .get("cookie")
-        ?.match(new RegExp(`${STUDENT_COOKIE}=([^;]+)`))?.[1],
+        ?.match(new RegExp(`(?:^|;\\s*)${cookieNameFor(slug)}=([^;]+)`))?.[1],
     ),
   });
   if (!role) return new NextResponse("Not found", { status: 404 });
@@ -1534,7 +1527,7 @@ git commit -m "feat: add the floating chat window"
 - Modify: `app/g/[slug]/page.tsx`
 
 **Interfaces:**
-- Consumes: `parseStudentTab` (Task 1), `readToken`, `STUDENT_COOKIE`, `cookiePathFor` (Task 3), `ChatFab` (Task 9), `listPagesForGroup` (already merged in Part 1).
+- Consumes: `parseStudentTab` (Task 1), `readToken`, `cookieNameFor` (Task 3), `ChatFab` (Task 9), `listPagesForGroup` (already merged in Part 1).
 - Produces: the two-tab student screen.
 
 **The load-bearing rule:** an untokened visit renders the card and nothing else — no tab strip, no chat button, no sign a private conversation exists.
@@ -1545,7 +1538,7 @@ A server component cannot set a cookie in Next.js; middleware can. Create `middl
 
 ```ts
 import { NextResponse, type NextRequest } from "next/server";
-import { STUDENT_COOKIE, cookiePathFor } from "@/lib/student-tokens";
+import { cookieNameFor } from "@/lib/student-tokens";
 
 // The one job here is moving ?k= out of the URL and into an httpOnly cookie,
 // so the secret stops riding in browser history on every later visit. It does
@@ -1562,11 +1555,13 @@ export function middleware(request: NextRequest) {
   clean.searchParams.delete("k");
 
   const response = NextResponse.redirect(clean);
-  response.cookies.set(STUDENT_COOKIE, token, {
+  // Path "/" deliberately: a cookie scoped to /g/<slug> would never be sent to
+  // /api/chat/<slug>. The per-student NAME is what keeps them separate.
+  response.cookies.set(cookieNameFor(slug), token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: cookiePathFor(slug),
+    path: "/",
     maxAge: 60 * 60 * 24 * 365,
   });
   return response;
@@ -1673,7 +1668,7 @@ In `app/g/[slug]/page.tsx`, add these imports:
 ```ts
 import { cookies } from "next/headers";
 import { parseStudentTab } from "@/lib/student-tab";
-import { readToken, STUDENT_COOKIE } from "@/lib/student-tokens";
+import { readToken, cookieNameFor } from "@/lib/student-tokens";
 import { listPagesForGroup } from "@/lib/pages";
 import { StudentTabs } from "@/components/student/StudentTabs";
 import { FilesTab } from "@/components/student/FilesTab";
@@ -1689,7 +1684,7 @@ After the `group` lookup and `notFound()` guard, add:
   // sees exactly what this page rendered before chat existed.
   const presented = readToken(
     undefined,
-    (await cookies()).get(STUDENT_COOKIE)?.value,
+    (await cookies()).get(cookieNameFor(slug))?.value,
   );
   const unlocked =
     !group.isEveryone &&
@@ -1753,7 +1748,7 @@ Wrap the existing `WeekDayPicker` and card block so they render only on the card
 - [ ] **Step 5: Verify**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
-Expected: PASS, 284 tests.
+Expected: PASS, 290 tests.
 
 - [ ] **Step 6: Prove the public card is still public**
 
@@ -2024,7 +2019,7 @@ And below each tile, where the delete confirmation already renders, add the two 
 - [ ] **Step 5: Verify**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
-Expected: PASS, 284 tests.
+Expected: PASS, 290 tests.
 
 - [ ] **Step 6: Commit**
 
@@ -2120,7 +2115,7 @@ npm test
 npm run build
 ```
 
-Expected: 27 files, 284 tests. Report the real numbers if they differ.
+Expected: 28 files, 290 tests. Report the real numbers if they differ.
 
 - [ ] **Step 5: Commit**
 
@@ -2145,7 +2140,7 @@ Spec coverage, section by section:
 
 Deliberately **not** here, per the spec's "Future" section: email notification when Jenn misses a message, Claude summarisation, typing indicators and read receipts.
 
-Name consistency verified across tasks: `parseStudentTab`, `groupByDay`, `newToken`, `readToken`, `STUDENT_COOKIE`, `cookiePathFor`, `chatRole`, `parseMessageBody`, `MAX_MESSAGE_LENGTH`, `chatBus`, `StoredMessage`, `listMessages`, `messagesAfter`, `createMessage`, `unreadCounts`, `markTeacherRead`, `deleteMessageById`, `ChatFab`, `ChatWindow`, `ChatLabels`, `MessageList`, `ChatMessage`, `MessageInput`, `StudentTabs`, `FilesTab`.
+Name consistency verified across tasks: `parseStudentTab`, `groupByDay`, `newToken`, `readToken`, `cookieNameFor`, `chatRole`, `parseMessageBody`, `MAX_MESSAGE_LENGTH`, `chatBus`, `StoredMessage`, `listMessages`, `messagesAfter`, `createMessage`, `unreadCounts`, `markTeacherRead`, `deleteMessageById`, `ChatFab`, `ChatWindow`, `ChatLabels`, `MessageList`, `ChatMessage`, `MessageInput`, `StudentTabs`, `FilesTab`.
 
 Two risks worth naming for implementers:
 
