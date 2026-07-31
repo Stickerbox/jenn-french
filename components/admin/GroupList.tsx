@@ -44,7 +44,7 @@ export function GroupList({
       setConfirming(null);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete the group");
+      setError(err instanceof Error ? err.message : "Could not delete the student");
     } finally {
       setDeleting(null);
     }
@@ -67,14 +67,14 @@ export function GroupList({
   if (groups.length === 0) {
     return (
       <p className="mb-8 text-center text-sm text-[var(--color-ink-muted)]">
-        No groups yet.
+        No students yet.
       </p>
     );
   }
 
   return (
     <div className="mb-10">
-      <SearchField label="Search groups" value={query} onChange={setQuery} />
+      <SearchField label="Search students" value={query} onChange={setQuery} />
 
       {visible.length === 0 ? (
         <p className="text-center text-sm text-[var(--color-ink-muted)]">
@@ -85,7 +85,7 @@ export function GroupList({
           {visible.map((group) => (
             <li key={group.id}>
               <Tile
-                href={`/admin/${group.slug}`}
+                href={`/g/${group.slug}?k=${group.chatToken ?? ""}`}
                 title={group.name}
                 eyebrow={`/g/${group.slug}${
                   group.unread > 0 ? ` · ${group.unread} unread` : ""
@@ -135,15 +135,11 @@ export function GroupList({
               )}
 
               {group.chatToken && (
-                <div className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
-                  <p>
-                    Chat link:{" "}
+                <>
+                  <p className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
                     <code className="break-all">
                       /g/{group.slug}?k={group.chatToken}
                     </code>
-                    <br />
-                    Files link:{" "}
-                    <code className="break-all">/f/{group.filesToken}</code>
                   </p>
 
                   <button
@@ -183,7 +179,7 @@ export function GroupList({
                       </button>
                     </div>
                   )}
-                </div>
+                </>
               )}
             </li>
           ))}

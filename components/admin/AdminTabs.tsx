@@ -4,12 +4,12 @@ import type { AdminTab } from "@/lib/admin-tab";
 
 const TABS: { tab: AdminTab; label: string }[] = [
   { tab: "daily", label: "Daily word" },
-  { tab: "groups", label: "Groups" },
+  { tab: "groups", label: "Students" },
   { tab: "pages", label: "Pages" },
 ];
 
 // Every link carries the date, not only the daily word's: a link that drops
-// the param sends parseAdminDate back to today, so one detour through Groups
+// the param sends parseAdminDate back to today, so one detour through Students
 // would silently move her off the day she was working on.
 function tabHref(tab: AdminTab, date: string): string {
   return tab === "daily"

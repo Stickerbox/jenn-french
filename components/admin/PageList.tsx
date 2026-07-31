@@ -128,7 +128,7 @@ export function PageList({
       {groupNames.length > 0 && (
         <div
           role="group"
-          aria-label="Filter by group"
+          aria-label="Filter by student"
           className="mb-5 flex flex-wrap justify-center gap-2"
         >
           <GroupChip active={group === null} onClick={() => setGroup(null)}>
@@ -163,7 +163,7 @@ export function PageList({
                   page.sharedWithEveryone
                     ? "shared with everyone"
                     : page.groupNames.length === 0
-                      ? "no groups"
+                      ? "no students"
                       : page.groupNames.join(", ")
                 }`}
                 action={

@@ -113,10 +113,10 @@ export function PageEditor({
       </label>
 
       <fieldset className="text-sm font-medium text-[var(--color-ink)]">
-        <legend className="mb-2">Groups</legend>
+        <legend className="mb-2">Students</legend>
         {groups.length === 0 ? (
           <p className="text-sm font-normal text-[var(--color-ink-muted)]">
-            No groups yet.
+            No students yet.
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">

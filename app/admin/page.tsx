@@ -121,7 +121,7 @@ async function GroupsTab() {
       />
 
       <h2 className="mb-4 text-center font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">
-        Add a group
+        Add a student
       </h2>
       <NewGroupForm onSubmit={createGroup} />
     </div>

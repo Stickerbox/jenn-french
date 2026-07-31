@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
 import { normaliseSections, type CardSection } from "@/lib/sections";
@@ -9,6 +8,7 @@ import { canDeleteGroup } from "@/lib/everyone";
 import { newToken } from "@/lib/student-tokens";
 import { deleteMessageById, markTeacherRead } from "@/lib/messages";
 import { chatBus } from "@/lib/chat-bus";
+import { studentSlug } from "@/lib/student-slug";
 
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
@@ -67,22 +67,28 @@ export async function upsertGlobalCard(input: CardInput) {
   revalidatePath("/admin");
 }
 
-export async function createGroup(name: string, slug: string) {
+export async function createGroup(name: string) {
   await requireTeacher();
 
-  try {
-    await prisma.group.create({
-      data: { name, slug, chatToken: newToken(), filesToken: newToken() },
-    });
-  } catch (err) {
-    if (
-      err instanceof Prisma.PrismaClientKnownRequestError &&
-      err.code === "P2002"
-    ) {
-      throw new Error("That link is already taken — pick a different slug.");
-    }
-    throw err;
-  }
+  const trimmed = name.trim();
+  if (trimmed === "") throw new Error("A student needs a name.");
+
+  // Derived, never typed. The slug is a URL path segment and a cookie name,
+  // and a hand-typed one could be neither — see lib/student-slug.ts.
+  const taken = await prisma.group.findMany({ select: { slug: true } });
+  const slug = studentSlug(
+    trimmed,
+    taken.map((g) => g.slug),
+  );
+
+  await prisma.group.create({
+    data: {
+      name: trimmed,
+      slug,
+      chatToken: newToken(),
+      filesToken: newToken(),
+    },
+  });
 
   revalidatePath("/admin");
 }

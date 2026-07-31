@@ -207,7 +207,7 @@ export function CardEditor({
       values.subject.trim() !== "";
 
     return (
-      // Centred at every width, matching the Groups and Pages tabs. There is
+      // Centred at every width, matching the Students and Pages tabs. There is
       // no two-column grid at this stage, so nothing here has a left edge to
       // share — that constraint only arrives once the card exists.
       <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6">
