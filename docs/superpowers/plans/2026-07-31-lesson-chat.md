@@ -904,9 +904,10 @@ export async function POST(
     chatToken: group.chatToken,
     presented: readToken(
       url.searchParams.get("k") ?? undefined,
-      request.headers
-        .get("cookie")
-        ?.match(new RegExp(`(?:^|;\\s*)${cookieNameFor(slug)}=([^;]+)`))?.[1],
+      // Read through the cookie API rather than parsing the header by hand:
+      // the slug is unvalidated teacher input, and interpolating it into a
+      // RegExp made a slug like "a(b" an uncaught 500 on every request.
+      (await cookies()).get(cookieNameFor(slug))?.value,
     ),
   });
   if (!role) return new NextResponse("Not found", { status: 404 });
@@ -959,6 +960,7 @@ Create `app/api/chat/[slug]/stream/route.ts`:
 
 ```ts
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
 import { chatRole } from "@/lib/chat-access";
@@ -991,9 +993,10 @@ export async function GET(
     chatToken: group.chatToken,
     presented: readToken(
       url.searchParams.get("k") ?? undefined,
-      request.headers
-        .get("cookie")
-        ?.match(new RegExp(`(?:^|;\\s*)${cookieNameFor(slug)}=([^;]+)`))?.[1],
+      // Read through the cookie API rather than parsing the header by hand:
+      // the slug is unvalidated teacher input, and interpolating it into a
+      // RegExp made a slug like "a(b" an uncaught 500 on every request.
+      (await cookies()).get(cookieNameFor(slug))?.value,
     ),
   });
   if (!role) return new NextResponse("Not found", { status: 404 });
