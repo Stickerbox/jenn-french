@@ -10,6 +10,7 @@ import { newToken } from "@/lib/student-tokens";
 import { deleteMessageById, markTeacherRead } from "@/lib/messages";
 import { chatBus } from "@/lib/chat-bus";
 import { studentSlug } from "@/lib/student-slug";
+import { deleteWhiteboardRow } from "@/lib/whiteboards";
 
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
@@ -168,4 +169,19 @@ export async function markChatRead(groupId: string) {
   await requireTeacher();
   await markTeacherRead(groupId);
   revalidatePath("/admin");
+}
+
+// A board is deleted from the student's page, which is where both of them see
+// it — so that page is what gets revalidated, not /admin.
+export async function deleteWhiteboard(groupId: string, id: string) {
+  await requireTeacher();
+
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: { slug: true },
+  });
+  if (!group) return;
+
+  await deleteWhiteboardRow(groupId, id);
+  revalidatePath(`/g/${group.slug}`);
 }
