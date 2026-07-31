@@ -20,14 +20,18 @@ const SELECT = {
 export function listMessages(groupId: string): Promise<StoredMessage[]> {
   return prisma.message.findMany({
     where: { groupId },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     select: SELECT,
   });
 }
 
-// Ordered by createdAt then id, and compared against the missed message's
-// createdAt rather than its id: SSE reconnects hand back the last id seen, and
-// cuid values do not sort chronologically, so an id alone cannot say "after".
+// All queries use a total order on (createdAt, id), so "after" is well-defined
+// even when multiple messages land in the same millisecond. Comparison is
+// lexicographic: either createdAt is strictly later, or it is equal and id is
+// strictly larger. cuid values are not chronological, but id is unique and
+// stable, which is all a tiebreaker needs. SSE reconnects hand back the last id
+// seen; without this ordering, a message sharing a millisecond with the anchor
+// would be silently lost forever on every future reconnect.
 export async function messagesAfter(
   groupId: string,
   afterId: string,
@@ -42,8 +46,19 @@ export async function messagesAfter(
   if (!anchor) return listMessages(groupId);
 
   return prisma.message.findMany({
-    where: { groupId, createdAt: { gt: anchor.createdAt } },
-    orderBy: { createdAt: "asc" },
+    where: {
+      groupId,
+      // Lexicographic on (createdAt, id). A strict `gt` on createdAt alone
+      // drops a message that shares a millisecond with the anchor, and drops
+      // it on every future reconnect rather than just once — the client would
+      // never see it again. id is a cuid, so it is not chronological, but it
+      // is unique and stable, which is all a tiebreaker has to be.
+      OR: [
+        { createdAt: { gt: anchor.createdAt } },
+        { createdAt: anchor.createdAt, id: { gt: afterId } },
+      ],
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     select: SELECT,
   });
 }
