@@ -361,6 +361,8 @@ git commit -m "feat: call them students, and derive their link from their name"
 
 `/admin/[slug]` is gone, and it was where Jenn's chat lived — along with the `onOpen` that cleared a student's unread count and the `onDeleteMessage` that let her remove a message. Both have to move to the student's page, for her only.
 
+Both actions were narrowed during Task 3's fix round — they are now `markChatRead(groupId)` and `deleteMessage(messageId)`, having shed slug parameters that only fed a `revalidatePath` at the deleted route. `deleteMessage` is passed directly rather than bound, since `ChatFab`'s `onDeleteMessage` already supplies the id.
+
 `chatRole` already returns `"teacher"` for a logged-in teacher before it looks at any token, so she can post there and her messages are correctly stored as `fromTeacher: true`. What the page has to do is pass the teacher-only props, and render her side of the conversation on the correct side of the bubbles.
 
 - [ ] **Step 1: Detect the teacher and pass her props**
@@ -390,13 +392,9 @@ Then change the `ChatFab` call:
           token={null}
           self={viewerIsTeacher ? "teacher" : "student"}
           onOpen={
-            viewerIsTeacher
-              ? markChatRead.bind(null, group.id, group.slug)
-              : undefined
+            viewerIsTeacher ? markChatRead.bind(null, group.id) : undefined
           }
-          onDeleteMessage={
-            viewerIsTeacher ? deleteMessage.bind(null, group.slug) : undefined
-          }
+          onDeleteMessage={viewerIsTeacher ? deleteMessage : undefined}
           labels={{ …unchanged French labels…, deleteMessage: "Supprimer" }}
         />
 ```
