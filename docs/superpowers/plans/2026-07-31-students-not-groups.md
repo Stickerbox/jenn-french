@@ -29,7 +29,6 @@
 ### Task 1: Derive a student's slug from their name
 
 **Files:**
-- Modify: `lib/page-slug.ts` — export `MAX_SLUG_LENGTH` if it is not already exported
 - Create: `lib/student-slug.ts`
 - Test: `tests/lib/student-slug.test.ts`
 
@@ -129,6 +128,7 @@ git commit -m "feat: derive a student's slug from their name"
 
 **Files:**
 - Delete: `app/admin/[slug]/page.tsx`
+- Modify: `app/g/[slug]/page.tsx` — the one `getEffectiveCard` call site
 - Modify: `lib/card-resolution.ts` — remove `pickEffectiveCard` and `mergeArchiveDates`
 - Modify: `lib/cards.ts` — `getEffectiveCard` reads only the global card; delete `getArchiveDates`
 - Modify: `app/actions.ts` — delete `upsertOverrideCard`, `deleteOverrideCard`
@@ -137,7 +137,7 @@ git commit -m "feat: derive a student's slug from their name"
 - Create: `prisma/migrations/<generated>_drop_card_overrides/migration.sql`
 
 **Interfaces:**
-- Produces: `getEffectiveCard(groupId: string, date: Date)` keeps its signature — callers are unchanged — but `groupId` becomes unused. Keep the parameter and mark the reason in a comment; removing it would churn a call site for nothing and the argument documents that a card is *looked up for* a student even though every student now sees the same one.
+- Produces: `getEffectiveCard(date: Date)` — the `groupId` parameter is **removed**, not kept and ignored. There is exactly one call site (`app/g/[slug]/page.tsx:59`), so the churn is a single line, and a parameter the function does not read is a standing invitation to believe it still matters. Update that call site in this task.
 
 Do this in one task rather than several: a half-removed model leaves the schema and the resolution logic disagreeing, and neither state is independently reviewable.
 
@@ -146,11 +146,10 @@ Do this in one task rather than several: a half-removed model leaves the schema 
 In `lib/cards.ts`, replace `getEffectiveCard`:
 
 ```ts
+// A card belongs to a date, and every student sees the same one. This used to
+// take a groupId and prefer that student's override; the override feature was
+// removed on 2026-07-31 with zero rows in either database.
 export async function getEffectiveCard(
-  // Kept, though every student now sees the same card: the caller asks "what
-  // does this student see today", and that question survives the answer having
-  // stopped depending on who they are.
-  _groupId: string,
   date: Date,
 ): Promise<CardContent | null> {
   const row = await prisma.globalCard.findUnique({ where: { date } });
@@ -168,7 +167,7 @@ export async function getEffectiveCard(
 }
 ```
 
-Remove the now-unused `pickEffectiveCard` import.
+Remove the now-unused `pickEffectiveCard` import, and update the single call site in `app/g/[slug]/page.tsx` from `getEffectiveCard(group.id, selectedDate)` to `getEffectiveCard(selectedDate)`.
 
 - [ ] **Step 2: Remove the pure functions and their tests**
 
@@ -503,7 +502,7 @@ Consequences the request did not mention but which follow from it, and are handl
 - The `?tab=groups` URL value stays, so `parseAdminTab` and its tests are untouched → Task 3 Step 4 says so explicitly.
 - Deriving the slug closes the unvalidated-slug hole logged during the chat branch, which is why a slug containing `(` could crash a route.
 
-Name consistency: `studentSlug`, `createGroup(name)`, `GroupSummary` without `cardCount`, `getEffectiveCard(_groupId, date)`.
+Name consistency: `studentSlug`, `createGroup(name)`, `GroupSummary` without `cardCount`, `getEffectiveCard(date)`.
 
 Risks worth naming:
 
