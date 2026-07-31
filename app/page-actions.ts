@@ -36,7 +36,7 @@ function revalidatePages(slug: string) {
   revalidatePath("/admin");
   revalidatePath(`/admin/pages/${slug}`);
   revalidatePath(`/p/${slug}`);
-  revalidatePath("/g/[slug]/pages", "page");
+  revalidatePath("/f/[token]", "page");
 }
 
 // The admin form is rendered with the group list as it was when the page
