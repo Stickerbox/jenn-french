@@ -12,8 +12,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PALETTE, type Colour } from "@/lib/whiteboard-ops";
+import type { Tool } from "@/lib/whiteboard-tools";
 
-export type Tool = "select" | "pen" | "text" | "arrow" | "eraser";
+// Re-exported so BoardEditor's existing import keeps working. The union itself
+// moved to lib/ because pointerDownIntent is the thing that branches on it.
+export type { Tool };
 
 const TOOLS: { tool: Tool; label: string; Icon: LucideIcon }[] = [
   { tool: "select", label: "Sélectionner", Icon: MousePointer2 },
