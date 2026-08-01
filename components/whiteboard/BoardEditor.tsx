@@ -14,6 +14,7 @@ import {
 import { hitTest, opBounds } from "@/lib/whiteboard-hit";
 import { toLogical, type Box } from "@/lib/whiteboard-geometry";
 import { reviseOp, stepTextSize, type Revision } from "@/lib/whiteboard-revise";
+import { pointerDownIntent } from "@/lib/whiteboard-tools";
 import { BoardToolbar, type Tool } from "@/components/whiteboard/BoardToolbar";
 import { TextLayer, type TextDraft } from "@/components/whiteboard/TextLayer";
 import {
@@ -185,34 +186,46 @@ export function BoardEditor({
   }
 
   function handlePointerDown(event: React.PointerEvent) {
-    if (saving) return;
-    // A click anywhere commits an open text draft, the same as blurring it.
-    if (draft) return;
+    const intent = pointerDownIntent({
+      tool,
+      hasDraft: draft !== null,
+      saving,
+    });
 
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (intent.action === "ignore") return;
+
+    // Order matters. preventDefault suppresses the compatibility mouse events,
+    // and it has to happen before anything that can trigger a re-render.
+    if (intent.preventsDefault) event.preventDefault();
+    if (intent.capturesPointer) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+
     const [x, y] = pointer(event);
 
-    if (tool === "select") {
-      const id = hitTest(visible, x, y, measure);
-      setSelected(id);
-      if (id) dragFrom.current = [x, y];
-      return;
+    switch (intent.action) {
+      case "select": {
+        const id = hitTest(visible, x, y, measure);
+        setSelected(id);
+        if (id) dragFrom.current = [x, y];
+        return;
+      }
+      case "open-text": {
+        setDraftBox(boxOf());
+        setDraft({ x, y, value: "", colour, size: 44, editing: null });
+        return;
+      }
+      case "erase": {
+        const id = hitTest(visible, x, y, measure);
+        if (id) append({ id: nextId(), page, kind: "remove", targets: [id] });
+        return;
+      }
+      case "start-stroke": {
+        drawing.current = [x, y];
+        setPreview([x, y]);
+        return;
+      }
     }
-
-    if (tool === "text") {
-      setDraftBox(boxOf());
-      setDraft({ x, y, value: "", colour, size: 44, editing: null });
-      return;
-    }
-
-    if (tool === "eraser") {
-      const id = hitTest(visible, x, y, measure);
-      if (id) append({ id: nextId(), page, kind: "remove", targets: [id] });
-      return;
-    }
-
-    drawing.current = [x, y];
-    setPreview([x, y]);
   }
 
   function handlePointerMove(event: React.PointerEvent) {
