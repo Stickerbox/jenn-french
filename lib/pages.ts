@@ -73,47 +73,70 @@ async function deriveSlug(title: string): Promise<string> {
   );
 }
 
+// `html` is deliberately absent. It holds a whole document, and selecting it to
+// render a grid of thumbnails would ship every page's markup to draw a list of
+// titles.
+const SHELF_SELECT = {
+  id: true,
+  slug: true,
+  title: true,
+  createdAt: true,
+  kind: true,
+  url: true,
+  addedByStudent: true,
+} as const;
+
 export function getPageBySlug(slug: string) {
   return prisma.page.findUnique({
     where: { slug },
-    select: { id: true, slug: true, title: true, html: true },
+    select: { id: true, slug: true, title: true, html: true, kind: true, url: true },
   });
 }
 
 export async function listPagesForGroup(groupId: string) {
-  // Two queries rather than one OR: the everyone group's pages are the same
-  // set for every student, and keeping them separate is what lets
-  // effectivePages own the merge rule and be tested without a database.
-  const [own, everyone] = await Promise.all([
+  // Three queries rather than one: the everyone group's pages are the same set
+  // for every student, and keeping them separate is what lets effectivePages
+  // own the merge rule and be tested without a database. The pins are this
+  // shelf's only — a pin on another student's shelf is none of this one's
+  // business.
+  const [own, everyone, pins] = await Promise.all([
     prisma.page.findMany({
       where: { groups: { some: { groupId } } },
       orderBy: { createdAt: "desc" },
-      select: { id: true, slug: true, title: true, createdAt: true, pinnedAt: true },
+      select: SHELF_SELECT,
     }),
     prisma.page.findMany({
       where: { groups: { some: { group: { isEveryone: true } } } },
       orderBy: { createdAt: "desc" },
-      select: { id: true, slug: true, title: true, createdAt: true, pinnedAt: true },
+      select: SHELF_SELECT,
+    }),
+    prisma.pagePin.findMany({
+      where: { groupId },
+      select: { pageId: true, pinnedAt: true },
     }),
   ]);
 
-  return effectivePages(own, everyone);
+  const merged = effectivePages(own, everyone).map((page) => ({
+    ...page,
+    kind: readPageKind(page),
+  }));
+
+  return applyPins(merged, pins);
 }
 
 export async function listPagesForAdmin() {
   const pages = await prisma.page.findMany({
     orderBy: { createdAt: "desc" },
     select: {
-      id: true,
-      slug: true,
-      title: true,
-      createdAt: true,
-      pinnedAt: true,
+      ...SHELF_SELECT,
       groups: {
         select: {
           group: { select: { id: true, name: true, isEveryone: true } },
         },
       },
+      // Every shelf's pins, not one shelf's: the admin shows all pages, and
+      // which pin applies depends on the student chip the client has active.
+      pins: { select: { groupId: true, pinnedAt: true } },
     },
   });
 
@@ -122,13 +145,16 @@ export async function listPagesForAdmin() {
     slug: page.slug,
     title: page.title,
     createdAt: page.createdAt,
-    pinnedAt: page.pinnedAt,
+    kind: readPageKind(page),
+    url: page.url,
+    addedByStudent: page.addedByStudent,
     groupIds: page.groups.map((g) => g.group.id),
     groupNames: page.groups.map((g) => g.group.name),
     // Drives both the tile's marker and the filter: a page shared with
     // everyone is on every student's shelf, so it must survive a filter for
     // any one of them.
     sharedWithEveryone: page.groups.some((g) => g.group.isEveryone),
+    pins: page.pins,
   }));
 }
 
@@ -139,6 +165,8 @@ export async function getPageForAdmin(slug: string) {
       slug: true,
       title: true,
       html: true,
+      kind: true,
+      url: true,
       groups: { select: { groupId: true } },
     },
   });
@@ -148,6 +176,14 @@ export async function getPageForAdmin(slug: string) {
     slug: page.slug,
     title: page.title,
     html: page.html,
+    kind: readPageKind(page),
+    url: page.url,
     groupIds: page.groups.map((g) => g.groupId),
   };
 }
+
+// Re-exported so callers that only need the shelf row's shape do not import
+// three modules to describe one thing.
+export type ShelfPage = Awaited<ReturnType<typeof listPagesForGroup>>[number];
+export type AdminPage = Awaited<ReturnType<typeof listPagesForAdmin>>[number];
+export type { PageKind };
