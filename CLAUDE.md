@@ -35,7 +35,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | Route | Who | Notes |
 |---|---|---|
 | `/` | public | landing page |
-| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the token, teacher included — a teacher session adds only the delete and read-marker controls once unlocked, plus *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard |
+| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the token, teacher included — a teacher session adds only the delete and read-marker controls once unlocked, plus *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. Both extra tabs are present for anyone unlocked, empty state and all, and on that shelf either party may add a link and pin a page |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe |
@@ -129,12 +129,48 @@ Card text uses a deliberately tiny inline markup parser (`lib/inline-markup.ts`)
 not Markdown: `**bold**`, `*italic*`, `` `code` `` and nothing else. `**` is matched
 before `*`, and unclosed markers stay literal.
 
-### Uploaded pages
+### Files: pages and links
 
-A `Page` is an HTML document Jenn wrote elsewhere, stored whole in the `html`
-column and joined to any number of groups through `PageGroup`. It has no date
-and no relationship to a card. The HTML lives in the database rather than on
-disk so the nightly `VACUUM INTO` backup covers it for free.
+A `Page` is one of two things, discriminated by `kind`: an HTML document Jenn
+wrote elsewhere, stored whole in the `html` column, or a link to something we do
+not host, stored in `url`. Either way it is joined to any number of groups
+through `PageGroup`, has no date and no relationship to a card. The HTML lives
+in the database rather than on disk so the nightly `VACUUM INTO` backup covers
+it for free.
+
+The earlier spec said there was no `kind` column because there was one kind of
+page. That was correct when it was written and is now retired.
+
+`readPageKind` (`lib/page-kind.ts`) resolves an unrecognised `kind` by the `url`
+column rather than defaulting to `"html"`: the row most likely to be broken is
+one with a url and no document, and calling that an HTML page renders an empty
+iframe instead of a working link. Same defensive contract as `readSections` and
+`readOps`.
+
+`/p/[slug]`, `/p/[slug]/raw` and `POST /api/pages` all refuse a link row — 404
+or 400, never a redirect to the external URL. An open redirect on a public route
+is a phishing primitive.
+
+A link's tile preview is chosen from its URL alone by `linkBrand`
+(`lib/link-brand.ts`) and drawn from bundled SVG in `components/ui/BrandGlyph.tsx`.
+**No request is made, by the server or the browser** — not a favicon, not an
+og:image. A server-side og:image fetch would be request forgery on a
+student-supplied URL, and for the case this feature exists to serve — a Google
+Doc that is not public — it would fetch a sign-in page. The glyphs are
+product-coloured icons, deliberately not the official marks.
+
+`parseLinkUrl` (`lib/link-url.ts`) rejects every scheme but http and https.
+Students supply this string, and a `javascript:` URL in an href is stored XSS.
+
+Writes to a shelf — adding a link, pinning, deleting a link — are authorised by
+`shelfRole` (`lib/shelf-access.ts`), **not** `chatRole`. `chatRole` refuses the
+everyone group before it checks the teacher, which is right for a conversation
+and wrong for curation: the shared shelf is exactly the one Jenn needs to fill.
+A student may delete only their own link, and only while nobody else can see it
+(`canStudentDelete`); the server re-checks that regardless of which controls the
+tile rendered. `/f/[token]` is read-only — `filesToken` addresses a shelf and
+nothing else, so a link forwarded to a parent must not carry the power to write
+to it.
 
 `/p/[slug]` renders nothing but `<iframe sandbox="allow-scripts">` around
 `/p/[slug]/raw`. `allow-scripts` without `allow-same-origin` gives the framed
@@ -168,9 +204,19 @@ it; the reasoning that justifies `allow-scripts` on `/p/[slug]`, where the
 student chose to open the page, does not transfer. The cost is accepted: a page
 drawn entirely by JavaScript previews blank, and that is undetectable from
 outside an opaque origin. `PageTile` takes its preview as a `ReactNode` slot
-rather than a slug, so planned support for links to pages we don't host adds a
-renderer instead of changing the tile — a cross-origin URL usually cannot be
-framed at all, so it will not be `HtmlPreview` with a different `src`.
+rather than a slug, and links cashed that in: `LinkPreview` is a second renderer
+beside `HtmlPreview` and the tile did not change, because a cross-origin URL
+usually cannot be framed at all. The tile's `external` flag is the other half —
+an off-site title is a plain `<a target="_blank">` and must keep
+`rel="noopener"`, or the opened page gets a `window.opener` handle back to this
+tab and can navigate it while the student is reading.
+
+**A tab that hosts a control is present for anyone unlocked, empty state and
+all** — Files and Whiteboard both. A student whose shelf is empty otherwise has
+no way to reach the control that fills it, because the tab holding it is hidden
+for being empty. The everyone group is the exception either rule has to name: its
+shelf is public and has no unlocked state to key off, so `files` is
+`unlocked || pages.length > 0`.
 
 Both grids are 1152px wide — the admin's content width — so a tile is the same
 size on both sides. On the Pages tab that means the grid deliberately breaks out
@@ -180,10 +226,30 @@ the preview is for. In the admin the tile links to `/p/[slug]` and a pencil icon
 links to the editor, not the reverse — following a thumbnail should show the
 page it is a thumbnail of.
 
-A page carries `pinnedAt`, null when unpinned. A timestamp rather than a
-boolean because pinned pages order among themselves by *when they were pinned* —
-a boolean would leave them sorted by creation date, the ordering pinning exists
-to override, and re-pinning would do nothing. `sectionPages`
+A pin is a `PagePin(pageId, groupId, pinnedAt)` row, not a column on the page:
+the same page is pinned on one student's shelf and not on another's. Still a
+timestamp rather than a boolean, for the reason it always was — pinned pages
+order among themselves by *when they were pinned*, a boolean would leave them
+sorted by creation date, the ordering pinning exists to override, and re-pinning
+would do nothing.
+
+**Pins do not inherit.** A pin on the everyone shelf shows at `/g/all` and
+nowhere else, unlike the page itself. The cost is that pinning one reference for
+the whole class is one pin per student; the alternative was a second merge rule
+to keep in step with `effectivePages`, and two merge rules drift.
+
+`PagePin` is not a mirror of `PageGroup`. A student can pin a page that reaches
+them through the everyone group, so a pin can exist for a pair that has no
+`PageGroup` row.
+
+`applyPins` (`lib/page-pins.ts`) folds one shelf's pins on before `sectionPages`
+runs, which is why `sectionPages` is unchanged and still reads nothing but
+`pinnedAt`. In the admin, which pin applies depends on the active student chip,
+and the pin control is **disabled under "All"** — "All" is not a shelf, so with
+no student selected nothing is pinned and **the Pinned section does not appear
+at all**. That is correct, not a missing feature; it looks like a bug otherwise.
+
+`sectionPages`
 (`lib/page-sections.ts`) splits a list into Pinned, This week, Last week, and
 one section per older month; a pinned page appears **only** under Pinned, never
 also under its date. It returns section *keys*, not labels, because the admin
@@ -191,8 +257,11 @@ says "This week" and the student says "Cette semaine" —
 `lib/page-section-labels.ts` holds both mappings. `thisWeek` has no upper
 bound: `weekRange` ends on Friday, so a closed range would drop a page added on
 the Saturday into a month section below pages a week older than it. Sections
-form over the admin's *filtered* set, so a search never leaves a heading above
-nothing. Jenn pins from the tile footer; students see a marker and no control.
+form over the *filtered* set on both sides — the student's shelf has the search
+field and a kind filter now too — so a search never leaves a heading above
+nothing. Both parties pin from the tile footer; a read-only visitor
+(`/f/[token]`, the public everyone shelf) gets the corner marker instead, without
+which a page sitting above a newer one looks like a sorting bug.
 
 A page's slug is derived from its title once, at creation, and never moves
 again — students bookmark these links. `POST /api/pages` exists because the
@@ -217,6 +286,16 @@ student's shelf at once and nothing would report an error.
 In the admin, filtering the Pages tab by a student shows that student's
 effective shelf rather than their assignments: the chip answers "what does
 Marie have?", and a page shared with everyone is something Marie has.
+
+That chip now drives three things, which is why it lives in `PagesTabClient`
+rather than inside `PageList`: which pages the list shows, which shelf a pin
+lands on, and the default audience for a new page or link. The default follows
+the filter only until Jenn ticks a box herself — the same don't-clobber rule as
+`titleFromFile` directly beside it, and for the same reason: a default that
+overwrites a choice she made is worse than no default. `PageEditor` implements
+it as a render-phase comparison against the previous prop, not a `useEffect`;
+`react-hooks/set-state-in-effect` rejects the effect form, and an effect would
+render once with the stale selection before correcting it.
 
 ### Lesson chat
 
@@ -309,9 +388,10 @@ representation of the ops that can never drift from them.
 Only the teacher creates or deletes one; both parties read and download. Access
 is `chatRole` (`lib/chat-access.ts`), reused rather than reimplemented, so the
 everyone group is refused before anything else — it has no `chatToken`, so it
-can never have a whiteboard. **The Whiteboard tab is present for anyone
-unlocked**, empty state and all, because Jenn needs it to create the first board
-and the student needs it to watch one being drawn.
+can never have a whiteboard. The Whiteboard tab follows the shared tab-presence
+rule stated under *Files: pages and links* — present for anyone unlocked, empty
+state and all — because Jenn needs it to create the first board and the student
+needs it to watch one being drawn.
 
 Downloading gives **one** JPEG with every page stacked, not one file per page:
 multiple programmatic downloads make browsers prompt, and a zip would be this
