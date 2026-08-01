@@ -174,3 +174,15 @@ describe("filterPagesByGroup with an everyone group", () => {
     ]);
   });
 });
+
+describe("filterPages without group names", () => {
+  it("matches on title alone when groupNames is absent", () => {
+    // The student shelf reuses this and has no group names to search.
+    const pages = [{ title: "Les verbes" }, { title: "Le passé composé" }];
+    expect(filterPages(pages, "verbes")).toHaveLength(1);
+  });
+
+  it("still ignores accents without group names", () => {
+    expect(filterPages([{ title: "Le passé composé" }], "passe")).toHaveLength(1);
+  });
+});

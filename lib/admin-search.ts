@@ -9,7 +9,9 @@ export function normalise(value: string): string {
     .replace(/\p{Diacritic}/gu, "");
 }
 
-export type SearchablePage = { title: string; groupNames: string[] };
+// groupNames is optional because the student's shelf reuses this and has none —
+// a student never sees who else a page was shared with.
+export type SearchablePage = { title: string; groupNames?: string[] };
 
 export type SearchableGroup = { name: string; slug: string };
 
@@ -24,14 +26,14 @@ export function filterPages<T extends SearchablePage>(
 ): T[] {
   if (query.trim() === "") return pages;
   return pages.filter((page) =>
-    matches(query, [page.title, ...page.groupNames]),
+    matches(query, [page.title, ...(page.groupNames ?? [])]),
   );
 }
 
 // Built from the pages themselves rather than from the full group list, so a
 // group with nothing in it never offers a filter chip that empties the screen.
 export function pageGroupNames<T extends SearchablePage>(pages: T[]): string[] {
-  return [...new Set(pages.flatMap((page) => page.groupNames))].sort((a, b) =>
+  return [...new Set(pages.flatMap((page) => page.groupNames ?? []))].sort((a, b) =>
     a.localeCompare(b, "fr-CA"),
   );
 }
@@ -53,7 +55,7 @@ export function filterPagesByGroup<
 
   return pages.filter(
     (page) =>
-      page.groupNames.includes(groupName) ||
+      (page.groupNames ?? []).includes(groupName) ||
       (inheriting && page.sharedWithEveryone === true),
   );
 }
