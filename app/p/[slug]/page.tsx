@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getPageBySlug } from "@/lib/pages";
+import { readPageKind } from "@/lib/page-kind";
 
 export async function generateMetadata({
   params,
@@ -19,7 +20,10 @@ export default async function PublishedPage({
 }) {
   const { slug } = await params;
   const page = await getPageBySlug(slug);
-  if (!page) notFound();
+  // A link row has no document to frame. 404 and not a redirect to page.url:
+  // /p/ means a page we host, and an open redirect on a public route is a
+  // phishing primitive.
+  if (!page || readPageKind(page) === "link") notFound();
 
   // `allow-scripts` WITHOUT `allow-same-origin` is the whole security model:
   // the framed document gets an opaque origin, so its JavaScript runs but it

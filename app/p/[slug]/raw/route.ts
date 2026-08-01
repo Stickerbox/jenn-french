@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPageBySlug } from "@/lib/pages";
+import { readPageKind } from "@/lib/page-kind";
 
 // The iframe sandbox is the primary control; this is the second layer. Every
 // directive here is deliberately restricted to what the document carries
@@ -35,7 +36,10 @@ export async function GET(
 ) {
   const { slug } = await params;
   const page = await getPageBySlug(slug);
-  if (!page) return new NextResponse("Not found", { status: 404 });
+  // A link row has no document to serve, and /p/ means a page we host.
+  if (!page || readPageKind(page) === "link" || page.html === null) {
+    return new NextResponse("Not found", { status: 404 });
+  }
 
   return new NextResponse(page.html, {
     headers: {

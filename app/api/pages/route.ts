@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { savePage } from "@/lib/pages";
+import { readPageKind } from "@/lib/page-kind";
 import { parsePagePayload } from "@/lib/page-payload";
 import { MAX_PAGE_BYTES } from "@/lib/page-html";
 import { readBoundedBody } from "@/lib/bounded-body";
@@ -103,7 +104,22 @@ async function publish(request: Request): Promise<NextResponse> {
     groupIds = found.map((f) => f.id);
   }
 
-  const saved = await savePage({ slug, title, html, groupIds });
+  // Without this the publish extension would silently convert a link into a
+  // page, at a slug students already hold.
+  if (slug) {
+    const existing = await prisma.page.findUnique({
+      where: { slug },
+      select: { kind: true, url: true },
+    });
+    if (existing && readPageKind(existing) === "link") {
+      return NextResponse.json(
+        { error: "That slug belongs to a link." },
+        { status: 400 },
+      );
+    }
+  }
+
+  const saved = await savePage({ slug, kind: "html", title, html, groupIds });
 
   const origin = process.env.ORIGIN ?? new URL(request.url).origin;
   return NextResponse.json({ url: `${origin}/p/${saved}` }, { status: 201 });
