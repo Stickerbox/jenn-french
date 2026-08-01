@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -64,12 +64,20 @@ export function PageEditor({
     }
   }
 
-  useEffect(() => {
+  // Adjusted during render rather than in an effect: this is state derived from
+  // a prop, and react-hooks forbids setState in an effect body for exactly this
+  // shape — an effect would render once with the stale selection and then
+  // render again. React's documented pattern is to compare against the previous
+  // prop here and correct before anything paints.
+  const [lastDefault, setLastDefault] = useState(defaultGroupId);
+  if (lastDefault !== defaultGroupId) {
+    setLastDefault(defaultGroupId);
     // Never on the edit form — an existing page's audience is data, not a
-    // default.
-    if (initial || groupsTouched) return;
-    setGroupIds(defaultGroupId ? [defaultGroupId] : []);
-  }, [defaultGroupId, groupsTouched, initial]);
+    // default — and never once she has ticked a box herself.
+    if (!initial && !groupsTouched) {
+      setGroupIds(defaultGroupId ? [defaultGroupId] : []);
+    }
+  }
 
   function toggleGroup(id: string) {
     setGroupsTouched(true);

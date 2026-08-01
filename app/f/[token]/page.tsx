@@ -24,6 +24,7 @@ export default async function StudentFilesPage({
   if (!group) notFound();
 
   const pages = await listPagesForGroup(group.id);
+  const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
 
   return (
     <main
@@ -42,7 +43,9 @@ export default async function StudentFilesPage({
         </h1>
       </header>
 
-      <FilesTab pages={pages} />
+      {/* Read-only. filesToken addresses this shelf and nothing else; a link
+          shared with a parent must not carry the power to add or pin. */}
+      <FilesTab pages={pages} today={today} canWrite={false} />
 
       <p className="mt-8 text-center">
         <Link

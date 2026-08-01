@@ -19,6 +19,7 @@ import { boardLabels } from "@/lib/whiteboard-names";
 import { BoardTab } from "@/components/whiteboard/BoardTab";
 import { LiveBanner } from "@/components/whiteboard/LiveBanner";
 import { markChatRead, deleteMessage, deleteWhiteboard } from "@/app/actions";
+import { addShelfLink, setShelfPin, deleteShelfLink } from "@/app/page-actions";
 
 function parseDate(value: string | undefined, latest: Date): Date {
   if (!value) return latest;
@@ -71,8 +72,13 @@ export default async function GroupPage({
   const boards = unlocked ? await listWhiteboards(group.id) : [];
   const labels = boardLabels(boards);
 
+  // Both extra tabs are present for anyone unlocked, empty state and all. A
+  // student with an empty shelf otherwise has no way to reach the control that
+  // fills it, because the tab holding it is hidden for being empty. The second
+  // clause exists only for the everyone group, whose shelf is public and has no
+  // unlocked state to key off.
   const tab = parseStudentTab(tab_, {
-    files: pages.length > 0,
+    files: unlocked || pages.length > 0,
     board: unlocked,
   });
 
@@ -107,7 +113,14 @@ export default async function GroupPage({
           )}
         </>
       ) : tab === "files" ? (
-        <FilesTab pages={pages} />
+        <FilesTab
+          pages={pages}
+          today={today}
+          canWrite={unlocked}
+          onAddLink={addShelfLink.bind(null, group.id)}
+          onTogglePin={setShelfPin.bind(null, group.id)}
+          onDeleteLink={deleteShelfLink.bind(null, group.id)}
+        />
       ) : (
         <BoardTab
           slug={slug}
@@ -156,7 +169,7 @@ export default async function GroupPage({
           slug={slug}
           active={tab}
           date={selected}
-          has={{ files: pages.length > 0, board: unlocked }}
+          has={{ files: unlocked || pages.length > 0, board: unlocked }}
         />
       )}
 
