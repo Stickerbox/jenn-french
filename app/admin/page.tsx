@@ -18,11 +18,9 @@ import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
 import { parseAdminTab } from "@/lib/admin-tab";
 import { unreadCounts } from "@/lib/messages";
-import { createPage } from "@/app/page-actions";
+import { createPage, createLink, setShelfPin } from "@/app/page-actions";
 import { listPagesForAdmin } from "@/lib/pages";
-import { PageList } from "@/components/admin/PageList";
-import { PageEditor } from "@/components/admin/PageEditor";
-import { Collapsible } from "@/components/admin/Collapsible";
+import { PagesTabClient } from "@/components/admin/PagesTabClient";
 
 export default async function AdminPage({
   searchParams,
@@ -142,34 +140,18 @@ async function PagesTab() {
   // one the filter should degrade quietly on rather than crash.
   const everyoneName = groups.find((g) => g.isEveryone)?.name ?? null;
 
+  // No 560px cap out here, unlike the other tabs: the page grid uses the
+  // whole 1152px so four tiles are worth looking at. PagesTabClient caps its
+  // own controls.
   return (
-    // No 560px cap out here, unlike the other tabs: the page grid uses the
-    // whole 1152px so four tiles are worth looking at. PageList caps its own
-    // search field and chips, and the publish form is capped below.
-    <div className="w-full">
-      <PageList
-        pages={pages.map((page) => ({ ...page, pinnedAt: null }))}
-        everyoneName={everyoneName}
-        onTogglePin={async () => {
-          "use server";
-          // Pinning needs a shelf, and the admin does not know which one until
-          // the student chip is lifted into a client wrapper. Wired in
-          // 2026-07-31-files-links-ui.md, Task 5.
-        }}
-        today={new Date()}
-      />
-
-      {/* Closed on arrival: the list is what she comes to this tab for, and
-          the publish form is a whole screen of controls below it. */}
-      <div className="mx-auto w-full max-w-[560px]">
-        <Collapsible label="Add a page">
-          <PageEditor
-            groups={groups}
-            submitLabel="Publish page"
-            onSubmit={createPage}
-          />
-        </Collapsible>
-      </div>
-    </div>
+    <PagesTabClient
+      pages={pages}
+      groups={groups}
+      everyoneName={everyoneName}
+      today={new Date()}
+      onCreatePage={createPage}
+      onCreateLink={createLink}
+      onTogglePin={setShelfPin}
+    />
   );
 }
