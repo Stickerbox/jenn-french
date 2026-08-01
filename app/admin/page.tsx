@@ -18,7 +18,7 @@ import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
 import { parseAdminTab } from "@/lib/admin-tab";
 import { unreadCounts } from "@/lib/messages";
-import { createPage, setPagePinned } from "@/app/page-actions";
+import { createPage } from "@/app/page-actions";
 import { listPagesForAdmin } from "@/lib/pages";
 import { PageList } from "@/components/admin/PageList";
 import { PageEditor } from "@/components/admin/PageEditor";
@@ -148,9 +148,14 @@ async function PagesTab() {
     // search field and chips, and the publish form is capped below.
     <div className="w-full">
       <PageList
-        pages={pages}
+        pages={pages.map((page) => ({ ...page, pinnedAt: null }))}
         everyoneName={everyoneName}
-        onTogglePin={setPagePinned}
+        onTogglePin={async () => {
+          "use server";
+          // Pinning needs a shelf, and the admin does not know which one until
+          // the student chip is lifted into a client wrapper. Wired in
+          // 2026-07-31-files-links-ui.md, Task 5.
+        }}
         today={new Date()}
       />
 

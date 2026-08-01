@@ -16,7 +16,9 @@ export default async function AdminPageEditor({
 
   const { slug } = await params;
   const page = await getPageForAdmin(slug);
-  if (!page) notFound();
+  // A link has no document, so there is nothing here to edit. 404 rather than
+  // rendering an upload form over a row that can never accept one.
+  if (!page || page.kind === "link") notFound();
 
   const groups = await prisma.group.findMany({
     orderBy: { name: "asc" },
@@ -47,7 +49,9 @@ export default async function AdminPageEditor({
           groups={groups}
           initial={{
             title: page.title,
-            html: page.html,
+            // Narrowed by the guard above: an html row always has html. The ??
+            // satisfies the compiler, which cannot see that from here.
+            html: page.html ?? "",
             groupIds: page.groupIds,
           }}
           submitLabel="Save page"

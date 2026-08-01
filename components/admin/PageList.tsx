@@ -28,6 +28,10 @@ export type PageSummary = {
   title: string;
   createdAt: Date;
   pinnedAt: Date | null;
+  kind: "html" | "link";
+  url: string | null;
+  addedByStudent: boolean;
+  pins: { groupId: string; pinnedAt: Date }[];
   groupNames: string[];
   sharedWithEveryone: boolean;
 };
