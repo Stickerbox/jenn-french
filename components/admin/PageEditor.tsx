@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -13,12 +13,16 @@ export type PageEditorGroup = { id: string; name: string };
 export function PageEditor({
   groups,
   initial,
+  defaultGroupId,
   submitLabel,
   onSubmit,
   onDelete,
 }: {
   groups: PageEditorGroup[];
   initial?: { title: string; html: string; groupIds: string[] };
+  // The Pages tab's active student chip. A new page defaults to whoever is
+  // being looked at; null when the filter is "All".
+  defaultGroupId?: string | null;
   submitLabel: string;
   onSubmit: (input: PageInput) => Promise<unknown>;
   onDelete?: () => Promise<void>;
@@ -31,7 +35,13 @@ export function PageEditor({
   const [html, setHtml] = useState(initial?.html ?? "");
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileSize, setFileSize] = useState<number | null>(null);
-  const [groupIds, setGroupIds] = useState<string[]>(initial?.groupIds ?? []);
+  const [groupIds, setGroupIds] = useState<string[]>(
+    initial?.groupIds ?? (defaultGroupId ? [defaultGroupId] : []),
+  );
+  // Mirrors titleFromFile below: a default should follow the filter while she
+  // has expressed no opinion, and must never overwrite a choice she made
+  // herself.
+  const [groupsTouched, setGroupsTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -54,7 +64,15 @@ export function PageEditor({
     }
   }
 
+  useEffect(() => {
+    // Never on the edit form — an existing page's audience is data, not a
+    // default.
+    if (initial || groupsTouched) return;
+    setGroupIds(defaultGroupId ? [defaultGroupId] : []);
+  }, [defaultGroupId, groupsTouched, initial]);
+
   function toggleGroup(id: string) {
+    setGroupsTouched(true);
     setGroupIds((current) =>
       current.includes(id) ? current.filter((g) => g !== id) : [...current, id],
     );
@@ -73,7 +91,10 @@ export function PageEditor({
         setHtml("");
         setFileName(null);
         setFileSize(null);
-        setGroupIds([]);
+        // Back to the default rather than to nothing: the filter is still on
+        // Marie, and the next page she adds is almost certainly Marie's too.
+        setGroupIds(defaultGroupId ? [defaultGroupId] : []);
+        setGroupsTouched(false);
         setTitleFromFile(false);
       }
       router.refresh();
