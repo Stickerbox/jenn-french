@@ -26,6 +26,7 @@ model Group {
   whiteboards       Whiteboard[]
   createdAt DateTime    @default(now())
   pages     PageGroup[]
+  pins      PagePin[]
 }
 
 model Message {
@@ -78,14 +79,21 @@ model Page {
   id        String      @id @default(cuid())
   slug      String      @unique
   title     String
-  html      String
+  // "html" | "link". A String and not an enum because Prisma has no enum
+  // support on SQLite; lib/page-kind.ts narrows it.
+  kind      String      @default("html")
+  // Exactly one of these is set. html holds a whole document, so no shelf query
+  // selects it.
+  html      String?
+  url       String?
+  // True when a student added it rather than Jenn. A boolean rather than an
+  // author id for the reason Message.fromTeacher is one: there are exactly two
+  // participants and one of them has no row to point at.
+  addedByStudent Boolean @default(false)
   createdAt DateTime    @default(now())
-  // Null means unpinned. A timestamp rather than a boolean so pinned pages can
-  // order by WHEN they were pinned — a boolean would leave them sorted by
-  // creation date, which is the ordering pinning exists to override.
-  pinnedAt  DateTime?
   updatedAt DateTime    @updatedAt
   groups    PageGroup[]
+  pins      PagePin[]
 }
 
 // An explicit join model rather than Prisma's implicit many-to-many, so the
@@ -95,6 +103,23 @@ model PageGroup {
   groupId String
   page    Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
   group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([pageId, groupId])
+}
+
+// A pin belongs to one shelf, not to the page. The same page can sit at the top
+// of Marie's shelf and in date order on Luc's.
+//
+// Deliberately NOT a mirror of PageGroup: a student may pin a page that reaches
+// them through the everyone group, so a pin can exist for a (page, group) pair
+// with no PageGroup row. That is intended, not a dangling reference — the shelf
+// is assembled by listPagesForGroup, not by PageGroup alone.
+model PagePin {
+  pageId   String
+  groupId  String
+  pinnedAt DateTime @default(now())
+  page     Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@id([pageId, groupId])
 }
