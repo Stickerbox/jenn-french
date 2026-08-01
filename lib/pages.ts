@@ -1,20 +1,36 @@
 import { prisma } from "@/lib/prisma";
 import { slugify, uniqueSlug } from "@/lib/page-slug";
 import { effectivePages } from "@/lib/effective-pages";
+import { readPageKind, type PageKind } from "@/lib/page-kind";
+import { applyPins } from "@/lib/page-pins";
 
-export type SavePageInput = {
+type SaveCommon = {
   // null means "derive one from the title"; a value means "create or replace
   // the page at exactly this slug", which is how a corrected page is
   // republished to a link students already have.
   slug: string | null;
   title: string;
-  html: string;
   // null leaves existing group assignments untouched.
   groupIds: string[] | null;
 };
 
+export type SavePageInput = SaveCommon &
+  (
+    | { kind: "html"; html: string }
+    | { kind: "link"; url: string; addedByStudent?: boolean }
+  );
+
 export async function savePage(input: SavePageInput): Promise<string> {
   const slug = input.slug ?? (await deriveSlug(input.title));
+
+  // Both columns are written every time, one of them to null. Setting only the
+  // populated one would leave stale html behind if an html page were ever
+  // replaced by a link at the same slug, and readPageKind would then have two
+  // populated columns to choose between.
+  const columns =
+    input.kind === "html"
+      ? { kind: "html", html: input.html, url: null }
+      : { kind: "link", html: null, url: input.url };
 
   // One interactive transaction, not an upsert followed by a separate group
   // write: a failing group assignment used to leave the page row committed
@@ -23,8 +39,15 @@ export async function savePage(input: SavePageInput): Promise<string> {
   await prisma.$transaction(async (tx) => {
     const page = await tx.page.upsert({
       where: { slug },
-      create: { slug, title: input.title, html: input.html },
-      update: { title: input.title, html: input.html },
+      create: {
+        slug,
+        title: input.title,
+        ...columns,
+        addedByStudent: input.kind === "link" && input.addedByStudent === true,
+      },
+      // addedByStudent is deliberately absent here: who added a row is a fact
+      // about its creation, and an edit must not rewrite it.
+      update: { title: input.title, ...columns },
       select: { id: true },
     });
 
