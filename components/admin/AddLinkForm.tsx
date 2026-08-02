@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import type { LinkInput } from "@/app/page-actions";
 
-// Always visible, not inside the Collapsible the page uploader lives in.
-// Adding a link is two fields; burying it under a disclosure beside a
-// whole-screen upload form would make the easy thing look like the hard one.
+// Always visible rather than tucked behind a disclosure: adding a link is two
+// fields, and burying it beside a whole-screen upload form would make the
+// easy thing look like the hard one.
 export function AddLinkForm({
   groups,
   defaultGroupId,
