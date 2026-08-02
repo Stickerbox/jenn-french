@@ -19,7 +19,6 @@ export function AddLinkForm({
   onSubmit: (input: LinkInput) => Promise<unknown>;
 }) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,11 +31,9 @@ export function AddLinkForm({
     setError(null);
     try {
       await onSubmit({
-        title,
         url,
         groupIds: defaultGroupId ? [defaultGroupId] : [],
       });
-      setTitle("");
       setUrl("");
       router.refresh();
     } catch (err) {
@@ -55,12 +52,6 @@ export function AddLinkForm({
           placeholder="https://docs.google.com/…"
           aria-label="Link address"
           required
-        />
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title (optional)"
-          aria-label="Link title"
         />
         <Button type="submit" disabled={saving || url.trim() === ""}>
           {saving ? "Adding..." : "Add link"}

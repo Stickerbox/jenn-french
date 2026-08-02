@@ -8,10 +8,9 @@ import { fieldClassName } from "@/components/ui/field";
 export function AddLinkRow({
   onAdd,
 }: {
-  onAdd: (input: { title: string; url: string }) => Promise<void>;
+  onAdd: (input: { url: string }) => Promise<void>;
 }) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +20,7 @@ export function AddLinkRow({
     setSaving(true);
     setError(null);
     try {
-      await onAdd({ title, url });
-      setTitle("");
+      await onAdd({ url });
       setUrl("");
       router.refresh();
     } catch {
@@ -46,13 +44,6 @@ export function AddLinkRow({
           placeholder="https://…"
           aria-label="Adresse du lien"
           required
-          className={cn(fieldClassName, "mt-0")}
-        />
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Titre (facultatif)"
-          aria-label="Titre du lien"
           className={cn(fieldClassName, "mt-0")}
         />
         <button

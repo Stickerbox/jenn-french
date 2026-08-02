@@ -11,6 +11,8 @@ import { parseLinkUrl } from "@/lib/link-url";
 import { readPageKind } from "@/lib/page-kind";
 import { canStudentDelete, shelfRole, type ShelfRole } from "@/lib/shelf-access";
 import { readToken, cookieNameFor } from "@/lib/student-tokens";
+import { titleFromUrl } from "@/lib/link-title";
+import { titleFromHtml } from "@/lib/page-title";
 
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
@@ -43,14 +45,22 @@ async function requireShelfRole(groupId: string): Promise<ShelfRole> {
   return role;
 }
 
+// The edit form still names a page: a published title stays editable even
+// though its slug is frozen at creation.
 export type PageInput = {
   title: string;
   html: string;
   groupIds: string[];
 };
 
+// Creating one does not. The title comes from the document, so the form is a
+// paste and nothing else.
+export type NewPageInput = {
+  html: string;
+  groupIds: string[];
+};
+
 export type LinkInput = {
-  title: string;
   url: string;
   groupIds: string[];
 };
@@ -68,13 +78,26 @@ function validatePage(input: PageInput) {
   return { title, html: html.html };
 }
 
-function validateLink(input: { title: string; url: string }) {
+// The create path, where nobody typed a title. "Page" is a deliberate last
+// resort: uniqueSlug turns a run of them into page, page-2, page-3, which is
+// ugly but reachable, and the title stays editable at /admin/pages/<slug>
+// afterwards. The slug does not — students bookmark it.
+// Narrower than NewPageInput: createPage passes the whole thing but
+// addShelfPage never carries a groupIds field, so the shared validator only
+// asks for what it actually reads.
+function validateNewPage(input: { html: string }) {
+  const html = validatePageHtml(input.html);
+  if (!html.ok) throw new Error(html.error);
+  return { title: titleFromHtml(html.html) ?? "Page", html: html.html };
+}
+
+// The title is derived here rather than in either form, so the two callers
+// cannot disagree about it and neither can skip it. titleFromUrl makes no
+// request — see lib/link-title.ts.
+function validateLink(input: { url: string }) {
   const url = parseLinkUrl(input.url);
   if (!url.ok) throw new Error(url.error);
-  // A link with no title falls back to its host, so adding one is two fields
-  // and not three when she is in a hurry.
-  const title = input.title.trim() || new URL(url.url).hostname.replace(/^www\./, "");
-  return { title, url: url.url };
+  return { title: titleFromUrl(url.url), url: url.url };
 }
 
 // A page can belong to several groups, so every group's list is stale after a
@@ -110,9 +133,9 @@ async function saveOrExplain(input: SavePageInput): Promise<string> {
   }
 }
 
-export async function createPage(input: PageInput): Promise<string> {
+export async function createPage(input: NewPageInput): Promise<string> {
   await requireTeacher();
-  const { title, html } = validatePage(input);
+  const { title, html } = validateNewPage(input);
 
   const slug = await saveOrExplain({
     slug: null,
@@ -157,7 +180,7 @@ export async function createLink(input: LinkInput): Promise<string> {
 // server so the client never carries it.
 export async function addShelfLink(
   groupId: string,
-  input: { title: string; url: string },
+  input: { url: string },
 ): Promise<void> {
   const role = await requireShelfRole(groupId);
   const { title, url } = validateLink(input);
@@ -167,6 +190,29 @@ export async function addShelfLink(
     kind: "link",
     title,
     url,
+    groupIds: [groupId],
+    addedByStudent: role === "student",
+  });
+
+  revalidatePages(slug);
+}
+
+// The student page's add-a-page, for either party. The sibling of
+// addShelfLink, authorised by the same requireShelfRole — so the everyone
+// group and an untokened visitor are refused by a rule that already exists and
+// is already tested, rather than by a second one written here.
+export async function addShelfPage(
+  groupId: string,
+  input: { html: string },
+): Promise<void> {
+  const role = await requireShelfRole(groupId);
+  const { title, html } = validateNewPage(input);
+
+  const slug = await saveOrExplain({
+    slug: null,
+    kind: "html",
+    title,
+    html,
     groupIds: [groupId],
     addedByStudent: role === "student",
   });

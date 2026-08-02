@@ -50,7 +50,7 @@ export function FilesTab({
   today: Date;
   // False on the everyone group's public shelf and for an untokened visitor.
   canWrite: boolean;
-  onAddLink?: (input: { title: string; url: string }) => Promise<void>;
+  onAddLink?: (input: { url: string }) => Promise<void>;
   onTogglePin?: (slug: string, pinned: boolean) => Promise<void>;
   onDeleteLink?: (slug: string) => Promise<void>;
 }) {

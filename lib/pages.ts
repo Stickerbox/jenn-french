@@ -16,7 +16,7 @@ type SaveCommon = {
 
 export type SavePageInput = SaveCommon &
   (
-    | { kind: "html"; html: string }
+    | { kind: "html"; html: string; addedByStudent?: boolean }
     | { kind: "link"; url: string; addedByStudent?: boolean }
   );
 
@@ -43,7 +43,7 @@ export async function savePage(input: SavePageInput): Promise<string> {
         slug,
         title: input.title,
         ...columns,
-        addedByStudent: input.kind === "link" && input.addedByStudent === true,
+        addedByStudent: input.addedByStudent === true,
       },
       // addedByStudent is deliberately absent here: who added a row is a fact
       // about its creation, and an edit must not rewrite it.
