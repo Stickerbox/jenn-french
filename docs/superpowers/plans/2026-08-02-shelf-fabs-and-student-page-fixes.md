@@ -25,6 +25,7 @@
 - **Do not touch `prisma/schema.prisma`.** There is no migration in this plan — `updatedAt` and `addedByStudent` both already exist.
 - **Server actions:** every mutating action in `app/actions.ts` and `app/page-actions.ts` starts with an authorisation check. Any new one must too.
 - **Verification commands**, in CI order: `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build`. Every task ends green on at least `npm test` and `npx tsc --noEmit`.
+- **Steps headed "Manual check" need a human with a browser.** If you are executing this without one, **do not skip them silently and do not claim they passed.** Run the automated checks, then list the outstanding manual checks verbatim in your final report so the human can walk them. Task 17 Step 4 gives `curl` equivalents for the parts that can be verified headlessly; the rest are genuinely visual.
 
 ## Task Order and Why
 
@@ -3247,16 +3248,64 @@ grep -rn "HtmlPreview" app components
 
 Expected: exactly three hits — the definition in `components/ui/HtmlPreview.tsx` and one call each in `components/admin/PageList.tsx` and `components/student/FilesTab.tsx`, both passing `version={pageVersion(...)}`. (Two comment mentions in `PageTile.tsx` and `LinkPreview.tsx` are prose, not calls.)
 
-- [ ] **Step 4: Confirm the caching actually works in a browser**
+- [ ] **Step 4: Confirm the caching actually works — headless**
 
-`npm run dev`, open the admin Pages tab with DevTools' Network panel:
+No browser needed for any of this. It relies on the everyone shelf being public, so the rendered tile markup — including the `?v=` the server chose — can be read with `curl`.
 
-1. Hard-reload. Each `raw?v=…` is a 200.
-2. Soft-reload. Each `raw?v=…` reads **(disk cache)** or **(memory cache)** with no request to the server.
-3. Edit one page at `/admin/pages/<slug>` and save. That page's tile requests a **new** `?v=` and is a 200 again; every other tile still reads from cache.
-4. Visit `/p/<slug>/raw` directly, with no `?v=`. The response headers show `Cache-Control: no-store`.
+Start the dev server in one shell (`npm run dev`), then in another:
 
-Step 3 is the one that matters: it proves invalidation works. A cache that never misses is a cache that will one day serve a deleted document.
+```bash
+# Prerequisite: at least one HTML page assigned to the everyone group. If the
+# grep below prints nothing, add one from /admin first, or run:
+#   npx prisma studio
+# and check a Page row with kind="html" has a PageGroup row for the isEveryone group.
+SRC=$(curl -s "http://localhost:3000/g/all?tab=files" \
+  | grep -o '/p/[a-z0-9-]*/raw?v=[a-z0-9]*' | head -1)
+echo "tile frames: $SRC"
+```
+
+Expected: a path like `/p/verb-drills/raw?v=m8k2p1q`. **Empty output means the tile is still framing the unversioned URL** — Step 2 or 3 of Task 7 was missed.
+
+```bash
+# 1. The matching token is cacheable
+curl -sI "http://localhost:3000$SRC" | grep -i '^cache-control\|^x-robots-tag'
+```
+Expected: `cache-control: private, max-age=31536000, immutable` and `x-robots-tag: noindex, nofollow`.
+
+```bash
+# 2. No token is not
+SLUG=$(echo "$SRC" | sed 's|/p/||; s|/raw.*||')
+curl -sI "http://localhost:3000/p/$SLUG/raw" | grep -i '^cache-control'
+```
+Expected: `cache-control: no-store`.
+
+```bash
+# 3. A STALE token is not either. This is the one that matters — accepting any
+#    ?v= would pin a browser to a deleted document for a year.
+curl -sI "http://localhost:3000/p/$SLUG/raw?v=deadbeef" | grep -i '^cache-control'
+```
+Expected: `cache-control: no-store`.
+
+```bash
+# 4. Invalidation: touch the row, confirm the token the tile frames has changed
+npx prisma db execute --stdin <<SQL
+UPDATE Page SET updatedAt = datetime('now') WHERE slug = '$SLUG';
+SQL
+curl -s "http://localhost:3000/g/all?tab=files" \
+  | grep -o "/p/$SLUG/raw?v=[a-z0-9]*" | head -1
+```
+Expected: a **different** `?v=` from the one printed at the top. A cache that never misses is a cache that will one day serve a deleted document, so this check is not optional.
+
+If `/g/all` is not the everyone slug in this database, substitute the real one — `EVERYONE_SLUG` in `lib/everyone.ts` is the seeded default.
+
+- [ ] **Step 4b: The visual checks a browser is needed for**
+
+These cannot be done headlessly. If you have no browser, **report them as outstanding rather than claiming them**:
+
+1. The preview thumbnails still render page content at roughly laptop width (the 500%/0.2 scaling survived the `?v=` change).
+2. The `+` FAB sits left of the chat bubble and neither covers the other, on a phone width and a desktop width.
+3. The `AddMenu` popover and `AddSheet` modal open above everything and dismiss on Escape and on an outside click.
+4. Pasting into a paste box never shows the markup, not even for a frame.
 
 - [ ] **Step 5: Walk the six fixes**
 
