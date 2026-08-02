@@ -2,6 +2,12 @@ const MAX_TITLE_LENGTH = 80;
 
 // Words that route rather than name. A URL ending in one of these is telling
 // you what to do with the page, not what the page is.
+//
+// "document" falls back to the hostname on purpose, and that fallback is
+// permanent: AddLinkForm has no title field, /admin/pages/[slug] 404s on a
+// link row, and updatePage is html-only, so nothing in this app can rename a
+// link after the fact. A URL like .../handouts/document.pdf becomes the bare
+// hostname forever — the only fix is deleting the link and re-adding it.
 const NOISE = new Set([
   "edit", "view", "preview", "index", "home", "default",
   // Single letters and routing words are Google's path furniture: /document/d/<id>/edit.

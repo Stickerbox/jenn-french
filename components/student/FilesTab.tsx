@@ -146,11 +146,11 @@ export function FilesTab({
                               </button>
                             </form>
 
-                            {/* Only their own links. The server re-checks with
-                                canStudentDelete; this just avoids showing a
-                                control that would fail. */}
-                            {page.kind === "link" &&
-                              page.addedByStudent &&
+                            {/* Anything they published, link or page, while
+                                nobody else can see it yet. The server
+                                re-checks with canStudentDelete; this just
+                                avoids showing a control that would fail. */}
+                            {page.addedByStudent &&
                               onDeleteLink && (
                                 <form action={onDeleteLink.bind(null, page.slug)}>
                                   <button
