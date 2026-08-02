@@ -27,15 +27,19 @@ export function shelfRole(input: {
   return null;
 }
 
-// Which rows a student may remove from their own shelf. All three conditions
-// matter: the third is what makes the first two safe, because a Page row is
-// shared and deleting one assigned to several groups removes it from all of
-// them at once.
+// Which rows a student may remove from their own shelf. Both remaining
+// conditions matter: the second is what makes the first safe, because a Page
+// row is shared and deleting one assigned to several groups removes it from all
+// of them at once.
+//
+// The kind is deliberately no longer checked. It used to stand in for "a
+// student could only have added a link", which stopped being true when they
+// gained the ability to publish a page. `addedByStudent` says the same thing
+// directly and keeps saying it if a third kind ever appears.
 export function canStudentDelete(
   page: { kind: PageKind; addedByStudent: boolean; groupIds: string[] },
   groupId: string,
 ): boolean {
-  if (page.kind !== "link") return false;
   if (!page.addedByStudent) return false;
   return page.groupIds.length === 1 && page.groupIds[0] === groupId;
 }

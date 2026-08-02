@@ -51,8 +51,22 @@ describe("canStudentDelete", () => {
     expect(canStudentDelete({ ...link, addedByStudent: false }, "g1")).toBe(false);
   });
 
-  it("refuses an html page", () => {
-    expect(canStudentDelete({ ...link, kind: "html" }, "g1")).toBe(false);
+  it("allows a student to retract a page they published", () => {
+    expect(canStudentDelete({ ...link, kind: "html" }, "g1")).toBe(true);
+  });
+
+  it("still refuses a page Jenn published", () => {
+    expect(
+      canStudentDelete({ ...link, kind: "html", addedByStudent: false }, "g1"),
+    ).toBe(false);
+  });
+
+  // The clause that makes widening the first one safe: a Page row is shared, so
+  // deleting one on two shelves takes it off both.
+  it("still refuses a page of theirs that reached a second shelf", () => {
+    expect(
+      canStudentDelete({ ...link, kind: "html", groupIds: ["g1", "g2"] }, "g1"),
+    ).toBe(false);
   });
 
   it("refuses a row shared with anyone else", () => {
