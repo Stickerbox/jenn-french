@@ -4,83 +4,45 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { HtmlDropZone } from "@/components/admin/HtmlDropZone";
+import { HtmlPasteBox } from "@/components/ui/HtmlPasteBox";
 import { cn } from "@/lib/utils";
 import type { PageInput } from "@/app/page-actions";
 
 export type PageEditorGroup = { id: string; name: string };
 
+// The edit form behind /admin/pages/[slug], and nothing else. Creating a page
+// lives in NewPageForm now, which is why `initial` is required here and why
+// every "is this the create form?" branch is gone.
+//
+// The title field stays. A page's slug is derived from its title once and never
+// moves — students bookmark it — but the title itself is display text and
+// fixing a typo in one must remain possible.
 export function PageEditor({
   groups,
   initial,
-  defaultGroupId,
   submitLabel,
   onSubmit,
   onDelete,
 }: {
   groups: PageEditorGroup[];
-  initial?: { title: string; html: string; groupIds: string[] };
-  // The Pages tab's active student chip. A new page defaults to whoever is
-  // being looked at; null when the filter is "All".
-  defaultGroupId?: string | null;
+  initial: { title: string; html: string; groupIds: string[] };
   submitLabel: string;
   onSubmit: (input: PageInput) => Promise<unknown>;
   onDelete?: () => Promise<void>;
 }) {
   const router = useRouter();
-  const [title, setTitle] = useState(initial?.title ?? "");
-  // The html still lives here, exactly as before — the drop zone simply never
-  // shows it. Saving an existing page without touching the file therefore
-  // re-submits the identical html and page-actions needs no change.
-  const [html, setHtml] = useState(initial?.html ?? "");
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [fileSize, setFileSize] = useState<number | null>(null);
-  const [groupIds, setGroupIds] = useState<string[]>(
-    initial?.groupIds ?? (defaultGroupId ? [defaultGroupId] : []),
-  );
-  // Mirrors titleFromFile below: a default should follow the filter while she
-  // has expressed no opinion, and must never overwrite a choice she made
-  // herself.
-  const [groupsTouched, setGroupsTouched] = useState(false);
+  const [title, setTitle] = useState(initial.title);
+  // The html lives here, exactly as it did behind the drop zone — the paste box
+  // simply never shows it. Saving without pasting anything re-submits the
+  // identical document, so page-actions needs no change.
+  const [html, setHtml] = useState(initial.html);
+  const [groupIds, setGroupIds] = useState<string[]>(initial.groupIds);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Tracks whether the current title came from a filename rather than typing:
-  // a filename-derived title should follow the file when it's swapped for
-  // another, but a title the teacher typed herself must never be overwritten.
-  const [titleFromFile, setTitleFromFile] = useState(false);
-
-  // The file never reaches the server: it is read in the browser and the text
-  // goes straight into state, so the source stays editable by re-uploading.
-  function handleFile(file: File, text: string) {
-    setError(null);
-    setHtml(text);
-    setFileName(file.name);
-    setFileSize(file.size);
-    if (!title || titleFromFile) {
-      setTitle(file.name.replace(/\.html?$/i, ""));
-      setTitleFromFile(true);
-    }
-  }
-
-  // Adjusted during render rather than in an effect: this is state derived from
-  // a prop, and react-hooks forbids setState in an effect body for exactly this
-  // shape — an effect would render once with the stale selection and then
-  // render again. React's documented pattern is to compare against the previous
-  // prop here and correct before anything paints.
-  const [lastDefault, setLastDefault] = useState(defaultGroupId);
-  if (lastDefault !== defaultGroupId) {
-    setLastDefault(defaultGroupId);
-    // Never on the edit form — an existing page's audience is data, not a
-    // default — and never once she has ticked a box herself.
-    if (!initial && !groupsTouched) {
-      setGroupIds(defaultGroupId ? [defaultGroupId] : []);
-    }
-  }
 
   function toggleGroup(id: string) {
-    setGroupsTouched(true);
     setGroupIds((current) =>
       current.includes(id) ? current.filter((g) => g !== id) : [...current, id],
     );
@@ -94,17 +56,6 @@ export function PageEditor({
     try {
       await onSubmit({ title, html, groupIds });
       setSaved(true);
-      if (!initial) {
-        setTitle("");
-        setHtml("");
-        setFileName(null);
-        setFileSize(null);
-        // Back to the default rather than to nothing: the filter is still on
-        // Marie, and the next page she adds is almost certainly Marie's too.
-        setGroupIds(defaultGroupId ? [defaultGroupId] : []);
-        setGroupsTouched(false);
-        setTitleFromFile(false);
-      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -131,14 +82,7 @@ export function PageEditor({
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <label className="text-sm font-medium text-[var(--color-ink)]">
         Title
-        <Input
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            setTitleFromFile(false);
-          }}
-          required
-        />
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
       </label>
 
       <fieldset className="text-sm font-medium text-[var(--color-ink)]">
@@ -179,13 +123,18 @@ export function PageEditor({
       </fieldset>
 
       <div className="text-sm font-medium text-[var(--color-ink)]">
-        Page file
-        <HtmlDropZone
-          fileName={fileName}
-          fileSize={fileSize}
-          hasExisting={Boolean(initial)}
-          onFile={handleFile}
-          onError={setError}
+        Replace the page
+        {/* Unlike the create form, pasting here does NOT save: there is a title
+            and an audience on this screen that a paste must not commit behind
+            her. It stages the new document and Save commits everything. */}
+        <HtmlPasteBox
+          tone="admin"
+          labels={{
+            prompt: "Paste the page's HTML here (⌘V) to replace it",
+            accepted: (size) => `New version staged — ${size}. Save to publish it.`,
+            ariaLabel: "HTML to replace this page with",
+          }}
+          onHtml={setHtml}
         />
       </div>
 
