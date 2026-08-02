@@ -35,7 +35,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | Route | Who | Notes |
 |---|---|---|
 | `/` | public | landing page |
-| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the token, teacher included — a teacher session adds only the delete and read-marker controls once unlocked, plus *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. Both extra tabs are present for anyone unlocked, empty state and all, and on that shelf either party may add a link and pin a page |
+| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the token, teacher included — a teacher session adds only the delete and read-marker controls once unlocked, plus *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding a link or a page is a `+` FAB left of the chat button, present on every tab, and either party may pin |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe |
@@ -166,9 +166,16 @@ Writes to a shelf — adding a link, pinning, deleting a link — are authorised
 `shelfRole` (`lib/shelf-access.ts`), **not** `chatRole`. `chatRole` refuses the
 everyone group before it checks the teacher, which is right for a conversation
 and wrong for curation: the shared shelf is exactly the one Jenn needs to fill.
-A student may delete only their own link, and only while nobody else can see it
-(`canStudentDelete`); the server re-checks that regardless of which controls the
-tile rendered. `/f/[token]` is read-only — `filesToken` addresses a shelf and
+A student may add a page as well as a link — `addShelfPage` is `addShelfLink`'s
+sibling and shares its `requireShelfRole` guard. They may delete only what they
+added themselves, and only while nobody else can see it (`canStudentDelete`,
+which keys off `addedByStudent` rather than the kind, because the kind used to
+stand in for it and stopped being able to); the server re-checks that regardless
+of which controls the tile rendered. Because a student can now publish a
+document served from our origin, and a slug is derived from a title and so is
+guessable, `/p/[slug]` carries `robots: { index: false, follow: false }` and its
+raw route an `X-Robots-Tag`. The sandbox and the CSP are unchanged and are still
+what contain anything scripted inside it. `/f/[token]` is read-only — `filesToken` addresses a shelf and
 nothing else, so a link forwarded to a parent must not carry the power to write
 to it.
 
@@ -211,10 +218,14 @@ an off-site title is a plain `<a target="_blank">` and must keep
 `rel="noopener"`, or the opened page gets a `window.opener` handle back to this
 tab and can navigate it while the student is reading.
 
-**A tab that hosts a control is present for anyone unlocked, empty state and
-all** — Files and Whiteboard both. A student whose shelf is empty otherwise has
-no way to reach the control that fills it, because the tab holding it is hidden
-for being empty. The everyone group is the exception either rule has to name: its
+**A tab is present for anyone unlocked, empty state and
+all** — Files and
+Whiteboard both. The original reason was that a student with an empty shelf
+could not otherwise reach the control that fills it; the add controls are a
+page-level FAB now, so that argument no longer holds and the rule stands on the
+weaker one that remains: a tab that vanishes when empty makes the shelf look
+broken rather than empty, and *Nouveau tableau* still lives inside the board
+tab. The everyone group is the exception either rule has to name: its
 shelf is public and has no unlocked state to key off, so `files` is
 `unlocked || pages.length > 0`.
 
@@ -222,7 +233,20 @@ Both grids are 1152px wide — the admin's content width — so a tile is the sa
 size on both sides. On the Pages tab that means the grid deliberately breaks out
 of the 560px column the search field and filter chips stay in: four tiles at
 560px were 128px each, too small to recognise a page by, which is the only thing
-the preview is for. In the admin the tile links to `/p/[slug]` and a pencil icon
+the preview is for.
+
+A preview frames `/p/[slug]/raw?v=<token>`, where the token is
+`pageVersion(page.updatedAt)`. The route recomputes it and answers **only an
+exact match** with `private, max-age=31536000, immutable`; an absent or stale
+`?v=` still gets `no-store`. Accepting any `?v=` would let a bookmarked stale
+token pin a browser to a deleted document for a year, which is the one way this
+scheme can fail. Nothing needs purging — an edit bumps `updatedAt`, which
+changes the URL. The accepted cost is that a versioned response now reaches the
+browser's disk cache, which the blanket `no-store` prevented. This removes the
+fetch, not the re-layout of a dozen documents at 500%; `loading="lazy"` is
+still what handles that.
+
+In the admin the tile links to `/p/[slug]` and a pencil icon
 links to the editor, not the reverse — following a thumbnail should show the
 page it is a thumbnail of.
 
@@ -269,11 +293,21 @@ browser Jenn writes pages in is sandboxed and cannot complete a passkey login;
 it is authenticated by `PAGES_UPLOAD_TOKEN` and returns 404 when that variable
 is unset.
 
-The admin editor shows no HTML at all: `PageEditor` holds the document in
-state and `HtmlDropZone` takes a file, so the round trip for a correction is
-download → edit in the tool she wrote it in → re-upload. The download is a
-plain `<a download>` pointing at `/p/[slug]/raw`, which is why that route and
-its CSP needed no change to support it.
+Neither editor shows HTML: both hold the document in state and
+`HtmlPasteBox` takes a paste, so the round trip for a correction is download →
+edit in the tool she wrote it in → copy → paste. The download is a plain
+`<a download>` pointing at `/p/[slug]/raw`, which is why that route needed no
+change to support it. The box's `onPaste` calls `preventDefault()` and reads
+the clipboard itself, so the markup never enters the field — accepting it and
+clearing it afterwards shows the document for a frame and reads as a failure.
+
+`PageEditor` is the edit form only. Creating a page is `NewPageForm`, in the
+FAB's sheet, where **the paste is the submit**: the title comes from the
+document (`titleFromHtml`) and there is nothing else on that form. Pasting into
+`PageEditor` does *not* save, because that screen has a title and an audience a
+paste must not commit behind her. A derived title becomes a permanent slug —
+the title stays editable afterwards and the slug never does — which is the
+accepted cost of the one-gesture flow.
 
 One group is flagged `isEveryone` — on production it is `all` / "Everyone", the
 row students already bookmark as `/g/all`. Every page assigned to it appears on
