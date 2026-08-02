@@ -11,6 +11,7 @@ import { readToken, cookieNameFor } from "@/lib/student-tokens";
 import { listPagesForGroup } from "@/lib/pages";
 import { StudentTabs } from "@/components/student/StudentTabs";
 import { FilesTab } from "@/components/student/FilesTab";
+import { ShelfFab } from "@/components/student/ShelfFab";
 import { greeting } from "@/lib/student-greeting";
 import { CardHeading } from "@/components/student/CardHeading";
 import { ChatFab } from "@/components/chat/ChatFab";
@@ -21,7 +22,12 @@ import { boardLabels } from "@/lib/whiteboard-names";
 import { BoardTab } from "@/components/whiteboard/BoardTab";
 import { LiveBanner } from "@/components/whiteboard/LiveBanner";
 import { markChatRead, deleteMessage, deleteWhiteboard } from "@/app/actions";
-import { addShelfLink, setShelfPin, deleteShelfLink } from "@/app/page-actions";
+import {
+  addShelfLink,
+  addShelfPage,
+  setShelfPin,
+  deleteShelfLink,
+} from "@/app/page-actions";
 
 function parseDate(value: string | undefined, latest: Date): Date {
   if (!value) return latest;
@@ -128,7 +134,6 @@ export default async function GroupPage({
           pages={pages}
           today={today}
           canWrite={unlocked}
-          onAddLink={addShelfLink.bind(null, group.id)}
           onTogglePin={setShelfPin.bind(null, group.id)}
           onDeleteLink={deleteShelfLink.bind(null, group.id)}
         />
@@ -211,6 +216,10 @@ export default async function GroupPage({
               locale: "fr-CA",
               deleteMessage: "Supprimer",
             }}
+          />
+          <ShelfFab
+            onAddLink={addShelfLink.bind(null, group.id)}
+            onAddPage={addShelfPage.bind(null, group.id)}
           />
         </StreamProvider>
       ) : (

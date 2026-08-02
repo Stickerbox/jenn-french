@@ -7,7 +7,6 @@ import { LinkPreview } from "@/components/ui/LinkPreview";
 import { PinIcon } from "@/components/ui/PinIcon";
 import { KindFilter } from "@/components/ui/KindFilter";
 import { SearchField } from "@/components/admin/SearchField";
-import { AddLinkRow } from "@/components/student/AddLinkRow";
 import {
   pageGrid,
   pageSectionHeading,
@@ -38,7 +37,6 @@ export function FilesTab({
   pages,
   today,
   canWrite,
-  onAddLink,
   onTogglePin,
   onDeleteLink,
 }: {
@@ -50,7 +48,6 @@ export function FilesTab({
   today: Date;
   // False on the everyone group's public shelf and for an untokened visitor.
   canWrite: boolean;
-  onAddLink?: (input: { url: string }) => Promise<void>;
   onTogglePin?: (slug: string, pinned: boolean) => Promise<void>;
   onDeleteLink?: (slug: string) => Promise<void>;
 }) {
@@ -68,8 +65,6 @@ export function FilesTab({
   // looking alike.
   return (
     <div className={cn("mx-auto max-w-[1152px]")}>
-      {canWrite && onAddLink && <AddLinkRow onAdd={onAddLink} />}
-
       {pages.length > 0 && (
         <div className="mx-auto w-full max-w-[560px]">
           <SearchField label="Chercher" value={query} onChange={setQuery} />
