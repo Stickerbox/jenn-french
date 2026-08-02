@@ -81,6 +81,9 @@ const SHELF_SELECT = {
   slug: true,
   title: true,
   createdAt: true,
+  // The preview's cache key. Cheap to select and needed by every tile; see
+  // lib/page-version.ts.
+  updatedAt: true,
   kind: true,
   url: true,
   addedByStudent: true,
@@ -89,7 +92,15 @@ const SHELF_SELECT = {
 export function getPageBySlug(slug: string) {
   return prisma.page.findUnique({
     where: { slug },
-    select: { id: true, slug: true, title: true, html: true, kind: true, url: true },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      html: true,
+      kind: true,
+      url: true,
+      updatedAt: true,
+    },
   });
 }
 
@@ -145,6 +156,7 @@ export async function listPagesForAdmin() {
     slug: page.slug,
     title: page.title,
     createdAt: page.createdAt,
+    updatedAt: page.updatedAt,
     kind: readPageKind(page),
     url: page.url,
     addedByStudent: page.addedByStudent,

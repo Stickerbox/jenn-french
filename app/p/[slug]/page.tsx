@@ -10,7 +10,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const page = await getPageBySlug(slug);
-  return { title: page?.title ?? "Not found" };
+  return {
+    title: page?.title ?? "Not found",
+    // A student can publish a page now, and a slug is derived from a title and
+    // therefore guessable. Nothing here should be crawlable.
+    robots: { index: false, follow: false },
+  };
 }
 
 export default async function PublishedPage({

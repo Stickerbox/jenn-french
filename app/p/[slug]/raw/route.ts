@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPageBySlug } from "@/lib/pages";
 import { readPageKind } from "@/lib/page-kind";
+import { pageVersion } from "@/lib/page-version";
 
 // The iframe sandbox is the primary control; this is the second layer. Every
 // directive here is deliberately restricted to what the document carries
@@ -30,8 +31,19 @@ const CONTENT_SECURITY_POLICY = [
   "base-uri 'none'",
 ].join("; ");
 
+// A preview frame asks for ?v=<the row's own token>, and only an exact match is
+// answered with a cacheable response. Accepting any ?v= would let a stale
+// bookmarked token pin a browser to a document that no longer exists, for a
+// year — the one failure mode of this scheme, and the reason the token is
+// recomputed here rather than trusted.
+//
+// `private` keeps it out of shared caches. The cost, accepted knowingly: a
+// versioned response is written to the browser's disk cache, which the blanket
+// no-store used to prevent.
+const IMMUTABLE = "private, max-age=31536000, immutable";
+
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
@@ -41,12 +53,20 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
+  const asked = new URL(request.url).searchParams.get("v");
+  const current = pageVersion(page.updatedAt);
+  const cacheable = current !== "" && asked === current;
+
   return new NextResponse(page.html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Content-Security-Policy": CONTENT_SECURITY_POLICY,
       "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-store",
+      "Cache-Control": cacheable ? IMMUTABLE : "no-store",
+      // Students may publish here now. Nothing on this route should ever reach
+      // an index, and the framing page carries the same instruction in its
+      // metadata.
+      "X-Robots-Tag": "noindex, nofollow",
     },
   });
 }

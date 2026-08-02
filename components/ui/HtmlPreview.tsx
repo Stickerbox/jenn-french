@@ -19,9 +19,14 @@ import { cn } from "@/lib/utils";
 // exactly — no letterbox, no overflow.
 export function HtmlPreview({
   slug,
+  // The row's own cache token. Required rather than optional: a caller that
+  // forgot it would silently fall back to the uncached URL, and the symptom —
+  // a shelf that is merely slow — is invisible in review.
+  version,
   className,
 }: {
   slug: string;
+  version: string;
   className?: string;
 }) {
   return (
@@ -29,7 +34,7 @@ export function HtmlPreview({
       className={cn("relative aspect-[4/3] overflow-hidden bg-white", className)}
     >
       <iframe
-        src={`/p/${slug}/raw`}
+        src={`/p/${slug}/raw?v=${version}`}
         // sandbox="" — NOT `allow-scripts`, unlike the frame on /p/[slug].
         // A shelf mounts a dozen documents at once; their scripts would all
         // run, and an animation or an autoplaying <audio> inside a 160px

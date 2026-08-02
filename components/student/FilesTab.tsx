@@ -19,6 +19,7 @@ import { filterPages } from "@/lib/admin-search";
 import { filterPagesByKind, type KindFilter as Kind } from "@/lib/page-filters";
 import type { PageKind } from "@/lib/page-kind";
 import { formatLongDate } from "@/lib/format";
+import { pageVersion } from "@/lib/page-version";
 import { cn } from "@/lib/utils";
 
 export type ShelfPage = {
@@ -26,6 +27,7 @@ export type ShelfPage = {
   slug: string;
   title: string;
   createdAt: Date;
+  updatedAt: Date;
   pinnedAt: Date | null;
   kind: PageKind;
   url: string | null;
@@ -113,7 +115,7 @@ export function FilesTab({
                         page.kind === "link" && page.url ? (
                           <LinkPreview url={page.url} />
                         ) : (
-                          <HtmlPreview slug={page.slug} />
+                          <HtmlPreview slug={page.slug} version={pageVersion(page.updatedAt)} />
                         )
                       }
                       // Kept for a read-only visitor: without it a page sitting

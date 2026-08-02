@@ -25,6 +25,7 @@ import {
   pageGroupNames,
 } from "@/lib/admin-search";
 import { formatLongDate } from "@/lib/format";
+import { pageVersion } from "@/lib/page-version";
 import { cn } from "@/lib/utils";
 
 export type PageSummary = {
@@ -32,6 +33,7 @@ export type PageSummary = {
   slug: string;
   title: string;
   createdAt: Date;
+  updatedAt: Date;
   pinnedAt: Date | null;
   kind: PageKind;
   url: string | null;
@@ -224,7 +226,7 @@ export function PageList({
                       page.kind === "link" && page.url ? (
                         <LinkPreview url={page.url} />
                       ) : (
-                        <HtmlPreview slug={page.slug} />
+                        <HtmlPreview slug={page.slug} version={pageVersion(page.updatedAt)} />
                       )
                     }
                     action={
