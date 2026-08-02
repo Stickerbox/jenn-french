@@ -12,7 +12,7 @@ import { logout } from "@/app/auth-actions";
 import { CardEditor } from "@/components/admin/CardEditor";
 import { AdminDatePicker } from "@/components/admin/AdminDatePicker";
 import { AdminTabs } from "@/components/admin/AdminTabs";
-import { NewGroupForm } from "@/components/admin/NewGroupForm";
+import { AdminChrome } from "@/components/admin/AdminChrome";
 import { GroupList } from "@/components/admin/GroupList";
 import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
@@ -35,6 +35,16 @@ export default async function AdminPage({
   const selected = parseAdminDate(date, today);
   const active = parseAdminTab(tab);
 
+  // Fetched here rather than inside PagesTab, which is where it used to live:
+  // the FAB is outside the tab bodies and needs the audience list on every one
+  // of them. This knowingly weakens "each tab runs only its own queries" below
+  // — one indexed read of a table with a handful of rows is what the control
+  // costs to be in a single place.
+  const groups = await prisma.group.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, isEveryone: true },
+  });
+
   return (
     <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
       <div className="mx-auto max-w-xl lg:max-w-[1152px]">
@@ -56,16 +66,21 @@ export default async function AdminPage({
 
         <AdminTabs active={active} date={selected} />
 
-        {active === "daily" && <DailyWordTab selected={selected} today={today} />}
-        {active === "groups" && <GroupsTab />}
-        {active === "pages" && <PagesTab />}
+        <AdminChrome
+          groups={groups.map((g) => ({ id: g.id, name: g.name }))}
+          onCreateStudent={createGroup}
+          onCreateLink={createLink}
+          onCreatePage={createPage}
+        >
+          {active === "daily" && <DailyWordTab selected={selected} today={today} />}
+          {active === "groups" && <GroupsTab />}
+          {active === "pages" && <PagesTab groups={groups} />}
+        </AdminChrome>
       </div>
     </main>
   );
 }
 
-// Each tab runs only its own queries. The daily word no longer pays for the
-// page list, and the page list no longer pays for a card it does not show.
 async function DailyWordTab({
   selected,
   today,
@@ -96,6 +111,8 @@ async function DailyWordTab({
   );
 }
 
+// Each tab runs its own queries, apart from the group list the FAB above needs
+// on all three.
 async function GroupsTab() {
   const [groups, unread] = await Promise.all([
     prisma.group.findMany({ orderBy: { name: "asc" } }),
@@ -116,25 +133,18 @@ async function GroupsTab() {
         onDelete={deleteGroup}
         onRegenerate={regenerateStudentLinks}
       />
-
-      <h2 className="mb-4 text-center font-[family-name:var(--font-display)] text-2xl italic text-[var(--color-ink)]">
-        Add a student
-      </h2>
-      <NewGroupForm onSubmit={createGroup} />
     </div>
   );
 }
 
-async function PagesTab() {
-  // The group list is still needed here: the editor below assigns pages to
-  // groups.
-  const [pages, groups] = await Promise.all([
-    listPagesForAdmin(),
-    prisma.group.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, isEveryone: true },
-    }),
-  ]);
+// The group list arrives as a prop now: the page above already read it for the
+// FAB, and a second identical query on this tab would be pure duplication.
+async function PagesTab({
+  groups,
+}: {
+  groups: { id: string; name: string; isEveryone: boolean }[];
+}) {
+  const pages = await listPagesForAdmin();
 
   // null when no row is flagged — a state the migration makes impossible, but
   // one the filter should degrade quietly on rather than crash.
@@ -146,11 +156,9 @@ async function PagesTab() {
   return (
     <PagesTabClient
       pages={pages}
-      groups={groups}
+      groups={groups.map((g) => ({ id: g.id, name: g.name }))}
       everyoneName={everyoneName}
       today={new Date()}
-      onCreatePage={createPage}
-      onCreateLink={createLink}
       onTogglePin={setShelfPin}
     />
   );

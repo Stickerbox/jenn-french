@@ -1,41 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import { Collapsible } from "@/components/admin/Collapsible";
 import { PageList, type PageSummary } from "@/components/admin/PageList";
-import { PageEditor } from "@/components/admin/PageEditor";
-import { AddLinkForm } from "@/components/admin/AddLinkForm";
+import { useAdminChip } from "@/components/admin/AdminChrome";
 import { defaultGroupId } from "@/lib/default-audience";
-import type { LinkInput, PageInput } from "@/app/page-actions";
 
 type AdminPage = Omit<PageSummary, "pinnedAt"> & {
   pins: { groupId: string; pinnedAt: Date }[];
 };
 
-// Owns the student chip, because three things now depend on it: which pages the
-// list shows, which shelf a pin lands on, and which student a new page or link
-// defaults to. It used to live inside PageList, which only needed the first.
+// The student chip lives in AdminChrome now: the FAB outside these tab bodies
+// needs the same value to default a new page's audience, and two copies of it
+// would disagree the moment one was changed. This still owns what the chip
+// MEANS for the list — which pages show and which shelf a pin lands on.
 export function PagesTabClient({
   pages,
   groups,
   everyoneName,
   today,
-  onCreatePage,
-  onCreateLink,
   onTogglePin,
 }: {
   pages: AdminPage[];
   groups: { id: string; name: string }[];
   everyoneName: string | null;
   today: Date;
-  onCreatePage: (input: PageInput) => Promise<unknown>;
-  onCreateLink: (input: LinkInput) => Promise<unknown>;
   // Curried on groupId, so the client picks the shelf and the server still
   // re-authorises it.
   onTogglePin: (groupId: string, slug: string, pinned: boolean) => Promise<void>;
 }) {
-  const [group, setGroup] = useState<string | null>(null);
-  const activeGroupId = defaultGroupId(group, groups);
+  const { chip, setChip } = useAdminChip();
+  const activeGroupId = defaultGroupId(chip, groups);
 
   // Which pin applies depends on the chip. With "All" selected nothing is
   // pinned, because "All" is not a shelf — so the Pinned section does not
@@ -52,33 +45,14 @@ export function PagesTabClient({
       <PageList
         pages={withPins}
         everyoneName={everyoneName}
-        group={group}
-        onGroup={setGroup}
+        group={chip}
+        onGroup={setChip}
         canPin={activeGroupId !== null}
         onTogglePin={
           activeGroupId ? onTogglePin.bind(null, activeGroupId) : async () => {}
         }
         today={today}
       />
-
-      <div className="mx-auto w-full max-w-[560px]">
-        <AddLinkForm
-          groups={groups}
-          defaultGroupId={activeGroupId}
-          onSubmit={onCreateLink}
-        />
-
-        {/* Closed on arrival: the list is what she comes to this tab for, and
-            the publish form is a whole screen of controls below it. */}
-        <Collapsible label="Add a page">
-          <PageEditor
-            groups={groups}
-            defaultGroupId={activeGroupId}
-            submitLabel="Publish page"
-            onSubmit={onCreatePage}
-          />
-        </Collapsible>
-      </div>
     </div>
   );
 }
