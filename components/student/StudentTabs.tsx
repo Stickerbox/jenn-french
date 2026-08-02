@@ -13,10 +13,12 @@ export function StudentTabs({
   slug: string;
   active: StudentTab;
   date: string;
-  has: { files: boolean; board: boolean };
+  has: { card: boolean; files: boolean; board: boolean };
 }) {
   const tabs: { tab: StudentTab; label: string; href: string }[] = [
-    { tab: "card", label: "La carte", href: `/g/${slug}?date=${date}` },
+    ...(has.card
+      ? [{ tab: "card" as const, label: "La carte", href: `/g/${slug}?date=${date}` }]
+      : []),
     ...(has.files
       ? [{ tab: "files" as const, label: "Les fichiers", href: `/g/${slug}?tab=files` }]
       : []),

@@ -5,12 +5,14 @@ import { prisma } from "@/lib/prisma";
 import { getEffectiveCard } from "@/lib/cards";
 import { Flashcard } from "@/components/Flashcard";
 import { WeekDayPicker } from "@/components/WeekDayPicker";
-import { weekRange, formatWeekRange, latestViewableDate } from "@/lib/week";
+import { weekRange, latestViewableDate } from "@/lib/week";
 import { parseStudentTab } from "@/lib/student-tab";
 import { readToken, cookieNameFor } from "@/lib/student-tokens";
 import { listPagesForGroup } from "@/lib/pages";
 import { StudentTabs } from "@/components/student/StudentTabs";
 import { FilesTab } from "@/components/student/FilesTab";
+import { greeting } from "@/lib/student-greeting";
+import { CardHeading } from "@/components/student/CardHeading";
 import { ChatFab } from "@/components/chat/ChatFab";
 import { StreamProvider } from "@/components/StreamProvider";
 import { getCurrentTeacher } from "@/lib/session";
@@ -77,7 +79,15 @@ export default async function GroupPage({
   // fills it, because the tab holding it is hidden for being empty. The second
   // clause exists only for the everyone group, whose shelf is public and has no
   // unlocked state to key off.
+  // Jenn opening a student from the Students tab arrives with ?k=, so she is
+  // unlocked; the card she would see here is the same global card she just
+  // finished editing in /admin. Withheld only when she IS unlocked: a teacher
+  // who types /g/marie with no token is, to this page, a visitor with the
+  // public card, and hiding it there would serve her a page with nothing on it.
+  const showCard = !(viewerIsTeacher && unlocked);
+
   const tab = parseStudentTab(tab_, {
+    card: showCard,
     files: unlocked || pages.length > 0,
     board: unlocked,
   });
@@ -103,6 +113,7 @@ export default async function GroupPage({
 
       {tab === "card" ? (
         <>
+          <CardHeading weekStart={weekStart} weekEnd={weekEnd} />
           <WeekDayPicker slug={slug} today={today} selected={selected} />
           {card ? (
             <Flashcard card={card} />
@@ -145,9 +156,6 @@ export default async function GroupPage({
       style={{ background: "var(--card-page-bg)" }}
     >
       <header className="mx-auto mb-7 max-w-[560px] text-center">
-        <div className="mb-2.5 font-[family-name:var(--card-font-serif)] text-[13px] uppercase tracking-[6px] text-[var(--card-bleu)] opacity-80">
-          ⚜ La carte du jour ⚜
-        </div>
         <h1
           className="mb-2.5 font-[family-name:var(--card-font-serif)] text-[var(--card-plum)]"
           style={{ fontSize: "clamp(30px, 5.5vw, 42px)", lineHeight: 1.15 }}
@@ -159,9 +167,15 @@ export default async function GroupPage({
         <div className="font-[family-name:var(--card-font-serif)] text-[15px] italic text-[var(--card-moss)]">
           Un jour, une carte — Québec-flavoured
         </div>
-        <div className="mt-2.5 font-[family-name:var(--card-font-mono)] text-[12px] uppercase tracking-[2px] text-[#8a7f6c]">
-          {formatWeekRange(weekStart, weekEnd)}
-        </div>
+        {/* Suppressed on the everyone group, whose name is literally "Everyone".
+            The greeting is shown to untokened visitors too: /g/marie already
+            spells the name in the URL, so there is nothing here a token was
+            protecting. */}
+        {!group.isEveryone && greeting(group.name) && (
+          <div className="mt-3 font-[family-name:var(--card-font-serif)] text-[19px] text-[var(--card-moss)]">
+            {greeting(group.name)}
+          </div>
+        )}
       </header>
 
       {(pages.length > 0 || unlocked) && (
@@ -169,7 +183,11 @@ export default async function GroupPage({
           slug={slug}
           active={tab}
           date={selected}
-          has={{ files: unlocked || pages.length > 0, board: unlocked }}
+          has={{
+            card: showCard,
+            files: unlocked || pages.length > 0,
+            board: unlocked,
+          }}
         />
       )}
 
