@@ -219,6 +219,26 @@ URL=$(osascript -l JavaScript -e 'function run(argv) { return JSON.parse(argv[0]
 SLUG="${URL##*/p/}"
 
 echo "✓ $URL"
+
+# The site inlines a page's external assets when it publishes it and reports
+# whatever it could not fetch. That report exists only in the reply, so it has
+# to be printed here or it is lost. `|| []` because $JENN_SITE may name a
+# deployment that predates the field.
+SKIPPED=$(osascript -l JavaScript -e '
+function run(argv) {
+  var list = JSON.parse(argv[0]).skipped || [];
+  return list.map(function (item) { return item.url + " — " + item.reason; }).join("\n");
+}' "$PAYLOAD")
+
+if [ -n "$SKIPPED" ]; then
+  echo "⚠ The page published, but some files could not be included:"
+  # A read loop rather than one printf, so each line is indented. `<<<` is fine
+  # on the bash 3.2 macOS ships; mapfile is not.
+  while IFS= read -r line; do
+    echo "    $line"
+  done <<< "$SKIPPED"
+fi
+
 printf '%s' "$URL" | pbcopy 2>/dev/null && echo "  (link copied to the clipboard)"
 
 # Published with no groups, so the link works but no class sees it listed yet.

@@ -66,9 +66,14 @@ clipboard. A keyboard shortcut can be added in the same panel.
 ### What it warns about
 
 - **Extra files.** If an artifact ships images or stylesheets beside
-  `index.html`, only `index.html` is published and the rest go missing — the
-  site's CSP blocks everything a page loads from elsewhere. The script says so
-  before publishing rather than letting it fail silently in front of students.
+  `index.html`, only `index.html` is published and the rest go missing. The
+  script says so before publishing rather than letting it fail silently in front
+  of students.
+- **Files it could not include.** A page that loads a script, stylesheet, image
+  or font from a known CDN has it folded into the page on publish, so it works
+  behind the site's CSP without anything being loaded from elsewhere. Anything
+  the site could not fold in is listed after the link, with the reason — an
+  unknown source, a fetch that failed, or a page that would go over 2 MB.
 - **Size.** The site rejects anything over 2 MB with a message saying so.
 
 ## publish-extension/ — the browser path
