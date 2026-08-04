@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePagePayload } from "@/lib/page-payload";
+import { MAX_ASSET_COUNT, parsePagePayload } from "@/lib/page-payload";
 
 const valid = {
   title: "Verb drills",
@@ -16,6 +16,8 @@ describe("parsePagePayload", () => {
         html: "<!doctype html><p>Bonjour</p>",
         groups: null,
         slug: null,
+        // Additive: a caller that uploaded nothing beside the document.
+        assets: [],
       },
     });
   });
@@ -85,5 +87,107 @@ describe("parsePagePayload", () => {
       expect(result.payload.groups).toBe(null);
       expect(result.payload.slug).toBe(null);
     }
+  });
+});
+
+describe("parsePagePayload assets", () => {
+  const base = { title: "T", html: "<p>x</p>" };
+
+  it("defaults to no assets when the field is absent", () => {
+    const result = parsePagePayload(base);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.payload.assets).toEqual([]);
+  });
+
+  // The browser extension cannot see a file at all, so it sends neither — and
+  // absent and null must mean the same thing to it.
+  it("treats null and an empty array as no assets", () => {
+    for (const assets of [null, []]) {
+      const result = parsePagePayload({ ...base, assets });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.payload.assets).toEqual([]);
+    }
+  });
+
+  it("decodes an entry's base64 into bytes", () => {
+    const result = parsePagePayload({
+      ...base,
+      assets: [{ path: "./app.js", base64: "dmFyIGE9MTs=" }],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.payload.assets).toHaveLength(1);
+    // Carried through UNTOUCHED. Normalising is lib/asset-path.ts's job, reached
+    // through assetBundle; doing any of it here would be a second place the rule
+    // lives.
+    expect(result.payload.assets[0].path).toBe("./app.js");
+    expect(new TextDecoder().decode(result.payload.assets[0].bytes)).toBe(
+      "var a=1;",
+    );
+  });
+
+  it("refuses a bundle that is not an array", () => {
+    expect(parsePagePayload({ ...base, assets: "app.js" })).toEqual({
+      ok: false,
+      error: "assets must be an array.",
+    });
+  });
+
+  it("refuses an entry that is not an object", () => {
+    expect(parsePagePayload({ ...base, assets: ["app.js"] }).ok).toBe(false);
+  });
+
+  it("refuses an entry with no usable path", () => {
+    for (const path of [undefined, "", "   ", 7]) {
+      expect(
+        parsePagePayload({ ...base, assets: [{ path, base64: "" }] }).ok,
+      ).toBe(false);
+    }
+  });
+
+  // Buffer.from does not throw on invalid base64, it silently truncates — so
+  // without this check a corrupt asset would be stored rather than reported.
+  it("refuses contents that are not valid base64", () => {
+    for (const base64 of ["!!!!", "abc", "ab=c", 7, undefined]) {
+      expect(
+        parsePagePayload({ ...base, assets: [{ path: "a.js", base64 }] }).ok,
+      ).toBe(false);
+    }
+  });
+
+  it("accepts an empty file", () => {
+    const result = parsePagePayload({
+      ...base,
+      assets: [{ path: "a.js", base64: "" }],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.payload.assets[0].bytes).toHaveLength(0);
+  });
+
+  // Failing loudly with the limit named beats dropping files silently, which is
+  // why tools/publish-dia-artifact.sh applies no cap of its own.
+  it("refuses more files than the limit and names it", () => {
+    const assets = Array.from({ length: MAX_ASSET_COUNT + 1 }, (_, i) => ({
+      path: `a${i}.js`,
+      base64: "",
+    }));
+
+    const result = parsePagePayload({ ...base, assets });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toContain(String(MAX_ASSET_COUNT));
+  });
+
+  // The body limit rose to 3 MB; the DOCUMENT limit did not. These two now
+  // measure different things and validatePageHtml still owns the second.
+  it("still refuses a document over the page limit", () => {
+    const html = `<p>${"x".repeat(2 * 1024 * 1024)}</p>`;
+    expect(parsePagePayload({ title: "T", html }).ok).toBe(false);
   });
 });
