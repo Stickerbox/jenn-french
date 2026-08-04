@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { weekRange, formatWeekRange, latestViewableDate } from "@/lib/week";
+import {
+  weekRange,
+  formatWeekRange,
+  latestViewableDate,
+  mondayOf,
+  weekDates,
+} from "@/lib/week";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00Z`);
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -39,6 +45,76 @@ describe("weekRange", () => {
     const input = utc("2026-07-29");
     weekRange(input);
     expect(iso(input)).toBe("2026-07-29");
+  });
+});
+
+describe("mondayOf", () => {
+  it("returns the date itself for a Monday", () => {
+    expect(iso(mondayOf(utc("2026-07-27")))).toBe("2026-07-27");
+  });
+
+  it("steps back to Monday from a midweek day", () => {
+    expect(iso(mondayOf(utc("2026-07-29")))).toBe("2026-07-27");
+  });
+
+  it("steps back to Monday from the Friday itself", () => {
+    expect(iso(mondayOf(utc("2026-07-31")))).toBe("2026-07-27");
+  });
+
+  it("treats Saturday as part of the week just finished", () => {
+    expect(iso(mondayOf(utc("2026-08-01")))).toBe("2026-07-27");
+  });
+
+  it("counts a Sunday back six days, not none", () => {
+    // The rule the whole module turns on: a Sunday belongs to the week that has
+    // just ended, so it must not resolve to the Monday of the week ahead.
+    expect(iso(mondayOf(utc("2026-08-02")))).toBe("2026-07-27");
+  });
+
+  it("steps back across a month boundary", () => {
+    expect(iso(mondayOf(utc("2026-09-02")))).toBe("2026-08-31");
+  });
+
+  it("does not mutate the date it was given", () => {
+    const input = utc("2026-07-29");
+    mondayOf(input);
+    expect(iso(input)).toBe("2026-07-29");
+  });
+});
+
+describe("weekDates", () => {
+  const july = [
+    "2026-07-27",
+    "2026-07-28",
+    "2026-07-29",
+    "2026-07-30",
+    "2026-07-31",
+  ];
+
+  it("returns the five teaching days, Monday first", () => {
+    expect(weekDates(utc("2026-07-29")).map(iso)).toEqual(july);
+  });
+
+  it("returns the same five days from any day of that week, weekend included", () => {
+    for (const day of ["2026-07-27", "2026-07-31", "2026-08-01", "2026-08-02"]) {
+      expect(weekDates(utc(day)).map(iso)).toEqual(july);
+    }
+  });
+
+  it("crosses a month boundary inside one week", () => {
+    expect(weekDates(utc("2026-09-01")).map(iso)).toEqual([
+      "2026-08-31",
+      "2026-09-01",
+      "2026-09-02",
+      "2026-09-03",
+      "2026-09-04",
+    ]);
+  });
+
+  it("does not mutate the date it was given", () => {
+    const input = utc("2026-09-01");
+    weekDates(input);
+    expect(iso(input)).toBe("2026-09-01");
   });
 });
 
