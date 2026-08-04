@@ -351,11 +351,23 @@ Worth folding back into it.
     from both the admin form and `POST /api/pages`. The server block needs:
 
     ```
-    sudo nano /etc/nginx/sites-available/francaisavecjenn
+    sudo nano /etc/nginx/sites-available/jenn-french
     # inside the `server { ... }` block, add:
     #   client_max_body_size 4m;
     sudo nginx -t && sudo systemctl reload nginx
     ```
+
+    **Applied on the current instance as of 2026-08-04**, and not before —
+    this step had been missed since the pages feature shipped, so every
+    upload over 1 MB was failing with a 413 nobody could explain. If you are
+    chasing that symptom, check this first.
+
+    The file is `jenn-french`, **not** `francaisavecjenn` — the site name and
+    the config filename differ, and this document named the wrong one until
+    2026-08-04. It holds two `server` blocks: the directive belongs in the
+    `listen 443` one that proxies to `localhost:3000`, not in the port-80
+    redirect below it. Certbot manages parts of that file, so back it up
+    before editing and let `nginx -t` gate the reload.
 
     That `4m` is the ceiling both upload caps are chosen to fit under —
     `MAX_PAGE_BYTES` (2 MB of HTML, `lib/page-html.ts`) and `MAX_PDF_BYTES`
