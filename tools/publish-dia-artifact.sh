@@ -287,10 +287,9 @@ build_labels() {
 
 if [ "$WANT_LIST" = "1" ]; then
   echo "Recent Dia artifacts:"
-  list_artifacts | head -10 | while read -r mtime path; do
-    name=$(basename "$(dirname "$(dirname "$path")")")
-    printf '  %s  %s\n' "$(date -r "$mtime" '+%b %e %H:%M')" "$name"
-  done
+  # The same labels the dialog shows, so the two cannot drift.
+  list_artifacts | head -"$LIST_ROWS" | candidate_rows | build_labels |
+    while IFS= read -r label; do printf '  %s\n' "$label"; done
   exit 0
 fi
 
