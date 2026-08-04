@@ -18,22 +18,52 @@ export type SavePageInput = SaveCommon &
   (
     | { kind: "html"; html: string; addedByStudent?: boolean }
     | { kind: "link"; url: string; addedByStudent?: boolean }
-    | { kind: "pdf"; pdf: Uint8Array; pdfSize: number }
+    | {
+        kind: "pdf";
+        pdf: Uint8Array;
+        pdfSize: number;
+        // Null when this upload had no renderable preview. Required rather than
+        // optional so the compiler names every caller: a caller that quietly
+        // omitted it would leave the PREVIOUS document's picture on the new
+        // document, which is the one failure mode worse than having none.
+        thumb: Uint8Array | null;
+      }
   );
 
 export async function savePage(input: SavePageInput): Promise<string> {
   const slug = input.slug ?? (await deriveSlug(input.title));
 
-  // Every content column is written every time, three of them to null. The
-  // shape is identical across the branches on purpose: that is the invariant
-  // made visible. Setting only the populated one would leave stale html behind
-  // if an html page were replaced by a pdf at the same slug, and readPageKind
-  // would then have two populated columns to choose between.
+  // Every content column is written every time, all but one of them to null.
+  // The shape is identical across the branches on purpose: that is the
+  // invariant made visible. Setting only the populated one would leave stale
+  // html behind if an html page were replaced by a pdf at the same slug, and
+  // readPageKind would then have two populated columns to choose between.
+  //
+  // The two thumbnail columns are in that set for a reason stronger than the
+  // one above. A MISSING preview is a glyph. A STALE preview is a picture of the
+  // previous document sitting under the new document's title, which reads as a
+  // working feature showing the wrong thing.
   const columns =
     input.kind === "html"
-      ? { kind: "html", html: input.html, url: null, pdf: null, pdfSize: null }
+      ? {
+          kind: "html",
+          html: input.html,
+          url: null,
+          pdf: null,
+          pdfSize: null,
+          pdfThumb: null,
+          pdfThumbAt: null,
+        }
       : input.kind === "link"
-        ? { kind: "link", html: null, url: input.url, pdf: null, pdfSize: null }
+        ? {
+            kind: "link",
+            html: null,
+            url: input.url,
+            pdf: null,
+            pdfSize: null,
+            pdfThumb: null,
+            pdfThumbAt: null,
+          }
         : {
             kind: "pdf",
             html: null,
@@ -41,6 +71,8 @@ export async function savePage(input: SavePageInput): Promise<string> {
             // Buffer on the way in, matching how Passkey.publicKey is written.
             pdf: Buffer.from(input.pdf),
             pdfSize: input.pdfSize,
+            pdfThumb: input.thumb ? Buffer.from(input.thumb) : null,
+            pdfThumbAt: input.thumb ? new Date() : null,
           };
 
   // One interactive transaction, not an upsert followed by a separate group
@@ -101,6 +133,11 @@ const SHELF_SELECT = {
   kind: true,
   url: true,
   pdfSize: true,
+  // The signal, not the picture. `pdfThumb` is deliberately absent for the same
+  // reason `html` is: selecting a blob to draw a grid of titles ships the thing
+  // the grid was avoiding. The tile turns this timestamp into a ?v= on
+  // /p/[slug]/thumb and the browser fetches the bytes only for tiles it renders.
+  pdfThumbAt: true,
   addedByStudent: true,
 } as const;
 
@@ -133,6 +170,24 @@ export function getPagePdf(slug: string) {
       url: true,
       pdf: true,
       pdfSize: true,
+    },
+  });
+}
+
+// Selects the blob, unlike every shelf query. Its one caller is the route that
+// serves it, which needs exactly this row and nothing else on the page.
+export function getPageThumb(slug: string) {
+  return prisma.page.findUnique({
+    where: { slug },
+    select: {
+      // kind, url and pdfSize are here because readPageKind requires all three —
+      // see its comment about pdfSize being a required argument precisely so a
+      // caller cannot silently omit the pdf signal.
+      kind: true,
+      url: true,
+      pdfSize: true,
+      pdfThumb: true,
+      pdfThumbAt: true,
     },
   });
 }
@@ -193,6 +248,7 @@ export async function listPagesForAdmin() {
     kind: readPageKind(page),
     url: page.url,
     pdfSize: page.pdfSize,
+    pdfThumbAt: page.pdfThumbAt,
     addedByStudent: page.addedByStudent,
     groupIds: page.groups.map((g) => g.group.id),
     groupNames: page.groups.map((g) => g.group.name),
