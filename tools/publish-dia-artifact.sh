@@ -98,6 +98,95 @@ list_artifacts() {
     sort -rn
 }
 
+# argv[0] is a file holding one artifact path per line. Emits one
+# "title<TAB>refcount" line per input path, in input order.
+#
+# Title extraction lives here rather than after selection because the picker
+# needs the title *before* the choice is made, and two extraction paths would
+# drift — a list reading Cr&ecirc;pes beside a page published as Crêpes.
+#
+# decode() below is deliberately partial: it knows the five core entities and
+# every numeric reference, and nothing else. A surviving &name; is left intact
+# for decode_entities to hand to textutil, which owns the full table.
+#
+# refcount counts distinct relative src=/href= values and url(…) references in
+# an inline <style>: how many files the page needs that will not be published.
+# Counting files in the directory instead would flag a self-contained page that
+# happens to sit beside a .DS_Store.
+#
+# No single quotes anywhere in the JS below — it rides inside a single-quoted
+# shell string.
+describe_artifacts() {
+  osascript -l JavaScript -e '
+ObjC.import("Foundation");
+
+function readUtf8(path) {
+  var s = $.NSString.stringWithContentsOfFileEncodingError(path, $.NSUTF8StringEncoding, null);
+  // .js === undefined covers both an unreadable file and one that is not UTF-8.
+  // s.isNil is a *method*; referencing it without calling it is always truthy.
+  return s.js === undefined ? null : s.js;
+}
+
+// &amp; decodes LAST. Doing it first would turn a deliberately double-escaped
+// &amp;lt; into a bare <, losing the escaping the author asked for.
+function decode(s) {
+  return s
+    .replace(/&#x([0-9a-fA-F]+);/g, function (_, h) { return String.fromCodePoint(parseInt(h, 16)); })
+    .replace(/&#(\d+);/g, function (_, d) { return String.fromCodePoint(parseInt(d, 10)); })
+    .replace(/&quot;/g, "\"").replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
+function localRefs(html) {
+  var seen = {}, n = 0, m;
+  function add(u) {
+    u = u.trim();
+    if (!u) { return; }
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(u)) { return; }   // https:, data:, mailto:, tel:
+    if (u.slice(0, 2) === "//" || u.charAt(0) === "#") { return; }
+    if (!seen[u]) { seen[u] = 1; n++; }
+  }
+  var attr = /(?:src|href)\s*=\s*"([^"]*)"/gi;
+  while ((m = attr.exec(html)) !== null) { add(m[1]); }
+  // url(…) is the case that matters, not an afterthought. These artifacts are
+  // single-file HTML with inline CSS, so a background image is referenced this
+  // way and no other — counting attributes alone returned 0 for such a page,
+  // and 0 is the value meaning *self-contained, nothing to warn about*.
+  // The quote class is written ["\x27] because a literal quote of that kind
+  // cannot appear in this JS at all: it would end the shell string around it.
+  var block = /<style[^>]*>([\s\S]*?)<\/style>/gi, b;
+  while ((b = block.exec(html)) !== null) {
+    var css = /url\(\s*(["\x27]?)([^)"\x27]*)\1\s*\)/gi, u;
+    while ((u = css.exec(b[1])) !== null) { add(u[2]); }
+  }
+  return n;
+}
+
+// .../<uuid>/<name>/site/index.html -> <name>
+function folderName(path) {
+  var p = path.split("/");
+  return p.length >= 3 ? p[p.length - 3] : path;
+}
+
+function run(argv) {
+  var listing = readUtf8(argv[0]);
+  // This throws where an unreadable *artifact* degrades to (unreadable) in
+  // place: a missing path list means the caller is broken, and every row would
+  // be wrong. One bad artifact must not cost the other nine their place.
+  if (listing === null) { throw new Error("cannot read the path list"); }
+  return listing.split("\n").filter(function (p) { return p.length > 0; }).map(function (p) {
+    var html = readUtf8(p);
+    if (html === null) { return "(unreadable)\t0"; }
+    var m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    // Collapse whitespace: a title spanning newlines is normal, and a tab
+    // inside one would corrupt this output format.
+    var title = decode(m ? m[1] : "").replace(/\s+/g, " ").trim();
+    if (!title) { title = folderName(p); }
+    return title + "\t" + localRefs(html);
+  }).join("\n");
+}' "$1"
+}
+
 if [ "$WANT_LIST" = "1" ]; then
   echo "Recent Dia artifacts:"
   list_artifacts | head -10 | while read -r mtime path; do
