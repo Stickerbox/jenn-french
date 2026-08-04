@@ -49,7 +49,7 @@ The keystone. The publish script uploads a file keyed by the ref **as written** 
 - Create: `lib/asset-path.ts`
 - Test: `tests/lib/asset-path.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/asset-path.test.ts`:
 
@@ -170,13 +170,13 @@ describe("the script and the server agree on a key", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/asset-path.test.ts`
 
 Expected: FAIL — `Failed to resolve import "@/lib/asset-path"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/asset-path.ts`:
 
@@ -244,13 +244,13 @@ export function assetDir(key: string): string {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/lib/asset-path.test.ts`
 
 Expected: PASS, 17 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/asset-path.ts tests/lib/asset-path.test.ts
@@ -273,7 +273,7 @@ A fetched asset arrives with `Content-Type`. A file lifted off disk arrives with
 - Create: `lib/asset-media-type.ts`
 - Test: `tests/lib/asset-media-type.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/asset-media-type.test.ts`:
 
@@ -325,13 +325,13 @@ describe("mediaTypeForPath", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/asset-media-type.test.ts`
 
 Expected: FAIL — `Failed to resolve import "@/lib/asset-media-type"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/asset-media-type.ts`:
 
@@ -374,13 +374,13 @@ export function mediaTypeForPath(path: string): string {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/lib/asset-media-type.test.ts`
 
 Expected: PASS, 8 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/asset-media-type.ts tests/lib/asset-media-type.test.ts
@@ -404,7 +404,7 @@ The local half of `lib/page-inline.ts`'s two sources. Same result shape as `Asse
 - Modify: `lib/asset-policy.ts` (one new skip reason, in `SKIP_REASONS`)
 - Test: `tests/lib/page-bundle.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/page-bundle.test.ts`:
 
@@ -504,13 +504,13 @@ describe("bundleResolver", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/page-bundle.test.ts`
 
 Expected: FAIL — `Failed to resolve import "@/lib/page-bundle"`.
 
-- [ ] **Step 3: Add the new skip reason**
+- [x] **Step 3: Add the new skip reason**
 
 In `lib/asset-policy.ts`, inside `SKIP_REASONS`, add `missing` and extend the comment on `relative` so the difference between the two is recorded where they sit side by side:
 
@@ -534,7 +534,7 @@ export const SKIP_REASONS = {
 } as const;
 ```
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 Create `lib/page-bundle.ts`:
 
@@ -593,19 +593,19 @@ export function bundleResolver(bundle: AssetBundle): LocalResolver {
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `npx vitest run tests/lib/page-bundle.test.ts`
 
 Expected: PASS, 9 tests.
 
-- [ ] **Step 6: Confirm nothing else moved**
+- [x] **Step 6: Confirm nothing else moved**
 
 Run: `npx vitest run tests/lib/asset-policy.test.ts`
 
 Expected: PASS — adding a key to `SKIP_REASONS` changes no existing behaviour.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/page-bundle.ts lib/asset-policy.ts tests/lib/page-bundle.test.ts
@@ -631,7 +631,7 @@ Every ref learns the bundle key it points at, and a stylesheet's base can now be
 - Modify: `lib/page-refs.ts`
 - Test: `tests/lib/page-refs.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add these to the `findExternalRefs` describe block in `tests/lib/page-refs.test.ts`, just after the existing `"marks a relative ref, which is reported and never fetched"` test:
 
@@ -695,7 +695,7 @@ Add these to the `findCssRefs` describe block:
   });
 ```
 
-- [ ] **Step 2: Migrate the existing `findCssRefs` call sites**
+- [x] **Step 2: Migrate the existing `findCssRefs` call sites**
 
 Also in `tests/lib/page-refs.test.ts`, update the import and the 7 existing `findCssRefs` calls. This is a token swap, nothing more:
 
@@ -704,13 +704,13 @@ Also in `tests/lib/page-refs.test.ts`, update the import and the 7 existing `fin
 - The one with an offset, `findCssRefs(html.slice(7, -8), null, 7)`, becomes `findCssRefs(html.slice(7, -8), DOCUMENT_BASE, 7)`.
 - Each `findCssRefs(css, "https://…")` becomes `findCssRefs(css, { kind: "remote", url: "https://…" })`, keeping the same URL string.
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/lib/page-refs.test.ts`
 
 Expected: FAIL — `DOCUMENT_BASE` is not exported, and `localPath` does not exist on the ref type.
 
-- [ ] **Step 4: Add the base type and the key**
+- [x] **Step 4: Add the base type and the key**
 
 In `lib/page-refs.ts`, extend the imports at the top:
 
@@ -743,7 +743,7 @@ Add `localPath` to `ExternalRef`, after the existing `relative` field:
   localPath: string | null;
 ```
 
-- [ ] **Step 5: Rewrite `resolveRef`**
+- [x] **Step 5: Rewrite `resolveRef`**
 
 Replace the `Target` type and the whole `resolveRef` function:
 
@@ -789,7 +789,7 @@ function resolveRef(raw: string, base: RefBase): Target | null {
 }
 ```
 
-- [ ] **Step 6: Thread the base through both finders**
+- [x] **Step 6: Thread the base through both finders**
 
 In `findExternalRefs`, replace all three `resolveRef(…, null)` calls with `resolveRef(…, DOCUMENT_BASE)`, and add `localPath: target.localPath,` to each of the four `refs.push({…})` object literals — the `<script>`, `<link>`, `<img>` and (in `findCssRefs`) both CSS cases.
 
@@ -813,19 +813,19 @@ export function findCssRefs(
 ): ExternalRef[] {
 ```
 
-- [ ] **Step 7: Run the tests to verify they pass**
+- [x] **Step 7: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/lib/page-refs.test.ts`
 
 Expected: PASS. Every pre-existing assertion still holds — `localPath` is additive.
 
-- [ ] **Step 8: Check the compiler for callers you have not reached yet**
+- [x] **Step 8: Check the compiler for callers you have not reached yet**
 
 Run: `npx tsc --noEmit`
 
 Expected: errors **only** in `lib/page-inline.ts`, which still calls `findCssRefs(css, ref.url)` and does not yet know about `localPath`. Task 5 fixes exactly those. If anything else is named, you have missed a call site — do not proceed until the only remaining errors are in `lib/page-inline.ts`.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add lib/page-refs.ts tests/lib/page-refs.test.ts
@@ -855,7 +855,7 @@ The change the whole feature turns on: line 99's `if (ref.relative) return skip(
 - Modify: `lib/page-inline.ts`
 - Test: `tests/lib/page-inline.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add the two helpers to `tests/lib/page-inline.test.ts`, just below the existing `refuse` fetcher:
 
@@ -1044,13 +1044,13 @@ Add these cases inside the existing `describe("inlinePageAssets", …)` block:
 
 **Do not modify** the existing test `"reports a relative ref rather than trying to fetch it"`. It passes no resolver and must keep expecting `SKIP_REASONS.relative` — that is the proof the admin paste box and the extension did not regress.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/lib/page-inline.test.ts`
 
 Expected: FAIL — `inlinePageAssets` takes 3 arguments, and `@/lib/page-bundle`'s resolver is not wired in.
 
-- [ ] **Step 3: Update the imports and the depth constant**
+- [x] **Step 3: Update the imports and the depth constant**
 
 In `lib/page-inline.ts`, extend the imports:
 
@@ -1092,7 +1092,7 @@ const MAX_REF_DEPTH = 2;
 
 Update the two other references to the old name in this file (the `depth > …` test in `inlineRef` and nothing else).
 
-- [ ] **Step 4: Thread the resolver through the walk**
+- [x] **Step 4: Thread the resolver through the walk**
 
 Change `inlinePageAssets` to take the fourth parameter and pass it down:
 
@@ -1128,7 +1128,7 @@ Add `local: LocalResolver | undefined` as the final parameter of `inlineRefs`, p
   );
 ```
 
-- [ ] **Step 5: Rewrite the head of `inlineRef`**
+- [x] **Step 5: Rewrite the head of `inlineRef`**
 
 Replace the four guard lines and the fetch with this, keeping the rest of the function as it is apart from renaming `fetched` to `result`:
 
@@ -1161,7 +1161,7 @@ Replace the four guard lines and the fetch with this, keeping the rest of the fu
 
 Then in the rest of `inlineRef`, replace `fetched.asset` with `result.asset` in all three places, and pass `local` as a final argument to the `inlineStyle` call.
 
-- [ ] **Step 6: Give `inlineStyle` the right base for nested refs**
+- [x] **Step 6: Give `inlineStyle` the right base for nested refs**
 
 Add `local: LocalResolver | undefined` as `inlineStyle`'s final parameter, change its `findCssRefs` call, pass `local` down, and add the helper below it:
 
@@ -1189,7 +1189,7 @@ function styleBase(ref: ExternalRef): RefBase {
 }
 ```
 
-- [ ] **Step 7: Let `inlinePage` take a bundle**
+- [x] **Step 7: Let `inlinePage` take a bundle**
 
 Replace the exported binding at the bottom of the file:
 
@@ -1214,19 +1214,19 @@ export function inlinePage(
 }
 ```
 
-- [ ] **Step 8: Run the tests to verify they pass**
+- [x] **Step 8: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/lib/page-inline.test.ts`
 
 Expected: PASS — the new cases and every pre-existing one.
 
-- [ ] **Step 9: Run the whole suite and the compiler**
+- [x] **Step 9: Run the whole suite and the compiler**
 
 Run: `npx vitest run && npx tsc --noEmit`
 
 Expected: PASS and no output. `app/page-actions.ts` and `scripts/backfill-page-assets.mjs` compile unchanged, because `bundle` has a default.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add lib/page-inline.ts tests/lib/page-inline.test.ts
@@ -1249,7 +1249,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Modify: `lib/page-payload.ts`
 - Test: `tests/lib/page-payload.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add a new describe block to `tests/lib/page-payload.test.ts`, and add `MAX_ASSET_COUNT` to the existing import from `@/lib/page-payload`:
 
@@ -1357,13 +1357,13 @@ describe("parsePagePayload assets", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/lib/page-payload.test.ts`
 
 Expected: FAIL — `MAX_ASSET_COUNT` is not exported and `payload.assets` does not exist.
 
-- [ ] **Step 3: Add the constants and the type**
+- [x] **Step 3: Add the constants and the type**
 
 At the top of `lib/page-payload.ts`, add the import and the three constants:
 
@@ -1407,7 +1407,7 @@ Add the field to `PagePayload`:
   assets: AssetEntry[];
 ```
 
-- [ ] **Step 4: Add the validator**
+- [x] **Step 4: Add the validator**
 
 Add below `parsePagePayload` in the same file:
 
@@ -1479,13 +1479,13 @@ And replace the final return of `parsePagePayload`:
   };
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/lib/page-payload.test.ts`
 
 Expected: PASS — the new block and every pre-existing case.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/page-payload.ts tests/lib/page-payload.test.ts
@@ -1508,7 +1508,7 @@ Routes are not unit-tested in this project — the pure modules underneath them 
 **Files:**
 - Modify: `app/api/pages/route.ts`
 
-- [ ] **Step 1: Update the imports**
+- [x] **Step 1: Update the imports**
 
 Replace the `MAX_PAGE_BYTES` import — it becomes unused, and `npm run lint` will fail if you leave it:
 
@@ -1531,7 +1531,7 @@ import { inlinePage } from "@/lib/page-inline";
 import { readBoundedBody } from "@/lib/bounded-body";
 ```
 
-- [ ] **Step 2: Add the derived message**
+- [x] **Step 2: Add the derived message**
 
 Above the `OPTIONS` handler:
 
@@ -1542,7 +1542,7 @@ Above the `OPTIONS` handler:
 const TOO_BIG = `That upload is larger than ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB.`;
 ```
 
-- [ ] **Step 3: Raise the body cap**
+- [x] **Step 3: Raise the body cap**
 
 Replace both size checks inside `publish`. Note the old text said "That page is larger than 2 MB", which is now wrong twice over — it is an upload, and the limit moved:
 
@@ -1558,7 +1558,7 @@ Replace both size checks inside `publish`. Note the old text said "That page is 
   }
 ```
 
-- [ ] **Step 4: Pass the bundle to the inliner**
+- [x] **Step 4: Pass the bundle to the inliner**
 
 Add `assets` to the destructuring:
 
@@ -1577,19 +1577,19 @@ and change the inline call, keeping it exactly where it is — between validatio
   const inlined = await inlinePage(html, assetBundle(assets));
 ```
 
-- [ ] **Step 5: Verify the compiler and the linter**
+- [x] **Step 5: Verify the compiler and the linter**
 
 Run: `npx tsc --noEmit && npm run lint`
 
 Expected: no output from either.
 
-- [ ] **Step 6: Run the whole suite**
+- [x] **Step 6: Run the whole suite**
 
 Run: `npx vitest run`
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/api/pages/route.ts
@@ -1610,7 +1610,7 @@ There is no automated harness for the publish script — `npm test` is vitest on
 **Files:**
 - Create: `tools/dia-fixtures.sh`
 
-- [ ] **Step 1: Write the script**
+- [x] **Step 1: Write the script**
 
 Create `tools/dia-fixtures.sh`:
 
@@ -1704,7 +1704,7 @@ printf 'window.__local = true;' > "$P/local.js"
 printf '%s' "$ROOT"
 ```
 
-- [ ] **Step 2: Make it executable and check it builds the tree**
+- [x] **Step 2: Make it executable and check it builds the tree**
 
 ```bash
 chmod +x tools/dia-fixtures.sh
@@ -1714,13 +1714,13 @@ find "$DIA_ARTIFACTS" -name index.html | sort
 
 Expected: six paths, one per artifact, each ending `/site/index.html`.
 
-- [ ] **Step 3: Confirm the existing script still lists them**
+- [x] **Step 3: Confirm the existing script still lists them**
 
 Run: `tools/publish-dia-artifact.sh --list`
 
 Expected: six rows. The markers will still be the **old** `⚠ N linked files` — Task 9 changes that. If you see no rows, the path shape is wrong; fix the fixture before continuing.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tools/dia-fixtures.sh
@@ -1742,7 +1742,7 @@ The picker half. After this task the script still uploads only `index.html`; wha
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh`
 
-- [ ] **Step 1: Add the shared JXA prelude**
+- [x] **Step 1: Add the shared JXA prelude**
 
 Insert this **above** `gui_alert()`, after the `WORK`/`trap` lines. It must be defined before either program that uses it.
 
@@ -1928,7 +1928,7 @@ function titleOf(html, path) {
 '
 ```
 
-- [ ] **Step 2: Replace `describe_artifacts` entirely**
+- [x] **Step 2: Replace `describe_artifacts` entirely**
 
 Delete the whole existing function — including its `localRefs`, `folderName`, `decode` and `readUtf8`, which have all moved into the prelude — and put this in its place:
 
@@ -1963,7 +1963,7 @@ function run(argv) {
 }
 ```
 
-- [ ] **Step 3: Widen `candidate_rows` to five columns**
+- [x] **Step 3: Widen `candidate_rows` to five columns**
 
 Replace its output line and the loop that builds it:
 
@@ -1990,7 +1990,7 @@ candidate_rows() {
 }
 ```
 
-- [ ] **Step 4: Change what the label says**
+- [x] **Step 4: Change what the label says**
 
 Replace `build_labels`:
 
@@ -2030,7 +2030,7 @@ build_labels() {
 }
 ```
 
-- [ ] **Step 5: Carry both counts through selection**
+- [x] **Step 5: Carry both counts through selection**
 
 In `choose_artifact`, replace `refslist` with two arrays and set both variables:
 
@@ -2102,13 +2102,13 @@ Finally, the trailing comment on the `else` branch that calls it:
   choose_artifact          # sets INDEX, TITLE, TOTAL, MISSING
 ```
 
-- [ ] **Step 5a: Prove every rename landed**
+- [x] **Step 5a: Prove every rename landed**
 
 Run: `grep -n 'REFS\|refslist\|title refs' tools/publish-dia-artifact.sh`
 
 Expected: **no output.** `$REFS` was read in nine places and a missed one is silent — under `set -u` an unset variable would abort, but every read here is written `${REFS:-0}`, so a survivor quietly reads 0 and the warning never fires.
 
-- [ ] **Step 6: Invert the warning**
+- [x] **Step 6: Invert the warning**
 
 Replace the `if [ "${REFS:-0}" != "0" ]` block. The old sentence — "will not be published" — is false now for everything that resolves:
 
@@ -2124,7 +2124,7 @@ if [ "${MISSING:-0}" != "0" ]; then
 fi
 ```
 
-- [ ] **Step 7: Verify the markers against the fixtures**
+- [x] **Step 7: Verify the markers against the fixtures**
 
 ```bash
 export DIA_ARTIFACTS="$(tools/dia-fixtures.sh)"
@@ -2144,13 +2144,13 @@ Expected, exactly:
 
 If Styled shows `+ 2 files`, `collectAllRefs` is not recursing into the stylesheet. If Evil shows `+ 2 files`, `insideRoot` is not refusing — **stop and fix that before Task 10**, because the next task starts reading these files.
 
-- [ ] **Step 8: Confirm a real artifact still lists**
+- [x] **Step 8: Confirm a real artifact still lists**
 
 Run: `unset DIA_ARTIFACTS; tools/publish-dia-artifact.sh --list`
 
 Expected: your own Dia artifacts, titles intact and correctly decoded. This is the check that the title extraction survived moving into the prelude.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -2172,7 +2172,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh`
 
-- [ ] **Step 1: Read the assets into the body**
+- [x] **Step 1: Read the assets into the body**
 
 Replace the `BODY=$(osascript …)` block. Note it now takes the prelude as its first `-e`, exactly as `describe_artifacts` does:
 
@@ -2215,7 +2215,7 @@ function run(argv) {
 }' "$TITLE" "$INDEX")
 ```
 
-- [ ] **Step 2: Say how many files are going**
+- [x] **Step 2: Say how many files are going**
 
 Replace the `echo "Publishing …"` line, so the count can be checked against the picker row she just clicked:
 
@@ -2227,7 +2227,7 @@ fi
 echo "Publishing \"${TITLE}\" ($(wc -c < "$INDEX" | tr -d ' ') bytes$EXTRA) to ${SITE} ..."
 ```
 
-- [ ] **Step 3: Correct the stale comment about the size ceiling**
+- [x] **Step 3: Correct the stale comment about the size ceiling**
 
 The comment above the `curl` names the old limit. Replace it:
 
@@ -2241,7 +2241,7 @@ The comment above the `curl` names the old limit. Replace it:
 # below prints verbatim.
 ```
 
-- [ ] **Step 4: Publish each fixture against a local server**
+- [x] **Step 4: Publish each fixture against a local server**
 
 In one terminal: `npm run dev`. Then:
 
@@ -2266,7 +2266,7 @@ Expected per artifact:
 | Evil | two refs reported `was not found next to the page`, and a published page |
 | Mixed | `plus 1 file(s)`, then `✓`, no `⚠` — the CDN script inlines from the network |
 
-- [ ] **Step 5: Confirm the secret did not leak**
+- [x] **Step 5: Confirm the secret did not leak**
 
 This is the check that must not be skipped.
 
@@ -2282,7 +2282,7 @@ fi
 
 Expected: `OK`. A `FAIL` means `insideRoot` is not doing its job; stop and fix it.
 
-- [ ] **Step 6: Confirm the assets actually landed inline**
+- [x] **Step 6: Confirm the assets actually landed inline**
 
 ```bash
 sqlite3 "$DB" "select html from Page where slug='styled';" > /tmp/styled.html
@@ -2291,11 +2291,11 @@ grep -c 'data:font/woff2;base64,' /tmp/styled.html  # expect 1 — the font, rea
 grep -c 'styles.css' /tmp/styled.html            # expect 0 — the <link> was replaced
 ```
 
-- [ ] **Step 7: Look at it in a browser**
+- [x] **Step 7: Look at it in a browser**
 
 Open `http://localhost:3000/p/styled`. Expected: the heading reads **"Styled by app.js"** in red — proving the local script ran and the local stylesheet applied. Open the Network tab and reload: **zero third-party requests.**
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -2321,7 +2321,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Modify: `CLAUDE.md`
 - Modify: `tools/README.md`
 
-- [ ] **Step 1: Correct `CLAUDE.md`**
+- [x] **Step 1: Correct `CLAUDE.md`**
 
 Replace that sentence with:
 
@@ -2346,7 +2346,7 @@ differs. The request body may now reach `MAX_UPLOAD_BYTES` (3 MB, under nginx's
 `MAX_PAGE_BYTES`, and the two stopped being the same measurement.
 ```
 
-- [ ] **Step 2: Document it in `tools/README.md`**
+- [x] **Step 2: Document it in `tools/README.md`**
 
 Add to the `publish-dia-artifact.sh` section:
 
@@ -2367,7 +2367,7 @@ are published at a public URL, so a ref of `../../.ssh/id_rsa` has to be refused
 rather than trusted.
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add CLAUDE.md tools/README.md
@@ -2383,7 +2383,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 
 ### Task 12: Full verification
 
-- [ ] **Step 1: Run everything CI runs, in CI's order**
+- [x] **Step 1: Run everything CI runs, in CI's order**
 
 ```bash
 npx prisma generate
@@ -2395,27 +2395,27 @@ npm run build
 
 Expected: all five clean. Nothing here needs a migration.
 
-- [ ] **Step 2: Confirm the paths that must not have changed**
+- [x] **Step 2: Confirm the paths that must not have changed**
 
 The admin paste box and the extension send no bundle, so their behaviour must be identical. With `npm run dev` running, in `/admin` → Pages → the `+` FAB, paste a document containing `<link rel="stylesheet" href="./styles.css">`.
 
 Expected: it publishes, and `SkippedAssets` reads **"is a file next to the page, and only the page itself is published"** — not "was not found next to the page". If you see the second, `inlinePage` is passing a resolver for an empty bundle; check the `bundle.size === 0` guard.
 
-- [ ] **Step 3: Confirm the round trip**
+- [x] **Step 3: Confirm the round trip**
 
 At `/admin/pages/styled`, use the download link. Expected: a self-contained file with the script and font already inline. Paste it straight back and save — expected: no `SkippedAssets` notice, because there is nothing left to resolve.
 
-- [ ] **Step 4: Confirm the announced regression announces itself**
+- [x] **Step 4: Confirm the announced regression announces itself**
 
 At `/admin/pages/styled`, paste the **original** bare `index.html` from `$DIA_ARTIFACTS/uuid-styled/styled/site/index.html` and save.
 
 Expected: it saves, and `SkippedAssets` names `styles.css` and `./app.js?v=2` as *"is a file next to the page…"*. This is the accepted cost recorded in the spec; the point of the check is that it is visible rather than silent.
 
-- [ ] **Step 5: Confirm idempotence**
+- [x] **Step 5: Confirm idempotence**
 
 Run `tools/publish-dia-artifact.sh --local Styled` a second time. Expected: the same slug, no error, and `select length(html) from Page where slug='styled';` returns the same number as before.
 
-- [ ] **Step 6: Re-run the backfill and confirm it is unaffected**
+- [x] **Step 6: Re-run the backfill and confirm it is unaffected**
 
 ```bash
 node --experimental-strip-types scripts/run-ts.mjs scripts/backfill-page-assets.mjs
@@ -2423,7 +2423,7 @@ node --experimental-strip-types scripts/run-ts.mjs scripts/backfill-page-assets.
 
 Expected: it reports the already-inlined pages as self-contained and rewrites nothing. A stored page has no directory to read, so there is nothing local for it to recover — it must **not** have been extended to try.
 
-- [ ] **Step 7: Final commit**
+- [x] **Step 7: Final commit**
 
 ```bash
 git add -A
@@ -2433,6 +2433,29 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
 ---
+
+## Executed 2026-08-04 — two places the plan and reality diverged
+
+**1. Task 10 Step 4 expects `missing` for Broken and Evil; they report
+`relative`.** Not a coding slip — the plan contradicts itself. Task 5 Step 7
+makes the discriminator `bundle.size === 0`, and reviewer note 2 insists on it,
+so an artifact whose refs *all* fail to resolve uploads an empty bundle and is
+told "only the page itself is published". The spec's own table keys the
+distinction on whether a bundle was *sent*, which would make both of these
+`missing`. Left as the plan's code specifies, because that code is stated twice
+and the expected-output table once. The blast radius is one sentence of advice
+in the all-unresolvable case only: as soon as a single sibling resolves, the
+bundle is non-empty and the remaining refs report `missing` correctly (verified
+with a mixed fixture). Closing it properly means making "was an `assets` field
+present" the discriminator, which changes `parsePagePayload`'s contract and the
+three tests that pin absent/null/`[]` to one value.
+
+**2. Task 12 Step 5's "the same slug" does not hold, and never did.** The script
+sends no `slug`, so `savePage` mints a fresh one through `uniqueSlug`; a second
+publish of one artifact makes `styled-2`. Confirmed pre-existing — the script on
+`main` sends no slug either, and nothing in this change touches slug handling.
+The half of that step that is about this feature does hold: the stored document
+is byte-identical across two publishes (318 bytes both times).
 
 ## Notes for the reviewer
 
