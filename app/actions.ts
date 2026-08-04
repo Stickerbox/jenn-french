@@ -7,7 +7,11 @@ import { getCurrentTeacher } from "@/lib/session";
 import { normaliseSections, type CardSection } from "@/lib/sections";
 import { canDeleteGroup } from "@/lib/everyone";
 import { newToken } from "@/lib/student-tokens";
-import { deleteMessageById, markTeacherRead } from "@/lib/messages";
+import {
+  deleteMessageById,
+  markTeacherRead,
+  listMessages,
+} from "@/lib/messages";
 import { chatBus } from "@/lib/chat-bus";
 import { studentSlug } from "@/lib/student-slug";
 import { deleteWhiteboardRow } from "@/lib/whiteboards";
@@ -186,6 +190,58 @@ export async function markChatRead(groupId: string) {
   await requireTeacher();
   await markTeacherRead(groupId);
   revalidatePath("/admin");
+}
+
+// The inbox stream carries no first-connect backlog — it would be every
+// conversation Jenn has ever had, on every admin page load, and retention here
+// is forever. This is the other half: history arrives when she opens one.
+//
+// requireTeacher first, like every other mutating action in this file. It reads
+// rather than writes, but it reads someone else's private conversation, which
+// is the same bar.
+export async function loadConversation(groupId: string) {
+  await requireTeacher();
+
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: { isEveryone: true },
+  });
+  // Mirrors chatRole, which refuses the everyone group before it checks
+  // anything else. It has no conversation, so there is nothing to return — and
+  // an empty array rather than a throw, because a stale tab holding a deleted
+  // student should render an empty thread, not an error page.
+  if (!group || group.isEveryone) return [];
+
+  return listMessages(groupId);
+}
+
+// Returns the invite link for a student who has not signed up yet, on demand.
+// Deliberately NOT part of listConversations: chatToken is a live credential
+// and that payload renders on every teacher page, including a student's page
+// during a screen-shared lesson.
+//
+// Relative, matching what GroupList already renders for her to copy.
+export async function inviteLink(groupId: string): Promise<string | null> {
+  await requireTeacher();
+
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: {
+      slug: true,
+      chatToken: true,
+      passwordHash: true,
+      isEveryone: true,
+    },
+  });
+  if (!group || group.isEveryone || group.chatToken === null) return null;
+
+  // Refused once the account is claimed. The claim rotated this token, so the
+  // value is live rather than spent, and there is no reason to hand it out —
+  // the way back in for a claimed student is Reset sign-in, which mints a new
+  // one.
+  if (group.passwordHash !== null) return null;
+
+  return `/g/${group.slug}?k=${group.chatToken}`;
 }
 
 // A board is deleted from the student's page, which is where both of them see
