@@ -3,8 +3,8 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { savePage } from "@/lib/pages";
 import { readPageKind } from "@/lib/page-kind";
-import { parsePagePayload } from "@/lib/page-payload";
-import { MAX_PAGE_BYTES } from "@/lib/page-html";
+import { MAX_UPLOAD_BYTES, parsePagePayload } from "@/lib/page-payload";
+import { assetBundle } from "@/lib/page-bundle";
 import { inlinePage } from "@/lib/page-inline";
 import { readBoundedBody } from "@/lib/bounded-body";
 
@@ -17,6 +17,11 @@ function tokenMatches(supplied: string, expected: string): boolean {
     createHash("sha256").update(expected).digest(),
   );
 }
+
+// Derived rather than written out, so the number the teacher is shown cannot
+// drift from the number enforced. tools/publish-dia-artifact.sh prints this
+// verbatim, which is why that script carries no size limit of its own.
+const TOO_BIG = `That upload is larger than ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB.`;
 
 // A cross-origin caller — the browser extension in tools/publish-extension —
 // sends a preflight before a POST carrying Authorization and a JSON body.
@@ -62,17 +67,13 @@ async function publish(request: Request): Promise<NextResponse> {
   }
 
   const declaredLength = Number(request.headers.get("content-length") ?? 0);
-  if (declaredLength > MAX_PAGE_BYTES) {
-    return NextResponse.json({ error: "That page is larger than 2 MB." }, {
-      status: 413,
-    });
+  if (declaredLength > MAX_UPLOAD_BYTES) {
+    return NextResponse.json({ error: TOO_BIG }, { status: 413 });
   }
 
-  const text = await readBoundedBody(request, MAX_PAGE_BYTES);
+  const text = await readBoundedBody(request, MAX_UPLOAD_BYTES);
   if (text === null) {
-    return NextResponse.json({ error: "That page is larger than 2 MB." }, {
-      status: 413,
-    });
+    return NextResponse.json({ error: TOO_BIG }, { status: 413 });
   }
 
   let body: unknown = null;
@@ -87,7 +88,7 @@ async function publish(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { title, html, groups, slug } = parsed.payload;
+  const { title, html, groups, slug, assets } = parsed.payload;
 
   let groupIds: string[] | null = null;
   if (groups) {
@@ -123,9 +124,11 @@ async function publish(request: Request): Promise<NextResponse> {
   }
 
   // Between validation and the save, so what lands in the database is the
-  // self-contained document. /p/[slug]/raw still serves page.html byte for byte,
-  // which is what keeps the download-and-re-edit round trip honest.
-  const inlined = await inlinePage(html);
+  // self-contained document. The bundle holds the files uploaded beside it, and
+  // assetBundle keys them the way the document's own refs are keyed.
+  // /p/[slug]/raw still serves page.html byte for byte, which is what keeps the
+  // download-and-re-edit round trip honest.
+  const inlined = await inlinePage(html, assetBundle(assets));
 
   const saved = await savePage({
     slug,
