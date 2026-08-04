@@ -302,13 +302,54 @@ storage, or the teacher session. **Never add `allow-same-origin`** — with
 raw route is the second layer, and **no directive in it admits `https:`** —
 `connect-src 'none'` closes fetch, XHR and beacon, but a subresource load is a
 real GET request, so `img-src https:` alone would let a page exfiltrate what a
-student typed via `<img src="https://…?d=answer">`. Nothing loads from a CDN;
-self-contained files are the only supported kind. One residual is accepted and
+student typed via `<img src="https://…?d=answer">`. Nothing loads from a CDN at
+render time; a self-contained document is the only kind that works, and
+publishing makes one. One residual is accepted and
 unclosable: a sandboxed frame may navigate itself, and no CSP directive
 prevents that. The raw route also answers a direct GET, so the page can be
 loaded outside the iframe at the real origin; that is inert only because the
 CSP travels with the response and the session cookie is httpOnly with no
 `localStorage` in use.
+
+A page that arrives referencing a CDN is rewritten at publish time rather than
+served broken: `inlinePage` (`lib/page-inline.ts`) folds each external script,
+stylesheet, image and font into the document, so `'unsafe-inline'` and
+`img-src data:` — already in the policy — are all it needs to render. **The CSP
+was not widened to make this work and must not be.** The step runs between
+validation and `savePage` on both write paths (`app/api/pages/route.ts` and
+`createPage`/`updatePage` in `app/page-actions.ts`); `/p/[slug]/raw` still serves
+`page.html` verbatim, so the served document can never drift from the stored one
+and the `<a download>` round trip is unaffected.
+
+The fetcher (`lib/asset-fetch.ts`) takes a URL out of a request body and returns
+its response into a public document, which makes it an SSRF read primitive and is
+why it has five controls rather than none: the host allowlist in
+`lib/asset-policy.ts`, https only, `redirect: "error"` — without which an
+allowlisted host answering `302` to `http://169.254.169.254/` would walk straight
+past the allowlist — a timeout, a bounded read, and a content-type check per kind
+so a CDN's 404 page never lands inside a `<script>`. Module CDNs are deliberately
+absent from that list: an inlined ES module's `import` has nothing to resolve
+against, so inlining one turns a blocked page into a broken one. It is injected
+into `lib/page-inline.ts` rather than imported by it, the arrangement
+`lib/whiteboard-hit.ts` uses, so the depth and budget rules are tested with a
+fake and no socket.
+
+Two fetches deep and no further, counted in fetches: `fonts.googleapis.com`
+answers with CSS that names fonts on `fonts.gstatic.com`, so one level would
+inline the stylesheet and leave the typeface wrong with nothing to report. An
+asset that cannot be inlined — unlisted host, failed fetch, wrong content type,
+or a document that would pass 2 MB — is **left exactly as it was and reported**,
+never a reason to fail a publish: the same degrade-rather-than-throw contract
+`readSections`, `readOps` and `readPageKind` have. The report reaches Jenn three
+ways, because there are three ways in: `skipped` in the `POST /api/pages` reply
+(printed by `tools/publish-dia-artifact.sh`, counted by the extension) and the
+`SkippedAssets` notice, which **both** admin write paths render — `PageEditor`
+and `NewPageForm`, whose sheet stays open when there is something to say rather
+than closing over it. A relative ref is reported too, since only `index.html`
+is ever uploaded. `scripts/backfill-page-assets.mjs` runs the same inliner over
+pages published before this existed; like `backfill-sections.mjs` it imports
+`../lib/*.ts`, which needs `scripts/run-ts.mjs` to resolve the `@/` alias —
+Node's type stripper runs the TypeScript but resolves modules the way Node does.
 
 `allow-modals` is the second token, and it is **not** comparable to the
 forbidden one. `allow-same-origin` beside `allow-scripts` lets the page delete
