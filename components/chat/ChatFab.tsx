@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChatWindow, type ChatLabels } from "@/components/chat/ChatWindow";
+import { ChatPanel } from "@/components/chat/ChatPanel";
+import {
+  Conversation,
+  type ConversationLabels,
+} from "@/components/chat/Conversation";
 import { Fab } from "@/components/ui/Fab";
 import { useStream } from "@/components/StreamProvider";
 
@@ -10,28 +14,30 @@ import { useStream } from "@/components/StreamProvider";
 // visitor for the sake of a dot.
 const seenKey = (slug: string) => `chat-seen:${slug}`;
 
+export type StudentChatLabels = ConversationLabels & {
+  title: string;
+  close: string;
+  back: string;
+};
+
+// The student's side only. Jenn's FAB is components/chat/InboxFab.tsx — she has
+// a list of conversations and this has exactly one, so they are two components
+// rather than one with a mode flag. That split is what let `self`, `token`,
+// `onOpen` and `onDeleteMessage` go: all four existed to serve the teacher.
 export function ChatFab({
   slug,
-  token,
-  self,
   labels,
-  onDeleteMessage,
-  onOpen,
 }: {
   slug: string;
-  token: string | null;
-  self: "teacher" | "student";
-  labels: ChatLabels;
-  onDeleteMessage?: (id: string) => Promise<void>;
-  onOpen?: () => Promise<void>;
+  labels: StudentChatLabels;
 }) {
   const [open, setOpen] = useState(false);
   const [unseen, setUnseen] = useState(false);
 
-  // The connection itself lives in StreamProvider now: the whiteboard needs the
+  // The connection itself lives in StreamProvider: the whiteboard needs the
   // same stream, and two EventSources would each replay the whole chat backlog
   // from the database at connect.
-  const { messages, removeMessage } = useStream();
+  const { messages } = useStream();
 
   // The unread effect below closes over `open` from the render that ran it.
   // Reading it through a ref keeps that check current without making the
@@ -41,16 +47,12 @@ export function ChatFab({
     openRef.current = open;
   }, [open]);
 
-  const query = token ? `?k=${encodeURIComponent(token)}` : "";
-
-  // Was inside the stream handler before the connection moved to the provider.
-  // Same rule, same localStorage key: the newest message from the other party,
-  // compared against the last one this device saw.
+  // The newest message from the other party — always Jenn now that this
+  // component is the student's alone — compared against the last one this
+  // device saw.
   useEffect(() => {
-    const fromOther = messages.filter(
-      (m) => m.fromTeacher !== (self === "teacher"),
-    );
-    const newest = fromOther[fromOther.length - 1];
+    const fromTeacher = messages.filter((m) => m.fromTeacher);
+    const newest = fromTeacher[fromTeacher.length - 1];
     if (!newest) return;
 
     if (openRef.current) {
@@ -59,10 +61,10 @@ export function ChatFab({
     } else {
       setUnseen(window.localStorage.getItem(seenKey(slug)) !== newest.id);
     }
-  }, [messages, self, slug]);
+  }, [messages, slug]);
 
   async function send(body: string) {
-    const response = await fetch(`/api/chat/${slug}${query}`, {
+    const response = await fetch(`/api/chat/${slug}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ body }),
@@ -72,45 +74,41 @@ export function ChatFab({
     // which is also what gives it its real id and timestamp.
   }
 
-  // The SSE stream only ever carries insertions, so a delete has to be
-  // reflected locally by hand — nothing else will tell this client the
-  // message is gone.
-  async function handleDeleteMessage(id: string) {
-    if (!onDeleteMessage) return;
-    await onDeleteMessage(id);
-    removeMessage(id);
-  }
-
   function handleToggle() {
     if (!open) {
       // Cleared here rather than in an effect watching `open`: this handler
       // is the only thing that ever opens the panel, so an effect would be
       // reacting to a change it already knows about, one render later.
       setUnseen(false);
-      const fromOther = messages.filter(
-        (m) => m.fromTeacher !== (self === "teacher"),
-      );
-      const newest = fromOther[fromOther.length - 1];
+      const fromTeacher = messages.filter((m) => m.fromTeacher);
+      const newest = fromTeacher[fromTeacher.length - 1];
       if (newest) window.localStorage.setItem(seenKey(slug), newest.id);
-      // Fire and forget: a failure to stamp "read" must not stop the panel
-      // from opening, and the caller (only the admin page passes this) has
-      // nothing useful to do with the result.
-      void onOpen?.();
     }
     setOpen(!open);
   }
 
   return (
     <>
+      {/* Conditionally rendered, and that is load-bearing rather than an
+          optimisation: everything inside formats dates in the reader's
+          timezone, so rendering it during SSR would be a hydration mismatch.
+          See the note at the top of MessageList. */}
       {open && (
-        <ChatWindow
-          self={self}
-          labels={labels}
-          messages={messages}
-          onSend={send}
+        <ChatPanel
+          title={labels.title}
+          labels={{ close: labels.close, back: labels.back }}
           onClose={() => setOpen(false)}
-          onDeleteMessage={onDeleteMessage ? handleDeleteMessage : undefined}
-        />
+        >
+          {/* messages passed straight through rather than through messagesFor:
+              a student's stream carries one conversation, so filtering would
+              be a no-op that implies otherwise. */}
+          <Conversation
+            messages={messages}
+            self="student"
+            labels={labels}
+            onSend={send}
+          />
+        </ChatPanel>
       )}
 
       <Fab
