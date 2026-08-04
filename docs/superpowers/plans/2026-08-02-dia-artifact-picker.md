@@ -225,7 +225,7 @@ Nothing later in this plan is verifiable without deterministic artifacts. Dia's 
 **Files:**
 - Create: `$TMPDIR/dia-fixtures/` (throwaway, not part of the repo)
 
-- [ ] **Step 1: Write the fixture script and run it**
+- [x] **Step 1: Write the fixture script and run it**
 
 ```bash
 FIX="$TMPDIR/dia-fixtures"; rm -rf "$FIX"; mkdir -p "$FIX"
@@ -296,7 +296,7 @@ What each fixture is for:
 | FFFF | title spanning newlines with runs of spaces — must collapse |
 | GGGG, HHHH | identical title **and** identical mtime — the collision case |
 
-- [ ] **Step 2: Verify the tree**
+- [x] **Step 2: Verify the tree**
 
 Run: `find "$TMPDIR/dia-fixtures" -name index.html | wc -l`
 Expected: `8`
@@ -308,7 +308,7 @@ Expected: `8`
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh:30`
 
-- [ ] **Step 1: Change the assignment**
+- [x] **Step 1: Change the assignment**
 
 Replace line 30:
 
@@ -343,18 +343,18 @@ DIA_ARTIFACTS= bash tools/publish-dia-artifact.sh --list; echo "exit=$?"
 
 Expected: `✗ No Dia artifacts folder. Is Dia installed?` and `exit=1`. If it lists the real folder instead, the `-` did not take effect.
 
-- [ ] **Step 2: Verify the override reaches `list_artifacts`**
+- [x] **Step 2: Verify the override reaches `list_artifacts`**
 
 Run: `DIA_ARTIFACTS="$TMPDIR/dia-fixtures" bash tools/publish-dia-artifact.sh --list`
 
 Expected: eight rows, every one labelled `template_output`, newest first starting `Aug  1 10:10`. This is the bug this plan fixes — confirm you can see it before fixing it.
 
-- [ ] **Step 3: Verify the real folder still works**
+- [x] **Step 3: Verify the real folder still works**
 
 Run: `bash tools/publish-dia-artifact.sh --list`
 Expected: rows from the real Dia folder, not the fixtures.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -378,7 +378,7 @@ EOF
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh` — add after `list_artifacts` (which ends at line 91)
 
-- [ ] **Step 1: Add the helper**
+- [x] **Step 1: Add the helper**
 
 ```bash
 # argv[0] is a file holding one artifact path per line. Emits one
@@ -450,7 +450,7 @@ function run(argv) {
 }
 ```
 
-- [ ] **Step 2: Build a path list from the fixtures**
+- [x] **Step 2: Build a path list from the fixtures**
 
 ```bash
 FIX="$TMPDIR/dia-fixtures"
@@ -461,7 +461,7 @@ wc -l < "$TMPDIR/paths.txt"
 
 Expected: `8`
 
-- [ ] **Step 3: Copy the same JS to a standalone file to test it**
+- [x] **Step 3: Copy the same JS to a standalone file to test it**
 
 The helper cannot be sourced out of the script — `sed`-ing between `describe_artifacts()` and the next `}` truncates inside the JavaScript, which has `}` at column 0. Test the JS directly instead. **This must stay byte-identical to the body you added in Step 1; if you change one, change both.**
 
@@ -530,7 +530,7 @@ Au Restaurant	0
 
 Check each one deliberately: `4` on row 2 proves the deduping and all five rejections; `&amp;amp;` became `&amp;` and **not** `&`; `&ecirc;` survived for `textutil`; `template_output` is the no-title fallback; `(unreadable)` is the non-UTF-8 file; `Les Faux Amis` collapsed three lines into one.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -552,7 +552,7 @@ EOF
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh` — add after the `SITE`/`TOKEN_FILE` constants (line 32), and after `describe_artifacts`
 
-- [ ] **Step 1: Add the work directory below the constants**
+- [x] **Step 1: Add the work directory below the constants**
 
 ```bash
 LIST_ROWS=10
@@ -564,7 +564,7 @@ WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 ```
 
-- [ ] **Step 2: Add `decode_entities` after `describe_artifacts`**
+- [x] **Step 2: Add `decode_entities` after `describe_artifacts`**
 
 ```bash
 # decode() in describe_artifacts knows the five core entities and every numeric
@@ -614,7 +614,7 @@ textutil -convert txt -inputencoding UTF-8 -stdout "$TMPDIR/tu.html"; echo "[exi
 
 `Crêpes` means textutil works. Empty output with exit 0, or a "Couldn't communicate with a helper application" message, means it is blocked — and the `CCCC` fixture will then show as `Cr&ecirc;pes &amp; Gaufres é A` rather than `Crêpes & Gaufres é A` everywhere below. That is the fallback working correctly, not a fault in your code.
 
-- [ ] **Step 3: Add `candidate_rows`, below `decode_entities`**
+- [x] **Step 3: Add `candidate_rows`, below `decode_entities`**
 
 ```bash
 # stdin:  "mtime path" lines, as list_artifacts emits them
@@ -647,7 +647,7 @@ Avoid writing a literal tab character in either place — editors and copy-paste
 
 **Known limitation, state it rather than paper over it:** `candidate_rows` runs inside a process substitution in Task 8, so a `die` inside it exits only that subshell. The caller then falls through to its own `[ -n "$INDEX" ] || die` and reports "No artifacts found yet" rather than the real cause. The dialog path in Task 9 is not affected — it writes rows to a file and checks `-s` before reading. Do not spend an hour on a confusing message here without remembering this.
 
-- [ ] **Step 4: Verify rows assemble, and that `textutil` fires exactly once**
+- [x] **Step 4: Verify rows assemble, and that `textutil` fires exactly once**
 
 Run:
 
@@ -657,7 +657,7 @@ DIA_ARTIFACTS="$TMPDIR/dia-fixtures" bash tools/publish-dia-artifact.sh --list
 
 This still prints the old directory-name rows — `--list` has not been changed yet. You are only confirming nothing broke. Expected: eight rows, no errors, exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -684,7 +684,7 @@ EOF
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh` — add after `candidate_rows`
 
-- [ ] **Step 1: Add the function**
+- [x] **Step 1: Add the function**
 
 ```bash
 # stdin:  "mtime<TAB>path<TAB>title<TAB>refcount"
@@ -721,7 +721,7 @@ build_labels() {
 
 `IFS=$'\t'` — ANSI-C quoting, not a bare `'\t'`, which would split on the letter t. `%-d` gives `Fri 1 Aug` rather than the double-spaced `Fri  1 Aug` that `%e` produces; the `-` padding modifier is normally a glibc extension but was confirmed working in BSD `date`.
 
-- [ ] **Step 2: Check it parses under bash 3.2**
+- [x] **Step 2: Check it parses under bash 3.2**
 
 `build_labels` has no standalone entry point — it reads the tab-delimited rows `candidate_rows` produces, and `--list` is what first feeds it, in Task 6. So the behavioural gate for Tasks 3, 4 and 5 together is **Task 6 Step 2**, which asserts exact output. Do not skip it.
 
@@ -741,7 +741,7 @@ Behaviour to confirm at Task 6 Step 2, so you know what you are looking for:
 - `Les Faux Amis` on one line
 - the last two read `Au Restaurant — Sun 26 Jul 09:30` and `Au Restaurant — Sun 26 Jul 09:30 (2)`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -765,7 +765,7 @@ This is the first user-visible fix and it needs no GUI, so it is the cheapest pl
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh:93-100`
 
-- [ ] **Step 1: Replace the `--list` block**
+- [x] **Step 1: Replace the `--list` block**
 
 Replace:
 
@@ -792,7 +792,7 @@ if [ "$WANT_LIST" = "1" ]; then
 fi
 ```
 
-- [ ] **Step 2: Verify against the fixtures**
+- [x] **Step 2: Verify against the fixtures**
 
 Run: `DIA_ARTIFACTS="$TMPDIR/dia-fixtures" bash tools/publish-dia-artifact.sh --list`
 
@@ -814,13 +814,13 @@ These weekday names were computed from the fixture mtimes with `date -r`, not wr
 
 If `textutil` is blocked in your environment (see the check in Task 4 Step 2), row 3 reads `Cr&ecirc;pes &amp; Gaufres é A — Thu 30 Jul 10:01` instead. Everything else is identical.
 
-- [ ] **Step 3: Verify against the real folder**
+- [x] **Step 3: Verify against the real folder**
 
 Run: `bash tools/publish-dia-artifact.sh --list`
 
 Expected: ten rows of **distinct** titles. If you see ten rows reading `template_output`, `candidate_rows` is not being reached.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -844,7 +844,7 @@ Do this before the dialog, so the dialog's own failure modes are visible when yo
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh:34`
 
-- [ ] **Step 1: Replace `die` and add the two helpers above it**
+- [x] **Step 1: Replace `die` and add the two helpers above it**
 
 Replace:
 
@@ -883,19 +883,19 @@ die() { echo "✗ $1" >&2; [ -t 2 ] || gui_alert "$1"; exit 1; }
 warn() { echo "⚠ $1" >&2; }
 ```
 
-- [ ] **Step 2: Verify the terminal path is unchanged**
+- [x] **Step 2: Verify the terminal path is unchanged**
 
 Run: `DIA_ARTIFACTS="$TMPDIR/nonexistent" bash tools/publish-dia-artifact.sh --list; echo "exit=$?"`
 
 Expected: `✗ No Dia artifacts folder. Is Dia installed?` on stderr, `exit=1`, **no dialog**.
 
-- [ ] **Step 3: Verify the GUI path**
+- [x] **Step 3: Verify the GUI path**
 
 Run: `DIA_ARTIFACTS="$TMPDIR/nonexistent" bash tools/publish-dia-artifact.sh --list 2>&1 | cat; echo "exit=${PIPESTATUS[0]}"`
 
 Expected: an alert window titled *Publish to francaisavecjenn.ca* reading `No Dia artifacts folder. Is Dia installed?`. Dismiss it. Piping stderr is what makes `[ -t 2 ]` false, standing in for the Shortcut.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -917,7 +917,7 @@ EOF
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh:38-67` (option parsing) and `102-110` (selection)
 
-- [ ] **Step 1: Add the flag variable and case beside the existing options**
+- [x] **Step 1: Add the flag variable and case beside the existing options**
 
 Add `WANT_LATEST=0` next to `WANT_LIST=0`, and this case before the `-*)` catch-all:
 
@@ -931,7 +931,7 @@ Extend the unknown-option message to name it:
     -*)      die "Unknown option '$1'. Try --list, --latest, --local, or --token <value>." ;;
 ```
 
-- [ ] **Step 2: Reject both selectors at once**
+- [x] **Step 2: Reject both selectors at once**
 
 Immediately after the existing "Unexpected argument" guard at lines 65-67, add:
 
@@ -943,7 +943,7 @@ if [ "$WANT_LATEST" = "1" ] && [ -n "${1:-}" ]; then
 fi
 ```
 
-- [ ] **Step 3: Replace the selection block**
+- [x] **Step 3: Replace the selection block**
 
 Replace lines 102-110:
 
@@ -1004,7 +1004,7 @@ NAME=$(basename "$(dirname "$(dirname "$INDEX")")")
 
 `< <(…)` rather than a pipe is deliberate: a `while` on the right of a pipe runs in a subshell in bash 3.2, so `INDEX` would be empty afterwards.
 
-- [ ] **Step 4: Add a temporary stub so the script still parses**
+- [x] **Step 4: Add a temporary stub so the script still parses**
 
 Add above the selection block, to be replaced in Task 9:
 
@@ -1012,7 +1012,7 @@ Add above the selection block, to be replaced in Task 9:
 choose_artifact() { die "The picker is not wired up yet. Use --latest."; }
 ```
 
-- [ ] **Step 5: Verify `--latest` matches today's behaviour**
+- [x] **Step 5: Verify `--latest` matches today's behaviour**
 
 Run:
 
@@ -1023,7 +1023,7 @@ DIA_ARTIFACTS="$TMPDIR/dia-fixtures" bash tools/publish-dia-artifact.sh --latest
 
 Expected: the `--latest` run reports it is publishing `Crêpes et Traditions` — the same artifact the first row names — or fails at the dev-server check, which is fine. It must not fail at selection.
 
-- [ ] **Step 6: Verify title matching**
+- [x] **Step 6: Verify title matching**
 
 ```bash
 FIXA="DIA_ARTIFACTS=$TMPDIR/dia-fixtures"
@@ -1038,7 +1038,7 @@ Expected, in order: `faux` and `FAUX` both select *Les Faux Amis* (case-insensit
 
 Note that options must precede the title, which the existing guard at lines 65-67 already enforces.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -1063,7 +1063,7 @@ EOF
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh` — replace the `choose_artifact` stub from Task 8 Step 4
 
-- [ ] **Step 1: Add `choose_from_list`**
+- [x] **Step 1: Add `choose_from_list`**
 
 ```bash
 # argv[0] a file of labels, one per line; argv[1] the prompt.
@@ -1093,7 +1093,7 @@ function run(argv) {
 }
 ```
 
-- [ ] **Step 2: Replace the stub with the real `choose_artifact`**
+- [x] **Step 2: Replace the stub with the real `choose_artifact`**
 
 ```bash
 # Sets INDEX, TITLE, REFS from the teacher's choice. Exits 0 on cancel.
@@ -1137,28 +1137,36 @@ choose_artifact() {
 
 The labels are unique by construction (Task 5), so the loop finds exactly one match. The final `die` is unreachable in principle and says so.
 
-- [ ] **Step 3: Verify the dialog against the fixtures**
+- [x] **Step 3: Verify the dialog against the fixtures** — *DEFERRED_TO_HUMAN for
+  the window's contents. Confirmed by background probe that the chooser opens and
+  blocks waiting for input; nobody looked at what it drew.*
 
 Run: `DIA_ARTIFACTS="$TMPDIR/dia-fixtures" bash tools/publish-dia-artifact.sh --local --token x`
 
 Expected: a chooser appears **frontmost**, prompt *Which page do you want to publish?*, buttons *Cancel* and *Publish*, eight rows matching Task 6's `--list` output, with `Crêpes et Traditions — Sat 1 Aug 10:10` preselected.
 
-- [ ] **Step 4: Verify cancel**
+- [x] **Step 4: Verify cancel** — *verified by stubbing `choose_from_list` to
+  return the empty string, which is exactly what Cancel produces: printed
+  `Cancelled. Nothing was published.` and exited 0. Nobody pressed the button.*
 
 Press Cancel.
 Expected: `Cancelled. Nothing was published.`, exit 0, no alert.
 
-- [ ] **Step 5: Verify a choice reaches the publish path**
+- [x] **Step 5: Verify a choice reaches the publish path** — *verified via the
+  same stub: selecting label row 6 published `Les Faux Amis` and row 2
+  `Le Passé Composé`, so the label-to-row mapping is correct.*
 
 Run the same command, select `Les Faux Amis`, click Publish.
 Expected: `Publishing "Les Faux Amis" (… bytes) to http://localhost:3000 …`, then a failure at the dev server or the token — which is correct here, since neither is real. The title in that line must be the one you clicked.
 
-- [ ] **Step 6: Verify the real folder**
+- [x] **Step 6: Verify the real folder** — *DEFERRED_TO_HUMAN. `--list` against
+  the real folder does show ten distinct real titles (Task 6 Step 3), which is
+  the same label pipeline the dialog uses.*
 
 Run: `bash tools/publish-dia-artifact.sh --local --token x`
 Expected: ten real titles, newest preselected. Cancel out.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -1180,7 +1188,7 @@ EOF
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh:115-119`
 
-- [ ] **Step 1: Replace the extras block**
+- [x] **Step 1: Replace the extras block**
 
 Replace:
 
@@ -1207,19 +1215,19 @@ if [ "${REFS:-0}" != "0" ]; then
 fi
 ```
 
-- [ ] **Step 2: Verify on a fixture with references**
+- [x] **Step 2: Verify on a fixture with references**
 
 Run: `DIA_ARTIFACTS="$TMPDIR/dia-fixtures" bash tools/publish-dia-artifact.sh "passé" --local --token x 2>&1 | head -3`
 
 Expected: `⚠ This page links to 4 file(s) that will not be published…`. The count is 4, not 5 — BBBB's `.DS_Store` must not be counted.
 
-- [ ] **Step 3: Verify silence on a self-contained fixture**
+- [x] **Step 3: Verify silence on a self-contained fixture**
 
 Run: `DIA_ARTIFACTS="$TMPDIR/dia-fixtures" bash tools/publish-dia-artifact.sh "traditions" --local --token x 2>&1 | head -3`
 
 Expected: no `⚠` line at all.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -1244,7 +1252,7 @@ The title now arrives from the row. Removing the second extraction is what makes
 **Files:**
 - Modify: `tools/publish-dia-artifact.sh:142-188` (the `TITLE=$(osascript …)` block, the `__PUBLISH_UNREADABLE__` check, and the `textutil` block)
 
-- [ ] **Step 1: Delete four blocks**
+- [x] **Step 1: Delete four blocks**
 
 Delete the whole `TITLE=$(osascript -l JavaScript -e '…' "$INDEX" "$NAME")` assignment, the `if [ "$TITLE" = "__PUBLISH_UNREADABLE__" ]` check that follows it, and the `if printf '%s' "$TITLE" | grep -q '&[a-zA-Z]…'` block with its `ENTDIR` temp directory. All three are superseded: `describe_artifacts` extracts, `decode_entities` handles entities, and `WORK` plus the `trap` handle the temp directory.
 
@@ -1256,7 +1264,7 @@ grep -n 'NAME' tools/publish-dia-artifact.sh
 
 Expected: no matches. If `$NAME` still appears anywhere, leave the assignment in place and work out why.
 
-- [ ] **Step 2: Guard the unreadable case where selection happens**
+- [x] **Step 2: Guard the unreadable case where selection happens**
 
 `(unreadable)` can now be chosen from the dialog. Add immediately after the selection block ends:
 
@@ -1268,7 +1276,7 @@ if [ "$TITLE" = "(unreadable)" ]; then
 fi
 ```
 
-- [ ] **Step 3: Verify the title still reaches the request body**
+- [x] **Step 3: Verify the title still reaches the request body**
 
 The `BODY=$(osascript …)` call at what was line 192 already reads `"$TITLE"` from the environment and needs no change. Confirm:
 
@@ -1276,19 +1284,19 @@ Run: `grep -n 'BODY=\|"$TITLE"\|TITLE=' tools/publish-dia-artifact.sh`
 
 Expected: `TITLE` is assigned only in the selection block, and read by the `BODY` call and the `Publishing "…"` echo. No `osascript` call extracts a title any more except `describe_artifacts`.
 
-- [ ] **Step 4: Verify the unreadable artifact is refused**
+- [x] **Step 4: Verify the unreadable artifact is refused**
 
 Run: `DIA_ARTIFACTS="$TMPDIR/dia-fixtures" bash tools/publish-dia-artifact.sh "unreadable" --local --token x 2>&1; echo "exit=$?"`
 
 Expected: `✗ Could not read that artifact as UTF-8 text.`, `exit=1`.
 
-- [ ] **Step 5: Verify the entity title survives the round trip**
+- [x] **Step 5: Verify the entity title survives the round trip**
 
 Run: `DIA_ARTIFACTS="$TMPDIR/dia-fixtures" bash tools/publish-dia-artifact.sh "gaufres" --local --token x 2>&1 | head -2`
 
 Expected: `Publishing "Crêpes & Gaufres é A" …` — decoded, and identical to the `--list` row.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh
@@ -1313,7 +1321,7 @@ EOF
 - Modify: `tools/publish-dia-artifact.sh:1-26` (header comment)
 - Modify: `tools/README.md:11-83`
 
-- [ ] **Step 1: Replace the script header**
+- [x] **Step 1: Replace the script header**
 
 ```bash
 #!/bin/bash
@@ -1350,7 +1358,7 @@ EOF
 # are read from, which is only useful for testing.
 ```
 
-- [ ] **Step 2: Rewrite the `tools/README.md` usage section**
+- [x] **Step 2: Rewrite the `tools/README.md` usage section**
 
 Replace the "### Using it" block (lines 38-51) with:
 
@@ -1377,7 +1385,7 @@ JENN_SITE=http://localhost:3000 PAGES_UPLOAD_TOKEN=dev-token-not-a-secret \
 ```
 ````
 
-- [ ] **Step 3: Fix the "What it warns about" section**
+- [x] **Step 3: Fix the "What it warns about" section**
 
 Replace the **Extra files** bullet (lines 68-71) with:
 
@@ -1389,7 +1397,7 @@ Replace the **Extra files** bullet (lines 68-71) with:
   publishing rather than finding out afterwards.
 ```
 
-- [ ] **Step 4: Add a line to the Shortcut section**
+- [x] **Step 4: Add a line to the Shortcut section**
 
 After the numbered steps (line 64), add:
 
@@ -1399,13 +1407,13 @@ none passed, it opens the chooser. Because a Shortcut discards the script's
 output, errors are shown in an alert window instead.
 ```
 
-- [ ] **Step 5: Verify no stale claims remain**
+- [x] **Step 5: Verify no stale claims remain**
 
 Run: `grep -n 'montreal_french\|newest index.html\|reads the newest' tools/README.md`
 
 Expected: no matches. `montreal_french` was a directory name Dia never produced.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh tools/README.md
@@ -1426,7 +1434,11 @@ EOF
 
 **Files:** none modified.
 
-- [ ] **Step 1: Publish for real against the dev server**
+- [x] **Step 1: Publish for real against the dev server** — *done via `--local`
+  with title matching rather than the dialog (no human at the window). Published
+  `Crêpes et Traditions` to `http://localhost:3000/p/crepes-et-traditions`. Never
+  production: `--local` pins the site to localhost. The test row was then deleted
+  from `prisma/dev.db`.*
 
 ```bash
 npm run dev          # in another terminal
@@ -1435,11 +1447,18 @@ tools/publish-dia-artifact.sh --local
 
 Choose a page with an accented title. Expected: the admin editor opens at `/admin/pages/<slug>`, the link is on the clipboard, and the slug derives from the title the dialog showed.
 
-- [ ] **Step 2: Confirm the published title matches the dialog exactly**
+- [x] **Step 2: Confirm the published title matches the dialog exactly** —
+  *checked in the database rather than by eye:
+  `SELECT title, hex(title)` returned `Crêpes et Traditions` /
+  `4372C3AA70657320…`, i.e. a correctly encoded UTF-8 `ê`, identical to the
+  string `--list` printed.*
 
 Open the page in the admin. Its title must be character-for-character what the dialog row showed, accents and `&` included.
 
-- [ ] **Step 3: Run the full checklist**
+- [x] **Step 3: Run the full checklist** — *every non-dialog line ran and gave
+  the expected message and exit code. The bare-invocation line was run as a
+  background probe (it opens a modal and blocks), and the bad-token alert line
+  was confirmed by the alert actually opening and blocking mid-run.*
 
 ```bash
 bash tools/publish-dia-artifact.sh --list                   # ten distinct titles
@@ -1450,7 +1469,7 @@ bash tools/publish-dia-artifact.sh nothingmatches           # ✗ No page whose 
 bash tools/publish-dia-artifact.sh --token bad --local 2>&1 | cat   # alert appears
 ```
 
-- [ ] **Step 4: Confirm the repo's own checks are untouched**
+- [x] **Step 4: Confirm the repo's own checks are untouched**
 
 This plan changes no TypeScript, but run the CI order anyway to prove it:
 
@@ -1460,13 +1479,13 @@ npx prisma generate && npm run lint && npx tsc --noEmit && npm test && npm run b
 
 Expected: all pass, exactly as before.
 
-- [ ] **Step 5: Remove the fixtures**
+- [x] **Step 5: Remove the fixtures**
 
 ```bash
 rm -rf "$TMPDIR/dia-fixtures" "$TMPDIR/paths.txt"
 ```
 
-- [ ] **Step 6: Final commit**
+- [x] **Step 6: Final commit**
 
 ```bash
 git add -A
@@ -1479,6 +1498,59 @@ EOF
 ```
 
 ---
+
+## Execution record — 2026-08-04
+
+Executed on macOS (Darwin), `/bin/bash` 3.2.57, real Dia folder present,
+`textutil` working, inside the git repository, on branch `dia-artifact-picker`.
+One commit per task.
+
+**The handoff's premise did not hold.** Tasks 2 and 3 were *not* present on this
+machine — the preflight reported `Task 2 landed : NO`, `Task 3 landed : NO`,
+`url() fix : NO`, and 245 script lines rather than 225 or 301. Tasks 1-3 were
+therefore executed from scratch. The extra 20 lines over the 225 baseline are the
+newer `SKIPPED` assets block at the foot of the script, which postdates this
+plan; every line reference the plan uses (30, 93-100, 102-110, 115-119, 142-188)
+still pointed at the right code, since that block sits below all of them.
+
+`describe_artifacts` was implemented in its reviewed form — with `url(…)` inside
+an inline `<style>` counted alongside `src=`/`href=` — not the stale code block
+in Task 3, per the handoff note.
+
+Defects found in this plan while executing it:
+
+- **Task 6's fixture output is correct**, and was reproduced exactly, entity
+  decoding and `(2)` suffix included.
+- **Task 8 Step 6's commands are wrong.** They pass the title *before* the
+  options (`… "faux" --token x --local`), which the script's own
+  "options go before the artifact name" guard rejects — as the note one line
+  below those commands states. Re-run with options first, they all pass.
+- **Task 3 Step 3 asks for a byte-identical copy of the JXA in a second file.**
+  Skipped as an unnecessary drift risk: the real function was extracted from the
+  script with `awk` and executed directly, which tests the shipping code rather
+  than a copy of it.
+- **The `url(…)` counting is not exercised by any Task 1 fixture** — none of the
+  eight contains one. Verified separately against a scratch page with eight
+  `url()` forms; it counted 4, correctly deduping and rejecting `https:`,
+  `data:` and `//`.
+- **The spec's claim that Dia "has never produced" `montreal_french` is false**
+  on this machine: the real folder contains both `montreal_french` and
+  `quebec_french`. The underlying problem is unaffected — 7 of the 10 newest
+  directories are still `template_output` — but the docs and commit message were
+  worded truthfully rather than repeating the claim.
+
+Environment limits, stated rather than papered over:
+
+- This harness's bash has **no TTY on stderr**, so the `[ -t 2 ]`-true branch of
+  `die` could not be exercised (`script` cannot allocate a pty here either). The
+  false branch was proved with a stubbed `gui_alert`.
+- GUI steps were **DEFERRED_TO_HUMAN** where they required reading a window. Both
+  `chooseFromList` and `displayAlert` were confirmed to open and block. An early
+  probe suggested `displayAlert` drew nothing; that was wrong, and a later run
+  blocked on a real alert window until the process was killed.
+
+CI after the change: `prisma generate` OK, `lint` 0, `tsc --noEmit` 0, 637 tests
+in 63 files passing, `build` 0.
 
 ## Spec coverage
 
