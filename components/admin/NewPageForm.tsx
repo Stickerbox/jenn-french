@@ -6,7 +6,8 @@ import { HtmlPasteBox } from "@/components/ui/HtmlPasteBox";
 import { FileDropZone } from "@/components/ui/FileDropZone";
 import { MAX_PDF_BYTES } from "@/lib/page-pdf";
 import { cn } from "@/lib/utils";
-import type { NewPageInput } from "@/app/page-actions";
+import type { NewPageInput, PageSaveResult } from "@/app/page-actions";
+import { SkippedAssets } from "@/components/admin/SkippedAssets";
 
 // Audience first, paste second — DOM order matters here, because the paste is
 // the submit. There is no Save button: the title comes from the document, so
@@ -22,7 +23,7 @@ export function NewPageForm({
   // The Pages tab's active student chip. A new page defaults to whoever is
   // being looked at; null when the filter is "All".
   defaultGroupId: string | null;
-  onSubmit: (input: NewPageInput) => Promise<unknown>;
+  onSubmit: (input: NewPageInput) => Promise<PageSaveResult>;
   // Separate from onSubmit because the payloads differ in kind, not just in
   // shape: a document is a string and a PDF is bytes in FormData.
   onSubmitPdf: (formData: FormData) => Promise<unknown>;
@@ -37,6 +38,7 @@ export function NewPageForm({
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [skipped, setSkipped] = useState<PageSaveResult["skipped"]>([]);
 
   // Adjusted during render rather than in an effect: this is state derived from
   // a prop, and react-hooks/set-state-in-effect rejects the effect form for
@@ -59,9 +61,18 @@ export function NewPageForm({
   async function handleHtml(html: string) {
     setSaving(true);
     setError(null);
+    setSkipped([]);
     try {
-      await onSubmit({ html, groupIds });
+      const result = await onSubmit({ html, groupIds });
       router.refresh();
+      // The sheet closing is what makes the one-gesture flow feel finished, so
+      // it still closes on a clean publish. It stays open when something could
+      // not be folded in, because that list exists nowhere else — closing would
+      // be the "warning nobody sees" this report was added to prevent.
+      if (result.skipped.length > 0) {
+        setSkipped(result.skipped);
+        return;
+      }
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -181,6 +192,8 @@ export function NewPageForm({
           {error}
         </p>
       )}
+
+      <SkippedAssets skipped={skipped} />
     </div>
   );
 }

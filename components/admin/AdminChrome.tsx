@@ -14,7 +14,11 @@ import { NewGroupForm } from "@/components/admin/NewGroupForm";
 import { AddLinkForm } from "@/components/admin/AddLinkForm";
 import { NewPageForm } from "@/components/admin/NewPageForm";
 import { defaultGroupId } from "@/lib/default-audience";
-import type { LinkInput, NewPageInput } from "@/app/page-actions";
+import type {
+  LinkInput,
+  NewPageInput,
+  PageSaveResult,
+} from "@/app/page-actions";
 
 type Chip = { chip: string | null; setChip: (value: string | null) => void };
 
@@ -48,7 +52,7 @@ export function AdminChrome({
   groups: { id: string; name: string }[];
   onCreateStudent: (name: string) => Promise<void>;
   onCreateLink: (input: LinkInput) => Promise<unknown>;
-  onCreatePage: (input: NewPageInput) => Promise<unknown>;
+  onCreatePage: (input: NewPageInput) => Promise<PageSaveResult>;
   // Bytes, so a FormData rather than an input object — see createPdfPage.
   onCreatePdfPage: (formData: FormData) => Promise<unknown>;
   children: ReactNode;

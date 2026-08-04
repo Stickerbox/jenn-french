@@ -9,7 +9,8 @@ import { FileDropZone } from "@/components/ui/FileDropZone";
 import { MAX_PDF_BYTES } from "@/lib/page-pdf";
 import type { PageKind } from "@/lib/page-kind";
 import { cn } from "@/lib/utils";
-import type { PageInput } from "@/app/page-actions";
+import type { PageInput, PageSaveResult } from "@/app/page-actions";
+import { SkippedAssets } from "@/components/admin/SkippedAssets";
 
 export type PageEditorGroup = { id: string; name: string };
 
@@ -39,7 +40,7 @@ export function PageEditor({
     pdfSize: number | null;
   };
   submitLabel: string;
-  onSubmit: (input: PageInput) => Promise<unknown>;
+  onSubmit: (input: PageInput) => Promise<PageSaveResult>;
   // Separate from onSubmit because the payloads differ in kind, not just in
   // shape: a document is a string and a PDF is bytes in FormData.
   onSubmitPdf: (formData: FormData) => Promise<unknown>;
@@ -60,6 +61,7 @@ export function PageEditor({
   const [deleting, setDeleting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [skipped, setSkipped] = useState<PageSaveResult["skipped"]>([]);
 
   // Something to save. A pdf row always has: its bytes are already stored, and
   // the title and the audience are the usual reason to open this form at all.
@@ -76,6 +78,9 @@ export function PageEditor({
     setSaving(true);
     setSaved(false);
     setError(null);
+    // Cleared before the attempt, not after it: a stale list from the previous
+    // save would otherwise sit under a page that published cleanly.
+    setSkipped([]);
     try {
       if (initial.kind === "pdf") {
         const formData = new FormData();
@@ -86,7 +91,8 @@ export function PageEditor({
         if (pdfFile) formData.set("pdf", pdfFile);
         await onSubmitPdf(formData);
       } else {
-        await onSubmit({ title, html, groupIds });
+        const result = await onSubmit({ title, html, groupIds });
+        setSkipped(result.skipped);
       }
       setSaved(true);
       router.refresh();
@@ -224,6 +230,8 @@ export function PageEditor({
           {error}
         </p>
       )}
+
+      <SkippedAssets skipped={skipped} />
     </form>
   );
 }

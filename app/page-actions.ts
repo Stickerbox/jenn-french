@@ -14,6 +14,7 @@ import { canStudentDelete, shelfRole, type ShelfRole } from "@/lib/shelf-access"
 import { readToken, cookieNameFor } from "@/lib/student-tokens";
 import { titleFromUrl } from "@/lib/link-title";
 import { titleFromHtml } from "@/lib/page-title";
+import { inlinePage, type SkippedRef } from "@/lib/page-inline";
 
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
@@ -60,6 +61,10 @@ export type NewPageInput = {
   html: string;
   groupIds: string[];
 };
+
+// One shape for both actions, so PageEditor does not need to know which of them
+// it is calling. updatePage returns the slug it was handed.
+export type PageSaveResult = { slug: string; skipped: SkippedRef[] };
 
 export type LinkInput = {
   url: string;
@@ -134,29 +139,41 @@ async function saveOrExplain(input: SavePageInput): Promise<string> {
   }
 }
 
-export async function createPage(input: NewPageInput): Promise<string> {
+export async function createPage(input: NewPageInput): Promise<PageSaveResult> {
   await requireTeacher();
   const { title, html } = validateNewPage(input);
+  const inlined = await inlinePage(html);
 
   const slug = await saveOrExplain({
     slug: null,
     kind: "html",
     title,
-    html,
+    html: inlined.html,
     groupIds: input.groupIds,
   });
 
   revalidatePages(slug);
-  return slug;
+  return { slug, skipped: inlined.skipped };
 }
 
-export async function updatePage(slug: string, input: PageInput): Promise<void> {
+export async function updatePage(
+  slug: string,
+  input: PageInput,
+): Promise<PageSaveResult> {
   await requireTeacher();
   const { title, html } = validatePage(input);
+  const inlined = await inlinePage(html);
 
-  await saveOrExplain({ slug, kind: "html", title, html, groupIds: input.groupIds });
+  await saveOrExplain({
+    slug,
+    kind: "html",
+    title,
+    html: inlined.html,
+    groupIds: input.groupIds,
+  });
 
   revalidatePages(slug);
+  return { slug, skipped: inlined.skipped };
 }
 
 // Bytes arrive as a File in FormData, not as a base64 string, and this is a
