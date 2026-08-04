@@ -35,11 +35,12 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | Route | Who | Notes |
 |---|---|---|
 | `/` | public | landing page |
-| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included — a teacher session adds only the delete and read-marker controls once unlocked, plus *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding a link or a page is a `+` FAB left of the chat button, present on every tab, and either party may pin a page |
+| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included — a teacher session adds only the delete and read-marker controls once unlocked, plus *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding a link or a page is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe; a pdf row redirects to `/p/[slug]/pdf` |
 | `/p/[slug]/pdf` | public | an uploaded PDF, in the browser's own viewer |
+| `GET /p/[slug]/thumb` | public | a pdf page's cached first-page preview |
 | `/f/[token]` | students | that student's files, at an opaque unguessable link |
 | `/admin/pages/[slug]` | teacher | edits one uploaded page |
 | `POST /api/pages` | token | publishes a page from outside the browser |
@@ -229,12 +230,54 @@ names every query that has to select it; a caller that quietly omitted it would
 resolve a broken pdf row as `"html"`, which is the precise failure the function
 exists to prevent.
 
+A pdf row also carries a **picture of its first page**: `pdfThumb` holds a JPEG
+and `pdfThumbAt` says when it was written. Two columns, because the second does
+two jobs a boolean could not. It is the **existence signal**, so no shelf query
+ever selects `pdfThumb` — the same lesson `pdfSize` records one column earlier,
+since a tile grid that loads a blob to decide whether to draw a picture has
+already paid for the picture it might not draw. And it is the **cache version**:
+`/p/[slug]/thumb` answers `public, max-age=31536000, immutable`, which is safe
+**only** because the tile appends `?v=<pdfThumbAt>`. On a stable URL that year
+would pin a replaced document's picture in every browser that had ever seen it.
+The route and `PdfPreview` are two halves of one decision and neither can change
+alone.
+
+The bytes are a `Bytes` column and **not** a base64 data URL in a `String`,
+which is what `Whiteboard.thumbnail` is. That one is inlined into an `<img src>`
+and has no route to be served from; this one has three, so base64 would cost a
+third more room in a database the nightly `VACUUM INTO` copies whole, for
+nothing.
+
+**pdf.js never loads on a shelf.** `renderPdfThumbnail`
+(`components/admin/pdf-thumbnail.ts`) runs it behind a dynamic `import()` in the
+admin, in Jenn's browser, at the moment she stages a PDF; the shelf receives a
+JPEG through an `<img>`. That is what makes this consistent with the
+2026-08-03 spec's refusal of pdf.js rather than a reversal of it — that refusal
+was about a dozen renderers mounting at once on a student's phone. The module is
+impure and so is deliberately **not** in `lib/`, the same split
+`lib/whiteboard-thumbnail.ts` and `BoardEditor.renderThumbnail` already make. It
+never throws: an encrypted, corrupt or zero-page PDF, a dead worker and a render
+past ten seconds all return `null`, because **an upload must never fail because
+a preview did not render** — the glyph is a working fallback.
+
+`savePage` writes both columns on every call, joining its flat every-column
+invariant. The reason is stronger here than the `readPageKind` one that
+invariant was written for: a *missing* preview is a glyph, but a *stale* preview
+is a picture of the previous document under the new document's title, which
+reads as a working feature showing the wrong thing. `updatePageMeta` touches
+neither, which is why renaming a PDF page keeps its picture.
+
+PDFs uploaded before this existed have `null` in both and keep the glyph. There
+is deliberately **no backfill**: a script would need the server-side renderer
+this design refuses, and re-uploading is a control that already exists.
+
 `/p/[slug]/raw` and `POST /api/pages` refuse everything that is not an html row
 — 404 or 400, never a redirect to the external URL. An open redirect on a public
 route is a phishing primitive. `/p/[slug]/pdf` is their mirror: it refuses
-everything that is not a pdf row. Two routes rather than one handler switching
-on kind, because they want different headers and one handler under two header
-regimes is what a later edit gets wrong.
+everything that is not a pdf row, and `/p/[slug]/thumb` is the third, refusing
+everything that is not a pdf row *with* a thumbnail. Three routes rather than
+one handler switching on kind, because they want different headers and one
+handler under three header regimes is what a later edit gets wrong.
 
 **A PDF is never framed.** iOS Safari renders only the first page of a PDF in an
 iframe, which would silently truncate every multi-page worksheet on the device
@@ -556,6 +599,25 @@ student's page without that token sees no chat, same as anyone else. Once
 unlocked, she additionally gets the delete control and the read-marker
 (`markChatRead`) that used to live on the deleted admin route.
 
+A student's row in the admin carries **three icon buttons** in `Tile`'s action
+slot: copy the invite link (only while unclaimed — a claimed student's invite is
+spent), reset sign-in / new invite link (present in **both** claim states, label
+switching, because it is the only way to revoke an invite that leaked before it
+was used), and delete. The invite URL is no longer printed in a `<code>` to be
+selected by hand — it was never paste-able, having no origin. It is now copied
+**absolute**, built in the click handler from `window.location.origin` rather
+than the `ORIGIN` env var: what she wants to send is a link to the site she is
+looking at, and where those two disagree the browser is right. Building it during
+render instead would be a hydration mismatch.
+
+The header line on `/g/[slug]` is chosen by audience: `greeting` gives the
+student *Bonjour Marie* in French from the first word of the name, and
+`teacherPageLabel` gives Jenn *Marie Dupont's page* in English from the whole
+name — her problem is telling two students apart, and two students can share a
+first name. The possessive is always `'s`, including a name ending in s. The
+caller suppresses both on the everyone group, which is named "Everyone" and is
+nobody's page.
+
 Each student row carries two tokens. `chatToken` unlocks the files tab and the
 chat on `/g/[slug]`, but only once the student has claimed their account — on
 its own it now only permits *creating* that account (see *Auth*);
@@ -698,6 +760,43 @@ when a text draft opens rather than measured in the render that positions the
 textarea. Both values are read during render — to draw the selection outline and
 to place the textarea — so neither can live in a ref.
 
+**Leaving a live board.** The op log lives in `BoardEditor`'s component state and
+`/finish` treats it as authoritative, so **any** navigation destroys it — soft
+ones included. The tab strip is `next/link`, which made *Les fichiers* mid-lesson
+a silent way to lose a board, with no `beforeunload` because the document never
+unloaded.
+
+The guard is a **capture-phase `click` listener on `document`**
+(`shouldGuardNavigation`, `navigationTarget`, `lib/leave-guard.ts`), and
+deliberately **not** a context that each link opts into. A guard you have to
+remember to wire is one a future link will not have — the back-to-admin link was
+added in the same change and is protected without knowing the guard exists.
+Over-catching an anchor costs one dialog; under-catching costs a lesson. Capture
+phase specifically, so it runs before `next/link`'s own handler.
+
+It arms on `boardHasContent` (`lib/whiteboard-ops.ts`), which is the predicate
+`save()` uses, shared rather than re-expressed: a looser test would raise the
+dialog for a board holding one stroke and a `remove` of it, whose primary button
+— save — would then refuse it as empty. A dialog whose main action cannot succeed
+is a trap.
+
+`pagehide` sends a `navigator.sendBeacon` discard, gated on `!event.persisted`
+and **not** on the board being dirty. The two gates answer different questions:
+the prompt asks about *content*, which an empty board has none of, and the beacon
+frees a *server slot*, which an empty board occupies just as fully —
+`liveBoards.open()` returns false when one is already open and `/open` turns that
+into a 409, so a board abandoned by closing the tab broke the *next* board's live
+view for the life of the process. `pagehide` rather than `beforeunload` because
+`beforeunload` fires **before** she has answered, and discarding a board she then
+chose to keep is the exact failure the guard exists to prevent.
+
+Browser Back is an **accepted, unclosable gap**, in the same register as the note
+that a sandboxed frame may navigate itself: `beforeunload` does not fire for an
+App Router `popstate` and closing it would mean a sentinel history entry that
+breaks Back for the whole page. It is narrowed by the dialog covering the two
+links she used to reach for Back to escape, and the `pagehide` beacon still frees
+the slot.
+
 ## Conventions
 
 - **Logic belongs in `lib/`.** Anything with a rule in it — date handling, card
@@ -727,7 +826,8 @@ to place the textarea — so neither can live in a ref.
   (`Tile` is the row; `PageTile` is the previewed tile. The page lists use
   `PageTile`, the students list still uses `Tile`.) Repeated flashcard class strings live
   in `components/card-styles.ts` — extend that rather than duplicating the
-  strings.
+  strings. `tileActionClass` is one of them: the round icon button in a tile's
+  action slot, rendered by both the page list and the student list.
 - **Imports** use the `@/` alias for repo-root-relative paths.
 - Server actions call `revalidatePath` for the page they affect. Deletes use
   `deleteMany` so a double-click or stale tab is a no-op rather than a P2025.

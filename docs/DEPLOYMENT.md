@@ -369,8 +369,12 @@ Worth folding back into it.
     redirect below it. Certbot manages parts of that file, so back it up
     before editing and let `nginx -t` gate the reload.
 
-    That `4m` is the ceiling both upload caps are chosen to fit under —
-    `MAX_PAGE_BYTES` (2 MB of HTML, `lib/page-html.ts`) and `MAX_PDF_BYTES`
-    (3 MB of PDF, `lib/page-pdf.ts`). Raising either constant means raising
-    this by hand on the server first: when it is too low the failure is a raw
-    nginx 413 that Next never sees, so the app cannot explain it.
+    That `4m` is the ceiling every upload cap is chosen to fit under —
+    `MAX_PAGE_BYTES` (2 MB of HTML, `lib/page-html.ts`), `MAX_PDF_BYTES`
+    (3 MB of PDF, `lib/page-pdf.ts`) and `MAX_THUMB_BYTES` (128 KB of JPEG
+    preview, `lib/page-thumb.ts`). The last two travel in **one** submission,
+    so a PDF upload is up to 3 MB of document plus up to 128 KB of preview plus
+    multipart overhead — which still clears `4m`, and is why previews needed no
+    server change. Raising any of these constants means raising this by hand on
+    the server first: when it is too low the failure is a raw nginx 413 that
+    Next never sees, so the app cannot explain it.
