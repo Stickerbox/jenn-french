@@ -77,6 +77,7 @@ warn() { echo "⚠ $1" >&2; }
 # tested "$1" positionally, which meant only a leading --local was recognised.
 CLI_TOKEN=""
 WANT_LIST=0
+WANT_LATEST=0
 USE_LOCAL=0
 
 while [ $# -gt 0 ]; do
@@ -93,8 +94,9 @@ while [ $# -gt 0 ]; do
       ;;
     --local) USE_LOCAL=1; shift ;;
     --list)  WANT_LIST=1;  shift ;;
+    --latest) WANT_LATEST=1; shift ;;
     --)      shift; break ;;
-    -*)      die "Unknown option '$1'. Try --list, --local, or --token <value>." ;;
+    -*)      die "Unknown option '$1'. Try --list, --latest, --local, or --token <value>." ;;
     *)       break ;;
   esac
 done
@@ -104,6 +106,12 @@ done
 # working. Fail with the reason instead.
 if [ $# -gt 1 ]; then
   die "Unexpected argument '$2'. Options go before the artifact name."
+fi
+
+# A silent precedence rule between these two would be a coin flip over which
+# page gets a permanent URL.
+if [ "$WANT_LATEST" = "1" ] && [ -n "${1:-}" ]; then
+  die "Pass --latest or a title, not both."
 fi
 
 # --local aims at the dev server and takes the token from the repo's own
@@ -318,14 +326,47 @@ if [ "$WANT_LIST" = "1" ]; then
   exit 0
 fi
 
+choose_artifact() { die "The picker is not wired up yet. Use --latest."; }
+
+# INDEX and TITLE are both set by every branch below. TITLE comes from the same
+# extraction that built the list, so the string on screen is the string that
+# derives the slug.
+INDEX=""
+TITLE=""
+REFS=0
+
 if [ -n "${1:-}" ]; then
-  INDEX=$(list_artifacts | awk -v want="/$1/site/index.html" 'index($0, want) { $1=""; sub(/^ /,""); print; exit }')
-  [ -n "$INDEX" ] || die "No artifact named '$1'. Try --list."
-else
-  INDEX=$(list_artifacts | head -1 | cut -d' ' -f2-)
+  # Every artifact, not just the LIST_ROWS the dialog shows: a caller naming an
+  # exact title should not fail because the page is three weeks old.
+  WANT=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  HITS=0
+  while IFS=$'\t' read -r mtime path title refs; do
+    HAY=$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]')
+    case "$HAY" in
+      *"$WANT"*)
+        HITS=$((HITS + 1))
+        # Rows arrive newest first, so the first hit is the newest.
+        [ -z "$INDEX" ] && { INDEX="$path"; TITLE="$title"; REFS="$refs"; }
+        ;;
+    esac
+    # `< <(…)` rather than a pipe: a while on the right of a pipe runs in a
+    # subshell in bash 3.2, so INDEX would be empty afterwards.
+  done < <(list_artifacts | candidate_rows)
+  [ -n "$INDEX" ] || die "No page whose title contains '$1'. Try --list."
+  [ "$HITS" -gt 1 ] && echo "$HITS pages match '$1'; taking the newest."
+elif [ "$WANT_LATEST" = "1" ]; then
+  while IFS=$'\t' read -r mtime path title refs; do
+    INDEX="$path"; TITLE="$title"; REFS="$refs"
+  done < <(list_artifacts | head -1 | candidate_rows)
   [ -n "$INDEX" ] || die "No artifacts found yet."
+else
+  choose_artifact          # sets INDEX, TITLE, REFS
 fi
 
+# Keep NAME alive for now. Two blocks further down still read it — the extras
+# warning and the old title extraction — and this script runs under `set -u`, so
+# removing it here would abort with "NAME: unbound variable" before Task 11
+# deletes its last use.
 NAME=$(basename "$(dirname "$(dirname "$INDEX")")")
 
 # An artifact that ships extra files is not self-contained, and the site's CSP
