@@ -18,7 +18,7 @@ import { ChatFab } from "@/components/chat/ChatFab";
 import { StreamProvider } from "@/components/StreamProvider";
 import { streamUrl } from "@/lib/stream-url";
 import { getCurrentTeacher } from "@/lib/session";
-import { studentGate } from "@/lib/student-gate";
+import { authPanelMode, studentGate } from "@/lib/student-gate";
 import { StudentAuthPanel } from "@/components/student/StudentAuthPanel";
 import { listWhiteboards } from "@/lib/whiteboards";
 import { boardLabels } from "@/lib/whiteboard-names";
@@ -94,6 +94,10 @@ export default async function GroupPage({
     claimed: group.passwordHash !== null,
   });
   const unlocked = gate === "signed-in";
+
+  // Null for the teacher in every state — see authPanelMode. `unlocked` above
+  // is untouched by this and still gates the tabs from the token alone.
+  const panelMode = authPanelMode(gate, viewerIsTeacher);
 
   // The everyone group has no chat but does show its own files, so its shelf
   // is public — that is the "someday" case the spec left room for.
@@ -259,9 +263,7 @@ export default async function GroupPage({
         />
       )}
 
-      {(gate === "signup" || gate === "login" || gate === "signed-in") && (
-        <StudentAuthPanel slug={slug} mode={gate} />
-      )}
+      {panelMode && <StudentAuthPanel slug={slug} mode={panelMode} />}
 
       {/* Teacher-facing, and therefore English and static — no client component
           needed. Rendered here rather than inside StudentAuthPanel because both

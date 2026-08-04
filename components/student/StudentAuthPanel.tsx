@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { fieldClassName } from "@/components/ui/field";
-import type { StudentGate } from "@/lib/student-gate";
+import type { AuthPanelMode } from "@/lib/student-gate";
 import {
   claimStudent,
   signInStudent,
@@ -19,15 +19,6 @@ import {
   credentialProblemLabel,
   GENERIC_FAILURE,
 } from "@/lib/student-auth-labels";
-
-// Tied to the gate's own type, so a new gate state cannot quietly bypass this
-// component. The two teacher-facing states are rendered by the page itself:
-// they are static English text, and one of them contains the student's NAME,
-// which must never appear on the public page.
-export type AuthPanelMode = Extract<
-  StudentGate,
-  "signup" | "login" | "signed-in"
->;
 
 const linkButton =
   "font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-bleu)] underline";

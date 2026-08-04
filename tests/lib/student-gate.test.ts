@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { studentGate } from "@/lib/student-gate";
+import { authPanelMode, studentGate } from "@/lib/student-gate";
 
 const base = {
   isTeacher: false,
@@ -89,5 +89,44 @@ describe("studentGate", () => {
         presented: "tok",
       }),
     ).toBe("signed-in");
+  });
+});
+
+describe("authPanelMode", () => {
+  it("gives a student the mode matching their gate", () => {
+    expect(authPanelMode("signup", false)).toBe("signup");
+    expect(authPanelMode("login", false)).toBe("login");
+    expect(authPanelMode("signed-in", false)).toBe("signed-in");
+  });
+
+  it("shows no panel where there is nothing to sign in to", () => {
+    expect(authPanelMode("none", false)).toBeNull();
+  });
+
+  it("never offers the teacher a student's sign-out", () => {
+    // The bug this function exists for. signOutStudent clears the STUDENT's
+    // cookie for this slug, which is the thing `unlocked` reads — so the
+    // control would have locked her out of Les fichiers and Le tableau.
+    expect(authPanelMode("signed-in", true)).toBeNull();
+  });
+
+  it("leaves the two teacher-facing notices to the page", () => {
+    // Both name the student, and that name must never reach a public page, so
+    // the page renders them on a teacher-only branch rather than in the panel.
+    expect(authPanelMode("unclaimed", true)).toBeNull();
+    expect(authPanelMode("teacher-stale", true)).toBeNull();
+  });
+
+  it("shows the teacher no panel in any state whatsoever", () => {
+    for (const gate of [
+      "none",
+      "signed-in",
+      "unclaimed",
+      "teacher-stale",
+      "signup",
+      "login",
+    ] as const) {
+      expect(authPanelMode(gate, true)).toBeNull();
+    }
   });
 });

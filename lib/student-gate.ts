@@ -51,3 +51,40 @@ export function studentGate(input: {
   // someone guessing slugs which students exist and which are still claimable.
   return "login";
 }
+
+// The three states StudentAuthPanel can render. Tied to the gate's own type, so
+// a new gate state cannot quietly bypass the component. It lived in the
+// component until the function below joined it; a type that is an Extract of
+// StudentGate belongs beside StudentGate.
+export type AuthPanelMode = Extract<
+  StudentGate,
+  "signup" | "login" | "signed-in"
+>;
+
+// Which auth panel a visitor should be shown, or null for no panel at all.
+//
+// A predicate beside the gate rather than a seventh gate state: `unlocked` is
+// `gate === "signed-in"` and is what admits the Files and Whiteboard tabs, so a
+// state the teacher fell into instead would have to be added to that comparison
+// too — inside a rule whose clause order is documented as the specification.
+//
+// isTeacher wins over everything, and this is the whole point of the function.
+// The panel's signed-in mode renders "Se déconnecter", and signOutStudent
+// clears the STUDENT's cookie for this slug — the cookie `unlocked` is derived
+// from. Offering it to Jenn was offering to lock her out of the two tabs she
+// opened the student's page for.
+export function authPanelMode(
+  gate: StudentGate,
+  isTeacher: boolean,
+): AuthPanelMode | null {
+  if (isTeacher) return null;
+
+  if (gate === "signup" || gate === "login" || gate === "signed-in") {
+    return gate;
+  }
+
+  // "none" has nothing to sign in to. "unclaimed" and "teacher-stale" are
+  // teacher-facing and unreachable above, and the page renders both itself
+  // because each names the student.
+  return null;
+}
