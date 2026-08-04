@@ -48,3 +48,32 @@ export async function getEffectiveCard(
     sections: readSections(row.sections),
   };
 }
+
+// Every date a student may open a card for: one row per GlobalCard, bounded,
+// newest first.
+//
+// The bound is applied HERE rather than in the browser, so the dates of
+// pre-posted cards never reach it. Students must not read ahead, and shipping
+// tomorrow's date to a page that then greys the cell out would still be telling
+// them a card exists for tomorrow.
+//
+// A new function, not a resurrection: getArchiveDates and mergeArchiveDates
+// were deleted on 2026-07-31 because they queried the dropped `Card` table.
+// This reads GlobalCard, which is the one that remains.
+//
+// Uncapped, deliberately. One row per teaching day is about 260 strings a year —
+// a couple of kilobytes — and it makes the enabled-day rule a pure function of
+// props with a test. A cap would silently make old cards unreachable, which is
+// the opposite of what an archive is for. If the size ever matters, the shape to
+// reach for is a server action fetching one visible month at a time.
+export async function listCardDates(upTo: Date): Promise<string[]> {
+  const rows = await prisma.globalCard.findMany({
+    where: { date: { lte: upTo } },
+    orderBy: { date: "desc" },
+    select: { date: true },
+  });
+
+  // Every date in this project is UTC midnight, so slicing the ISO string is
+  // the same operation the rest of the codebase performs on one.
+  return rows.map((row) => row.date.toISOString().slice(0, 10));
+}
