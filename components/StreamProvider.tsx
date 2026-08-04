@@ -20,7 +20,14 @@ export type LiveBoardState = {
 } | null;
 
 type StreamValue = {
+  // Flat and multi-conversation. For a student every entry shares one groupId
+  // and this behaves exactly as the single-conversation array it replaces; for
+  // Jenn it is the whole inbox. lib/chat-select.ts picks one out.
   messages: ChatMessage[];
+  // History fetched by loadConversation lands here, in the same store as live
+  // messages, so a conversation has one source of truth rather than two that
+  // have to be merged at every read.
+  ingest: (messages: ChatMessage[]) => void;
   removeMessage: (id: string) => void;
   board: LiveBoardState;
 };
@@ -34,10 +41,12 @@ export function useStream(): StreamValue {
 }
 
 export function StreamProvider({
-  slug,
+  url,
   children,
 }: {
-  slug: string;
+  // A URL rather than a slug, because there are two endpoints now — see
+  // lib/stream-url.ts, which is the only thing that should build one.
+  url: string;
   children: ReactNode;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -49,7 +58,7 @@ export function StreamProvider({
   // actually observed, and a live board must reach a student sitting on the
   // Card tab.
   useEffect(() => {
-    const source = new EventSource(`/api/chat/${slug}/stream`);
+    const source = new EventSource(url);
 
     source.onmessage = (event) => {
       const raw = JSON.parse(event.data) as ChatMessage & { createdAt: string };
@@ -100,11 +109,20 @@ export function StreamProvider({
     });
 
     return () => source.close();
-  }, [slug]);
+  }, [url]);
 
   const value = useMemo<StreamValue>(
     () => ({
       messages,
+      ingest: (incoming: ChatMessage[]) =>
+        setMessages((current) => {
+          const known = new Set(current.map((m) => m.id));
+          const fresh = incoming.filter((m) => !known.has(m.id));
+          // Returning the SAME array when nothing is new matters: re-selecting
+          // an already-loaded conversation would otherwise replace the array
+          // identity and re-render every message in it.
+          return fresh.length === 0 ? current : [...current, ...fresh];
+        }),
       removeMessage: (id: string) =>
         setMessages((current) => current.filter((m) => m.id !== id)),
       board,

@@ -16,6 +16,7 @@ import { greeting, teacherPageLabel } from "@/lib/student-greeting";
 import { CardHeading } from "@/components/student/CardHeading";
 import { ChatFab } from "@/components/chat/ChatFab";
 import { StreamProvider } from "@/components/StreamProvider";
+import { streamUrl } from "@/lib/stream-url";
 import { getCurrentTeacher } from "@/lib/session";
 import { studentGate } from "@/lib/student-gate";
 import { StudentAuthPanel } from "@/components/student/StudentAuthPanel";
@@ -285,7 +286,7 @@ export default async function GroupPage({
       )}
 
       {unlocked ? (
-        <StreamProvider slug={slug}>
+        <StreamProvider url={streamUrl({ isTeacher: false, slug })}>
           {body}
           <ChatFab
             slug={slug}
