@@ -53,6 +53,21 @@ artifacts to a directory called `template_output`, so the directory name usually
 cannot tell two apart — an earlier version of this script selected by that name,
 which meant it could generally only re-pick the newest one.
 
+### Files beside the page
+
+An artifact that links to its own `.js`, `.css`, images or fonts publishes with
+them folded in. The script reads each file the document names, plus anything its
+stylesheets name one level deeper, and uploads them with the page; the server
+inlines them into one self-contained document.
+
+The picker says which is which. `+ 3 files` means three were found and will be
+published. `⚠ 1 missing file` means one was named but is not on disk, or points
+outside the artifact folder — those are refused, and the reply names each one.
+
+A ref pointing outside the artifact is never read, symlinks included. These pages
+are published at a public URL, so a ref of `../../.ssh/id_rsa` has to be refused
+rather than trusted.
+
 Against a local dev server:
 
 ```bash

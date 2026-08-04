@@ -445,8 +445,28 @@ ways, because there are three ways in: `skipped` in the `POST /api/pages` reply
 (printed by `tools/publish-dia-artifact.sh`, counted by the extension) and the
 `SkippedAssets` notice, which **both** admin write paths render — `PageEditor`
 and `NewPageForm`, whose sheet stays open when there is something to say rather
-than closing over it. A relative ref is reported too, since only `index.html`
-is ever uploaded. `scripts/backfill-page-assets.mjs` runs the same inliner over
+than closing over it.
+
+A relative ref is resolved from the files uploaded beside the document, when
+there are any. `tools/publish-dia-artifact.sh` collects them — the document's
+own refs plus one level through each stylesheet, since a `styles.css` naming a
+local `.woff2` is the same shape as the Google Fonts case that set the depth
+rule — and sends them as `assets: [{ path, base64 }]`. `lib/asset-path.ts` is
+the **only** normaliser: the script uploads each key as the ref was written,
+unfolded, and the server folds both that key and the document's ref, so the two
+sides agree by construction rather than by two implementations of one rule
+staying in step. A ref that escapes the artifact folder is refused on the
+script's side by resolving symlinks and comparing against the resolved root —
+a link inside `site/` pointing at `~/.ssh` carries no `..` to test for, and this
+publishes what it reads to a public URL. The admin's paste box and the browser
+extension can see no directory, so they upload no bundle and their relative refs
+keep the older reason: `relative` says only the page itself was published,
+`missing` says files were uploaded and this one was not among them, and the cure
+differs. The request body may now reach `MAX_UPLOAD_BYTES` (3 MB, under nginx's
+`4m`) because it carries base64; the stored document is still capped at
+`MAX_PAGE_BYTES`, and the two stopped being the same measurement.
+
+`scripts/backfill-page-assets.mjs` runs the same inliner over
 pages published before this existed; like `backfill-sections.mjs` it imports
 `../lib/*.ts`, which needs `scripts/run-ts.mjs` to resolve the `@/` alias —
 Node's type stripper runs the TypeScript but resolves modules the way Node does.
