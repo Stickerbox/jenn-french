@@ -12,7 +12,7 @@ import { listPagesForGroup } from "@/lib/pages";
 import { StudentTabs } from "@/components/student/StudentTabs";
 import { FilesTab } from "@/components/student/FilesTab";
 import { ShelfFab } from "@/components/student/ShelfFab";
-import { greeting } from "@/lib/student-greeting";
+import { greeting, teacherPageLabel } from "@/lib/student-greeting";
 import { CardHeading } from "@/components/student/CardHeading";
 import { ChatFab } from "@/components/chat/ChatFab";
 import { StreamProvider } from "@/components/StreamProvider";
@@ -128,6 +128,15 @@ export default async function GroupPage({
   const selected = selectedDate.toISOString().slice(0, 10);
   const { start: weekStart, end: weekEnd } = weekRange(today);
 
+  // Her line, not theirs. English for Jenn and French for the student, following
+  // the split this codebase keeps everywhere else — and still nothing at all on
+  // the everyone group, which is named "Everyone" and is nobody's page.
+  const headerLine = group.isEveryone
+    ? null
+    : viewerIsTeacher
+      ? teacherPageLabel(group.name)
+      : greeting(group.name);
+
   // Extracted so the same tab body can render inside StreamProvider when the
   // visitor is unlocked and bare when they are not. Anything in here that calls
   // useStream — the live banner — has to be guarded on `unlocked` for that
@@ -136,8 +145,19 @@ export default async function GroupPage({
     <>
       {/* Guarded on `unlocked` as well as the tab: LiveBanner calls useStream,
           and `body` also renders outside the provider for a visitor who only
-          has the public card. The board tab shows the thing itself. */}
-      {unlocked && tab !== "board" && <LiveBanner slug={slug} />}
+          has the public card. The board tab shows the thing itself.
+
+          Also !viewerIsTeacher: she is the only person who can be drawing —
+          exactly one teacher, exactly one passkey — so a banner announcing
+          "Jenn dessine en ce moment" on her own other tab is telling her about
+          herself, with a button offering to take her to the board she is already
+          on. The clause lives here rather than inside LiveBanner because this
+          page already owns the composition and the banner has no business
+          learning who the teacher is. BoardTab's live view is already
+          !isTeacher; only the banner was missed. */}
+      {unlocked && !viewerIsTeacher && tab !== "board" && (
+        <LiveBanner slug={slug} />
+      )}
 
       {tab === "card" ? (
         <>
@@ -179,9 +199,26 @@ export default async function GroupPage({
 
   return (
     <main
-      className="min-h-screen px-4 py-12"
+      className="relative min-h-screen px-4 py-12"
       style={{ background: "var(--card-page-bg)" }}
     >
+      {/* Absolutely positioned inside main's existing py-12, so the centred
+          header does not shift by a pixel at any width. ?tab=groups and not the
+          default: the Students tab is where she came from, and returning her
+          somewhere else is a small lie the button would tell every time.
+
+          It needs no guard wiring of its own — BoardEditor's capture-phase
+          listener sees it because it is an anchor, which is the property that
+          decision was made for. */}
+      {viewerIsTeacher && (
+        <Link
+          href="/admin?tab=groups"
+          className="absolute left-4 top-4 z-10 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-4 py-1.5 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)] transition-opacity hover:opacity-80"
+        >
+          ← Back to admin
+        </Link>
+      )}
+
       <header className="mx-auto mb-7 max-w-[560px] text-center">
         <h1
           className="mb-2.5 font-[family-name:var(--card-font-serif)] text-[var(--card-plum)]"
@@ -198,9 +235,9 @@ export default async function GroupPage({
             The greeting is shown to untokened visitors too: /g/marie already
             spells the name in the URL, so there is nothing here a token was
             protecting. */}
-        {!group.isEveryone && greeting(group.name) && (
+        {headerLine && (
           <div className="mt-3 font-[family-name:var(--card-font-serif)] text-[19px] text-[var(--card-moss)]">
-            {greeting(group.name)}
+            {headerLine}
           </div>
         )}
       </header>
