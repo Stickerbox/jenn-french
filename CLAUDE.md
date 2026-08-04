@@ -35,7 +35,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | Route | Who | Notes |
 |---|---|---|
 | `/` | public | landing page |
-| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included — a teacher session adds only the delete and read-marker controls once unlocked, plus *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding a link or a page is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing |
+| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the student's own chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included, who once unlocked also gets *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. **Jenn's own chat is her inbox FAB and follows her session, not the token** — the only thing on this page that does, and it carries the delete and read-marker controls with it. Everything the gate controls is unchanged. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding a link or a page is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe; a pdf row redirects to `/p/[slug]/pdf` |
@@ -46,12 +46,13 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `POST /api/pages` | token | publishes a page from outside the browser |
 | `POST /api/chat/[slug]` | token or teacher | send one message |
 | `GET /api/chat/[slug]/stream` | token or teacher | the SSE stream |
+| `GET /api/inbox/stream` | teacher | every conversation on one stream, plus `?board=` |
 | `POST /api/whiteboard/[slug]/finish` | teacher | saves a whole board |
 | `POST /api/whiteboard/[slug]/open` | teacher | starts a live board |
 | `POST /api/whiteboard/[slug]/ops` | teacher | appends and fans out ops |
 | `POST /api/whiteboard/[slug]/discard` | teacher | drops a live board, saving nothing |
 | `GET /api/whiteboard/[slug]/[id]` | token or teacher | a board's ops, for the JPEG export |
-| `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, `/api/chat/*`, `/api/whiteboard/*`, and `/p/[slug]/raw`) |
+| `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, `/api/chat/*`, `/api/inbox/*`, `/api/whiteboard/*`, and `/p/[slug]/raw`) |
 
 ## Architecture
 
@@ -95,6 +96,14 @@ content-driven rule silently dropped styling from existing cards.
 Every date is UTC midnight, constructed as ``new Date(`${str}T00:00:00Z`)``, and
 formatted with `timeZone: "UTC"`. The teaching week runs Monday–Friday; both
 Saturday and Sunday belong to the week that just ended (`lib/week.ts`).
+
+One deliberate exception, added 2026-08-04: **chat message grouping and
+timestamps are in the reader's local zone**, not UTC. `lib/chat-time.ts` is the
+only module here that omits `timeZone: "UTC"`, and `groupByDay` keys on its
+`localDayKey`. A card belongs to a teaching day Jenn picked; a message belongs
+to the moment someone typed it, and "8:02 p.m." under tomorrow's date is not
+consistency. The consequence: a message's day heading depends on who is reading
+it, and nothing in the chat may render on the server — see *Lesson chat*.
 
 The student page clamps `?date=` to `latestViewableDate(today)` so students cannot
 read ahead of pre-posted cards. `parseAdminDate` deliberately does *not* clamp —
@@ -581,23 +590,41 @@ render once with the stale selection before correcting it.
 A `Message` belongs to a group and carries `fromTeacher` rather than a sender
 id, because there are exactly two participants and one of them has no row to
 point at. There is no session or lesson model: the log is continuous and
-`groupByDay` (`lib/chat-day.ts`) computes the date separators, in UTC like
-every other date here. Retention is forever, deliberately — this is a teaching
-record. Jenn can delete an individual message, and can regenerate a student's
-tokens from the admin, which revokes both at once.
+`groupByDay` (`lib/chat-day.ts`) computes the date separators, in the reader's
+local zone — the one deliberate exception to the project-wide UTC rule, see
+*Dates*. Retention is forever, deliberately — this is a teaching record. Jenn
+can delete an individual message, and can regenerate a student's tokens from
+the admin, which revokes both at once.
 
-Jenn chats from `/g/[slug]` itself — `/admin/[slug]` no longer exists (it was
-the override-card editor removed above, and never hosted chat). She opens a
-student from the Students tab, which links to `/g/[slug]?k=<chatToken>`, and
-`chatRole` (`lib/chat-access.ts`) treats her session as the teacher there
-regardless of the token, so a message she sends stores `fromTeacher: true`.
-That is a separate question from whether the page shows her any chat at all,
-though: the floating `ChatFab` only renders when the page's own `unlocked`
-flag is true, and `unlocked` checks only the token cookie against
-`group.chatToken` — never the teacher session. A teacher who opens a
-student's page without that token sees no chat, same as anyone else. Once
-unlocked, she additionally gets the delete control and the read-marker
-(`markChatRead`) that used to live on the deleted admin route.
+Jenn chats from an inbox: one FAB, on `/admin`, `/admin/pages/[slug]` and
+`/g/[slug]`, rendered by `components/chat/TeacherInbox.tsx` and invisible to
+anyone without a teacher session. Students on the left with an unread dot and
+the last line of the thread, the selected conversation on the right; below
+`md` the two become full-screen levels with a back arrow between them.
+Students keep the single-conversation `ChatFab`, which gains the same
+full-screen treatment and no back arrow, because they have no second level.
+`/admin/[slug]` no longer exists (it was the override-card editor removed
+above, and never hosted chat).
+
+**Her FAB follows her session, not the token.** That changes no access rule:
+`chatRole` has always answered `"teacher"` on the session alone, and both the
+POST and the SSE route have always honoured it — the UI was the only thing
+withholding her own conversations from her. `unlocked` is untouched, still
+derived from `studentGate`, and still gates the Files tab, the Whiteboard tab
+and everything inside them from the token alone. The student sign-in design's
+*Why `unlocked` does not consult the teacher session* therefore still holds
+verbatim: it is a rule about `unlocked`, and this is not `unlocked`.
+
+**A student who has not signed up is listed and read-only.** That design's
+other consequence — "there is nobody on the other end of a conversation nobody
+has claimed" — is kept rather than quietly dropped: the row shows *Hasn't
+signed up yet*, and selecting it replaces the composer with that sentence and
+the invite link. Listing them rather than hiding them is deliberate; a student
+created ten seconds ago being absent from the inbox reads as a bug. `claimed`
+is `passwordHash !== null`, the same fact the gate reads, selected by
+`listConversations` and never re-derived. The invite link itself is fetched by
+the `inviteLink` server action rather than shipped in that list, because it is
+a live `chatToken` and the list renders on every teacher page.
 
 A student's row in the admin carries **three icon buttons** in `Tile`'s action
 slot: copy the invite link (only while unclaimed — a claimed student's invite is
@@ -649,17 +676,55 @@ the two modules back would break every `/g/*` request. Middleware does not
 validate the token — that needs the database. The page validates what it is
 handed.
 
-Delivery is SSE (`app/api/chat/[slug]/stream`) with an in-process
-`EventEmitter` (`lib/chat-bus.ts`). **That emitter is correct only because pm2
-runs this app as a single process in fork mode.** Under cluster mode a message
-would reach only the viewers on the same worker, silently. Two details keep the
-stream alive behind nginx without any nginx change: `X-Accel-Buffering: no`
-disables its response buffering, and a `: ping` comment every 20 seconds stays
-under the default 60-second `proxy_read_timeout`. Messages are ordered by
-`(createdAt, id)`, not `createdAt` alone — a review found that two messages
-landing in the same millisecond made `gt createdAt` drop the second one on
-every future reconnect, since a `Last-Event-ID` replay has no other anchor to
-resume from.
+Delivery is SSE with an in-process `EventEmitter` (`lib/chat-bus.ts`) over two
+endpoints. Students connect to `/api/chat/[slug]/stream`, which replays that
+one conversation in full. Jenn connects to `/api/inbox/stream`, which
+subscribes to a broadcast channel — not to each group id, because enumerating
+at connect misses a student created afterwards — and **sends no first-connect
+backlog at all**: every conversation, on every admin page load, with retention
+set to forever, is what that would cost. Her list arrives with the page and a
+selected conversation loads its own history through the `loadConversation`
+server action. A `Last-Event-ID` reconnect still replays, capped at 500 and
+newest-first, so a deploy mid-lesson costs a blink.
+
+That endpoint is `/api/inbox/stream` and not `/api/chat/stream` because a
+static `stream` segment under `app/api/chat/` would take routing precedence
+over `app/api/chat/[slug]/`, silently shadowing a student whose name produced
+the slug `stream`.
+
+`?board=<slug>` folds a group's board frames into her stream, so on a student's
+page she still holds exactly one `EventSource` — the property `StreamProvider`
+exists to protect. It takes a URL rather than a slug now, built by
+`lib/stream-url.ts`, and its `messages` array is flat and multi-conversation:
+`ChatMessage` carries the `groupId` the payload always had, and
+`lib/chat-select.ts` picks one conversation out.
+
+Two details keep either stream alive behind nginx without any nginx change:
+`X-Accel-Buffering: no` disables its response buffering, and a `: ping` comment
+every 20 seconds stays under the default 60-second `proxy_read_timeout`.
+Messages are ordered by `(createdAt, id)`, not `createdAt` alone — a review
+found that two messages landing in the same millisecond made `gt createdAt`
+drop the second one on every future reconnect, since a `Last-Event-ID` replay
+has no other anchor to resume from.
+
+**Both emitters are still correct only because pm2 runs this app as a single
+process in fork mode.** Under cluster mode a message would reach only the
+viewers on the same worker, silently. Four things now depend on that: the
+chat bus, the live board, the sign-in throttle, and this stream.
+
+**Nothing in the chat may render on the server.** Every heading and timestamp
+resolves in the runtime's timezone, so an SSR pass would produce different HTML
+from the hydration pass. What protects it is that both FABs mount their panel
+on an `open` state that starts `false`. A change that renders a panel eagerly
+breaks production and nothing else.
+
+`listConversations` (`lib/inbox.ts`) is the single read model behind both the
+inbox list and the Students tab's `· N unread` eyebrow, which reads
+`teacherLastReadAt` as it always did; `unreadCounts` was removed rather than
+kept beside it, because two query paths for one number are two things that can
+disagree. It runs 2N queries for N students against a local SQLite file —
+legible at this size; the shape to reach for if that ever changes is a
+`lastMessageAt` column maintained on write.
 
 ### Whiteboards
 
