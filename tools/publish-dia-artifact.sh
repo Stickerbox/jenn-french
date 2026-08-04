@@ -27,7 +27,15 @@
 
 set -euo pipefail
 
-ARTIFACTS="$HOME/Library/Application Support/Dia/User Data/Default/AgentArtifacts"
+# Overridable so verification can run against a disposable fixture tree rather
+# than the developer's live Dia folder, which changes between runs and has no
+# non-UTF-8, missing-title or duplicate-timestamp artifacts to test against.
+# Unset in normal use — the teacher never sets it.
+#
+# `-` not `:-`, unlike JENN_SITE below: an empty value means a caller meant to
+# redirect this and got the path wrong, and falling back to the real folder
+# would publish a real artifact. Empty instead fails the [ -d ] check below.
+ARTIFACTS="${DIA_ARTIFACTS-$HOME/Library/Application Support/Dia/User Data/Default/AgentArtifacts}"
 SITE="${JENN_SITE:-https://francaisavecjenn.ca}"
 TOKEN_FILE="$HOME/.config/francaisavecjenn/token"
 
