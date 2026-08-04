@@ -22,6 +22,7 @@ import {
   createPage,
   createPdfPage,
   createLink,
+  deletePage,
   setShelfPin,
 } from "@/app/page-actions";
 import { listPagesForAdmin } from "@/lib/pages";
@@ -178,6 +179,7 @@ async function PagesTab({
       everyoneName={everyoneName}
       today={new Date()}
       onTogglePin={setShelfPin}
+      onDelete={deletePage}
     />
   );
 }

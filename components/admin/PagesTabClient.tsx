@@ -18,6 +18,7 @@ export function PagesTabClient({
   everyoneName,
   today,
   onTogglePin,
+  onDelete,
 }: {
   pages: AdminPage[];
   groups: { id: string; name: string }[];
@@ -26,6 +27,10 @@ export function PagesTabClient({
   // Curried on groupId, so the client picks the shelf and the server still
   // re-authorises it.
   onTogglePin: (groupId: string, slug: string, pinned: boolean) => Promise<void>;
+  // Not curried on a group: deleting a page removes it from every shelf it is
+  // on, which is why it is teacher-only and why the student page's
+  // deleteShelfLink is a different action.
+  onDelete: (slug: string) => Promise<void>;
 }) {
   const { chip, setChip } = useAdminChip();
   const activeGroupId = defaultGroupId(chip, groups);
@@ -51,6 +56,7 @@ export function PagesTabClient({
         onTogglePin={
           activeGroupId ? onTogglePin.bind(null, activeGroupId) : async () => {}
         }
+        onDelete={onDelete}
         today={today}
       />
     </div>

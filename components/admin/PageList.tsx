@@ -89,6 +89,29 @@ function DownloadIcon() {
   );
 }
 
+// A lid, a can, and the two ribs. Same stroke idiom as the two above, so the
+// three read as one set in a tile's action row.
+function TrashIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="m19 6-1 14H6L5 6" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
 export function PageList({
   pages,
   everyoneName,
@@ -96,6 +119,7 @@ export function PageList({
   onGroup,
   canPin,
   onTogglePin,
+  onDelete,
   today,
 }: {
   pages: PageSummary[];
@@ -112,6 +136,10 @@ export function PageList({
   // pin to toggle.
   canPin: boolean;
   onTogglePin: (slug: string, pinned: boolean) => Promise<void>;
+  // Links only, in the UI below. It is the plain teacher-only deletePage, which
+  // has never cared what kind a row is — the pencil that used to be the only
+  // route to it is what excluded links.
+  onDelete: (slug: string) => Promise<void>;
   // Passed in rather than read as `new Date()` here. This is a client
   // component that also renders on the server, and a clock read on both sides
   // of hydration can straddle a week boundary and produce different sections
@@ -248,11 +276,33 @@ export function PageList({
                       action={
                         <div className="flex items-center gap-1">
                           {/* A link has no document to edit or download, so it
-                              gets neither control rather than two that fail. A
-                              PDF has both: editing replaces the file or changes
-                              the audience, and the download is the same
-                              <a download> pointed at the bytes. */}
-                          {page.kind !== "link" && (
+                              gets neither control rather than two that fail —
+                              and this is that sentence's third clause. It
+                              trades the two it cannot use for the one it can.
+                              Until this existed a link could not be deleted at
+                              all: /admin/pages/[slug] 404s on a link row and
+                              PageEditor held the admin's only delete.
+
+                              A PDF and a page keep both of theirs: editing
+                              replaces the file or changes the audience, and the
+                              download is the same <a download> pointed at the
+                              bytes.
+
+                              No confirmation, matching PageEditor's own bare
+                              Delete page button. A link is a URL and a derived
+                              title; re-adding one is a paste. */}
+                          {page.kind === "link" ? (
+                            <form action={onDelete.bind(null, page.slug)}>
+                              <button
+                                type="submit"
+                                aria-label={`Delete ${page.title}`}
+                                title="Delete"
+                                className={tileActionClass}
+                              >
+                                <TrashIcon />
+                              </button>
+                            </form>
+                          ) : (
                             <>
                               <Link
                                 href={`/admin/pages/${page.slug}`}
@@ -264,10 +314,10 @@ export function PageList({
                               </Link>
 
                               {/* No server support needed: `download` on a
-                                  same-origin response forces a save-as, so the raw
-                                  route keeps its exact behaviour and its CSP, and no
-                                  new authenticated surface appears. That route is
-                                  already public. */}
+                                  same-origin response forces a save-as, so the
+                                  raw route keeps its exact behaviour and its
+                                  CSP, and no new authenticated surface appears.
+                                  That route is already public. */}
                               <a
                                 href={
                                   page.kind === "pdf"
