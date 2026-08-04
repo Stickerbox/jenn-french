@@ -38,6 +38,13 @@ set -euo pipefail
 ARTIFACTS="${DIA_ARTIFACTS-$HOME/Library/Application Support/Dia/User Data/Default/AgentArtifacts}"
 SITE="${JENN_SITE:-https://francaisavecjenn.ca}"
 TOKEN_FILE="$HOME/.config/francaisavecjenn/token"
+LIST_ROWS=10
+
+# One work directory for the run. The previous code made a mktemp -d for the
+# textutil fallback and removed it inline, which leaked it if anything between
+# those two points failed under set -e.
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
 
 die() { echo "✗ $1" >&2; exit 1; }
 
@@ -185,6 +192,63 @@ function run(argv) {
     return title + "\t" + localRefs(html);
   }).join("\n");
 }' "$1"
+}
+
+# decode() in describe_artifacts knows the five core entities and every numeric
+# reference, which is all a UTF-8 artifact normally contains. A surviving &name;
+# means something like &eacute;, and textutil is the only stock tool with the
+# full table.
+#
+# This runs before the labels are built, not after selection: otherwise the
+# dialog shows Cr&ecirc;pes and the published page says Crêpes.
+#
+# -inputencoding UTF-8 is not optional. The string is already UTF-8, and without
+# the flag textutil reads those bytes as Latin-1 and turns Crêpes into CrÃªpes.
+#
+# Known and accepted: textutil parses its input as HTML, so a title containing
+# literal tag-like text would have it stripped. That needs a title holding both
+# an exotic entity and something shaped like a tag, and the damage is cosmetic.
+decode_entities() {
+  local decoded
+  printf '%s' "$1" | grep -q '&[a-zA-Z][a-zA-Z0-9]*;' || { printf '%s' "$1"; return 0; }
+  printf '%s' "$1" > "$WORK/title.html"
+  # The [ -n ] test is load-bearing and fixes a pre-existing bug. When textutil
+  # cannot reach its helper process it exits **0** and writes nothing to stdout,
+  # so testing the exit status alone sets the title to the empty string and
+  # publishes that — the old code did exactly this, under a comment claiming
+  # "the partially decoded title still publishes". It does not. An empty title
+  # then derives the slug, which is permanent.
+  #
+  # `if decoded=$(...)` rather than `decoded=$(...) && ...` because under set -e
+  # the && form makes it ambiguous whether a failure aborts. A failure here is
+  # genuinely not fatal — the partially decoded title still publishes, which is
+  # now true rather than merely intended.
+  if decoded=$(textutil -convert txt -inputencoding UTF-8 -stdout "$WORK/title.html" 2>/dev/null) &&
+     [ -n "$decoded" ]; then
+    printf '%s' "$decoded"
+  else
+    printf '%s' "$1"
+  fi
+}
+
+# stdin:  "mtime path" lines, as list_artifacts emits them
+# stdout: "mtime<TAB>path<TAB>title<TAB>refcount", titles fully decoded
+#
+# Tab-delimited because the paths contain spaces ("Application Support").
+candidate_rows() {
+  local src="$WORK/src.txt" paths="$WORK/paths.txt" desc="$WORK/desc.txt"
+  cat > "$src"
+  [ -s "$src" ] || return 0
+  cut -d' ' -f2- < "$src" > "$paths"
+  describe_artifacts "$paths" > "$desc" \
+    || die "Could not read the Dia artifacts. Is the folder readable?"
+  # osascript appends a newline to its result, so both counts are the row count.
+  [ "$(wc -l < "$paths")" = "$(wc -l < "$desc")" ] \
+    || die "describe_artifacts returned the wrong number of rows."
+  paste -d'\t' <(cut -d' ' -f1 < "$src") "$paths" "$desc" \
+    | while IFS=$'\t' read -r mtime path title refs; do
+        printf '%s\t%s\t%s\t%s\n' "$mtime" "$path" "$(decode_entities "$title")" "$refs"
+      done
 }
 
 if [ "$WANT_LIST" = "1" ]; then
