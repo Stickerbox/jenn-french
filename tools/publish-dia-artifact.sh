@@ -326,7 +326,71 @@ if [ "$WANT_LIST" = "1" ]; then
   exit 0
 fi
 
-choose_artifact() { die "The picker is not wired up yet. Use --latest."; }
+# argv[0] a file of labels, one per line; argv[1] the prompt.
+# Prints the chosen label, or nothing if cancelled.
+choose_from_list() {
+  osascript -l JavaScript -e '
+ObjC.import("Foundation");
+function run(argv) {
+  var raw = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null);
+  if (raw.js === undefined) { throw new Error("cannot read the label list"); }
+  var labels = raw.js.split("\n").filter(function (s) { return s.length > 0; });
+  if (labels.length === 0) { return ""; }
+  var app = Application.currentApplication();
+  app.includeStandardAdditions = true;
+  // Without activate() the dialog can open behind the frontmost window, which
+  // from a menu-bar Shortcut looks like the click did nothing.
+  app.activate();
+  var picked = app.chooseFromList(labels, {
+    withPrompt: argv[1],
+    defaultItems: [labels[0]],
+    okButtonName: "Publish",
+    cancelButtonName: "Cancel",
+  });
+  // Cancel gives false, which is not an error.
+  return picked === false ? "" : String(picked);
+}' "$1" "$2"
+}
+
+# Sets INDEX, TITLE, REFS from the teacher's choice. Exits 0 on cancel.
+choose_artifact() {
+  local rows="$WORK/rows.txt" labels="$WORK/labels.txt" picked i n
+  local paths=() titles=() refslist=() labellist=()
+  list_artifacts | head -"$LIST_ROWS" | candidate_rows > "$rows"
+  [ -s "$rows" ] || die "No artifacts found yet."
+
+  while IFS=$'\t' read -r mtime path title refs; do
+    paths[${#paths[@]}]="$path"
+    titles[${#titles[@]}]="$title"
+    refslist[${#refslist[@]}]="$refs"
+  done < "$rows"
+
+  build_labels < "$rows" > "$labels"
+  while IFS= read -r line; do
+    labellist[${#labellist[@]}]="$line"
+  done < "$labels"
+
+  picked=$(choose_from_list "$labels" "Which page do you want to publish?") \
+    || die "Could not open the chooser. Over SSH or with no window server, use --latest."
+
+  # A deliberate cancel is not a failure. Routing it through die would pop an
+  # alert saying something went wrong when nothing did.
+  if [ -z "$picked" ]; then
+    echo "Cancelled. Nothing was published."
+    exit 0
+  fi
+
+  # The labels are unique by construction (build_labels), so this finds exactly
+  # one match and the die below is unreachable in principle.
+  n=${#labellist[@]}
+  for ((i = 0; i < n; i++)); do
+    if [ "${labellist[$i]}" = "$picked" ]; then
+      INDEX="${paths[$i]}"; TITLE="${titles[$i]}"; REFS="${refslist[$i]}"
+      return 0
+    fi
+  done
+  die "Could not match the chosen page. This is a bug; use --latest to publish."
+}
 
 # INDEX and TITLE are both set by every branch below. TITLE comes from the same
 # extraction that built the list, so the string on screen is the string that
