@@ -19,6 +19,21 @@ model Group {
   // tokens rather than one so sharing a files link never hands over the chat.
   chatToken         String?   @unique
   filesToken        String?   @unique
+  // Null until the student claims their invite. Stored trimmed and lowercased,
+  // because it is an identifier we compare on sign-in and will one day mail —
+  // not a secret.
+  //
+  // Deliberately NOT @unique: sign-in is scoped to the slug in the URL, so
+  // uniqueness buys nothing, and two siblings taught by Jenn share one parent's
+  // inbox. A unique index would fail the second sign-up with nothing but a
+  // constraint error to explain it.
+  email             String?
+  // bcrypt, cost 12. The salt lives inside the string — the bcrypt format
+  // carries it, so there is no second column.
+  passwordHash      String?
+  // Displayed in the admin, and an audit fact: a claim at an hour Jenn does not
+  // recognise is the signal that an invite leaked.
+  claimedAt         DateTime?
   // Stamped when Jenn opens this chat; the unread count is the student's
   // messages newer than it. Null means she has never opened it.
   teacherLastReadAt DateTime?
