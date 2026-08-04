@@ -9,12 +9,21 @@ import { parseLinkUrl } from "@/lib/link-url";
 // and the message itself still carries every one of them.
 export const MAX_LINKS_PER_MESSAGE = 5;
 
-// A scheme is REQUIRED, and that is the load-bearing decision in this module.
-// parseLinkUrl prefixes https:// onto a scheme-less string, which is right for a
-// field labelled "Adresse du lien" and wrong for prose: "mot.Ensuite" and
-// "3.Regarde" both look like hostnames to a URL parser. The cost, accepted: a
-// bare www.tv5.ca typed into a message gets no shelf row.
-const URL_PATTERN = /https?:\/\/[^\s<>"']+/gi;
+// Either a scheme, or a bare host that announces itself with "www.". Nothing
+// else — a naked "example.com" is not matched.
+//
+// The scheme half is the original rule: parseLinkUrl prefixes https:// onto any
+// scheme-less string, which is right for a field labelled "Adresse du lien" and
+// wrong for prose, where "mot.Ensuite" and "3.Regarde" both parse as hostnames.
+//
+// The www. half was added 2026-08-04, after the first two links anyone typed
+// into a real conversation were "www.google.com" and "www.test.ca" and neither
+// was filed. It is deliberately the NARROW version of the scheme-less matching
+// the design rejected: the false positives that rule exists to stop are French
+// prose and numbered lists, and none of them begin with "www.". Requiring at
+// least one character after the dot is what keeps the sentence "il faut taper
+// www. avant l'adresse" from filing a row.
+const URL_PATTERN = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
 
 // A URL at the end of a sentence is the common case, and ".../verbes." is a 404.
 const TRAILING = /[.,;:!?'"»…\]}]+$/;

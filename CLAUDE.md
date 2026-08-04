@@ -371,8 +371,11 @@ that conversation's shelf automatically**, by `addChatLinks`
 (`lib/shelf-links.ts`) from the chat POST route, for whichever party sent it.
 `extractLinks` (`lib/chat-links.ts`) decides which URLs count and reuses
 `parseLinkUrl` rather than validating again — one guard, not two places for
-`javascript:` to get through. A scheme is required, because prose is full of
-things a URL parser would read as a hostname; five per message, because 4000
+`javascript:` to get through. A URL needs either a scheme or a leading `www.`,
+because prose is full of things a URL parser would read as a hostname —
+`mot.Ensuite` and `3.Regarde` are the cases that rule exists for, and neither
+begins with `www.`, which is what makes that exception narrow enough to be
+safe; five per message, because 4000
 characters is room for forty page rows; and a URL already on that shelf, or on
 the everyone shelf it inherits from, is skipped rather than duplicated.
 `addedByStudent` mirrors the sender, which is what decides whether the student

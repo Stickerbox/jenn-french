@@ -67,8 +67,32 @@ describe("extractLinks", () => {
     expect(extractLinks("javascript:alert(1)")).toEqual([]);
   });
 
-  it("ignores a scheme-less host, because prose is full of things that look like one", () => {
-    expect(extractLinks("va sur www.tv5.ca. Ensuite regarde.")).toEqual([]);
+  it("files a bare www. host, which is what people actually type", () => {
+    expect(extractLinks("www.google.com")).toEqual(["https://www.google.com/"]);
+  });
+
+  it("files a bare www. host inside prose, trailing full stop and all", () => {
+    expect(extractLinks("va sur www.tv5.ca. Ensuite regarde.")).toEqual([
+      "https://www.tv5.ca/",
+    ]);
+  });
+
+  it("still ignores a scheme-less host with no www., because prose is full of things that look like one", () => {
+    // The two cases the scheme rule exists for. Neither starts with www., which
+    // is what makes the www. exception narrow enough to be safe.
+    expect(extractLinks("un mot.Ensuite regarde")).toEqual([]);
+    expect(extractLinks("3.Regarde la page")).toEqual([]);
+  });
+
+  it("files one row when the same host is written with and without the scheme", () => {
+    // Both normalise to the same string, so seen-on-output catches it.
+    expect(extractLinks("www.tv5.ca et https://www.tv5.ca")).toEqual([
+      "https://www.tv5.ca/",
+    ]);
+  });
+
+  it("does not match a bare www. with nothing after the dot", () => {
+    expect(extractLinks("il faut taper www. avant l'adresse")).toEqual([]);
   });
 
   it("ignores a URL past parseLinkUrl's length cap", () => {

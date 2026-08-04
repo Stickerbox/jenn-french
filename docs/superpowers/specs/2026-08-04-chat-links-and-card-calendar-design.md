@@ -183,6 +183,15 @@ Four decisions inside it:
   looks like a hostname. Requiring `http://` or `https://` in the message is the
   difference between a feature and a shelf full of garbage. The cost, accepted:
   a student who types a bare `www.tv5.ca` gets no shelf row.
+
+  **Amended 2026-08-04, after this shipped.** That accepted cost was not
+  acceptable in practice: the first two links typed into a real conversation
+  were `www.google.com` and `www.test.ca`, and neither was filed. A leading
+  `www.` is now matched as well as a scheme. This is the narrow form of the
+  scheme-less matching *Rejected* below still refuses — the false positives that
+  section is about are French prose and numbered lists, and none of them begin
+  with `www.`. A naked `example.com` is still not matched, and `www.` with
+  nothing after the dot is not either.
 - **Trailing punctuation is stripped**, because a URL at the end of a sentence is
   the common case and `…/verbes.` is a 404. The set is
   `` . , ; : ! ? ' " » … ] } `` and — conditionally — `)`, stripped **only when
@@ -567,7 +576,8 @@ CI order stands: `prisma generate` → lint → `tsc --noEmit` → test → buil
 - **Live shelf updates over SSE.** Costed in section 1. The tab switch is a
   navigation, which is the gesture the case consists of.
 - **`extractLinks` accepting scheme-less hosts.** Prose is full of things that
-  look like hostnames.
+  look like hostnames. Still rejected in general; see the 2026-08-04 amendment
+  in section 1 for the one narrow exception, a leading `www.`.
 - **Sharing the popover's open/dismiss wiring.** Two different triggers and two
   different focus targets; sharing it needs a render prop to reach the trigger
   ref, which is more machinery than twenty duplicated lines.
