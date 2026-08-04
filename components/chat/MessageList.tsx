@@ -2,14 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { groupByDay } from "@/lib/chat-day";
+import type { ChatMessage } from "@/lib/chat-message";
 import { cn } from "@/lib/utils";
-
-export type ChatMessage = {
-  id: string;
-  fromTeacher: boolean;
-  body: string;
-  createdAt: Date;
-};
 
 export function MessageList({
   messages,

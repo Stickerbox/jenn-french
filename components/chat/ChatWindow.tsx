@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { MessageList, type ChatMessage } from "@/components/chat/MessageList";
+import { MessageList } from "@/components/chat/MessageList";
 import { MessageInput } from "@/components/chat/MessageInput";
+import type { ChatMessage } from "@/lib/chat-message";
 
 export type ChatLabels = {
   title: string;

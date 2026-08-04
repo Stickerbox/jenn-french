@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { ChatMessage } from "@/components/chat/MessageList";
+import type { ChatMessage } from "@/lib/chat-message";
 import { readOps, type DrawOp, type Op } from "@/lib/whiteboard-ops";
 
 export type LiveBoardState = {
