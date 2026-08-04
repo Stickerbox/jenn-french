@@ -30,6 +30,15 @@ const revokeEvent = (groupId: string) => `revoke:${groupId}`;
 // rather than by inspecting the shape of what it received.
 const boardEvent = (groupId: string) => `board:${groupId}`;
 
+// One channel every message is published to, alongside its own group's. The
+// teacher's inbox subscribes here rather than to each group id, because
+// enumerating groups at connect silently misses a student created afterwards —
+// and that failure looks like a student whose messages never arrive, which is
+// the hardest kind to notice.
+//
+// A group id is a cuid, so this name can never collide with one.
+const ALL_MESSAGES = "message:*";
+
 export type BoardFrame =
   | { kind: "open"; currentPage: number }
   // `ops` are committed and append on the viewer; `pending` is the stroke under
@@ -42,6 +51,9 @@ export type BoardFrame =
 export const chatBus = {
   publish(groupId: string, message: StoredMessage) {
     emitter.emit(groupId, message);
+    // Emitted second, so a per-group listener and the inbox never disagree
+    // about ordering within one publish.
+    emitter.emit(ALL_MESSAGES, message);
   },
 
   // Returns its own unsubscribe rather than exposing the emitter, so a stream
@@ -50,6 +62,15 @@ export const chatBus = {
     emitter.on(groupId, listener);
     return () => {
       emitter.off(groupId, listener);
+    };
+  },
+
+  // Returns its own unsubscribe rather than exposing the emitter, same as
+  // subscribe: a stream that closes cannot forget which listener was its own.
+  subscribeAll(listener: (message: StoredMessage) => void) {
+    emitter.on(ALL_MESSAGES, listener);
+    return () => {
+      emitter.off(ALL_MESSAGES, listener);
     };
   },
 
