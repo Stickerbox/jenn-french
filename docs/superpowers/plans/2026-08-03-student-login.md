@@ -59,9 +59,15 @@ Five conventions in this repo will make this plan make sense. Violating any of t
 
 ## Task 0: Preflight
 
+**Execution note (2026-08-04):** this task's premise did not hold. The working
+copy already had `.git` with full history, `node_modules`, and `.env`, so the
+`git init`, baseline-import commit and `npm ci` were skipped as no-ops. Only
+Step 3, the green baseline, was actually run — it passed (55 files, 537 tests).
+The work was done on a `student-login` branch rather than on `main`.
+
 This working copy was unpacked without `node_modules`, without `.env`, and **without a `.git` directory**. Every task below ends in a commit, so establish version control before writing code — otherwise there is no way to review or revert task by task.
 
-- [ ] **Step 1: Confirm or create the repository**
+- [x] **Step 1: Confirm or create the repository**
 
 ```bash
 git rev-parse --is-inside-work-tree 2>/dev/null || git init
@@ -76,7 +82,7 @@ git commit -m "chore: import existing tree as baseline" \
   --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 2: Install dependencies and create the local env file**
+- [x] **Step 2: Install dependencies and create the local env file**
 
 `.env` is gitignored and holds only the database URL. Prisma reads it; Next reads it too.
 
@@ -86,7 +92,7 @@ test -f .env || printf 'DATABASE_URL="file:./dev.db"\n' > .env
 npx prisma generate
 ```
 
-- [ ] **Step 3: Establish a green baseline**
+- [x] **Step 3: Establish a green baseline**
 
 ```bash
 npm run lint && npm run typecheck && npm test
@@ -103,13 +109,13 @@ Expected: all three pass. **If anything fails here, stop and report it** — a r
 
 Why bcryptjs and not a native Argon2 binding: `npm ci` runs **on the production server**, a `t3.small` with 2 GB of RAM where, per `docs/DEPLOY.md:92`, "the build is the heaviest thing that ever runs". A native module there is either a prebuilt binary that must match the box or a node-gyp compile that thrashes swap. bcrypt is also named explicitly by the organisation's SEC-CRY-1.00 control, so it needs no documented exception.
 
-- [ ] **Step 1: Install**
+- [x] **Step 1: Install**
 
 ```bash
 npm install bcryptjs
 ```
 
-- [ ] **Step 2: Check whether it ships its own types**
+- [x] **Step 2: Check whether it ships its own types**
 
 ```bash
 node -e "console.log(require('fs').existsSync('node_modules/bcryptjs/index.d.ts') || require('fs').existsSync('node_modules/bcryptjs/types.d.ts'))"
@@ -121,7 +127,7 @@ Expected: `true` on bcryptjs 3.x, which is written in TypeScript. If it prints `
 npm install --save-dev @types/bcryptjs
 ```
 
-- [ ] **Step 3: Verify it imports and hashes**
+- [x] **Step 3: Verify it imports and hashes**
 
 ```bash
 node -e "const b=require('bcryptjs'); b.hash('x',4).then(h=>console.log(h.slice(0,7)))"
@@ -129,7 +135,7 @@ node -e "const b=require('bcryptjs'); b.hash('x',4).then(h=>console.log(h.slice(
 
 Expected: a prefix like `$2b$04$`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add package.json package-lock.json
@@ -151,7 +157,7 @@ configuration.
 - Modify: `prisma/schema.prisma:10-30`
 - Create: `prisma/migrations/<timestamp>_add_student_credentials/migration.sql` (generated)
 
-- [ ] **Step 1: Add the three columns**
+- [x] **Step 1: Add the three columns**
 
 In `prisma/schema.prisma`, inside `model Group`, directly after the `filesToken` line and before `teacherLastReadAt`:
 
@@ -173,7 +179,7 @@ In `prisma/schema.prisma`, inside `model Group`, directly after the `filesToken`
   claimedAt         DateTime?
 ```
 
-- [ ] **Step 2: Create and apply the migration**
+- [x] **Step 2: Create and apply the migration**
 
 ```bash
 npx prisma migrate dev --name add_student_credentials
@@ -181,7 +187,7 @@ npx prisma migrate dev --name add_student_credentials
 
 Expected: a new directory under `prisma/migrations/`, and `Your database is now in sync with your schema.` No backfill and no data migration: existing rows come out `null` on all three, which reads as *unclaimed but holding a valid token* — exactly the intended behaviour for students already using the site.
 
-- [ ] **Step 3: Verify the columns exist and the generated client knows them**
+- [x] **Step 3: Verify the columns exist and the generated client knows them**
 
 ```bash
 npx prisma generate && npm run typecheck
@@ -190,7 +196,7 @@ node -e "const{PrismaClient}=require('@prisma/client');new PrismaClient().group.
 
 Expected: typecheck passes; the query prints an array (possibly empty) rather than an unknown-column error.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add prisma/schema.prisma prisma/migrations
@@ -206,7 +212,7 @@ git commit -m "feat: add email, passwordHash and claimedAt to Group" \
 - Create: `lib/student-credentials.ts`
 - Test: `tests/lib/student-credentials.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/student-credentials.test.ts`:
 
@@ -282,7 +288,7 @@ describe("checkPassword", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 ```bash
 npx vitest run tests/lib/student-credentials.test.ts
@@ -290,7 +296,7 @@ npx vitest run tests/lib/student-credentials.test.ts
 
 Expected: FAIL — `Failed to resolve import "@/lib/student-credentials"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/student-credentials.ts`:
 
@@ -339,7 +345,7 @@ export function checkPassword(raw: string): CredentialProblem | null {
 }
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 ```bash
 npx vitest run tests/lib/student-credentials.test.ts
@@ -347,7 +353,7 @@ npx vitest run tests/lib/student-credentials.test.ts
 
 Expected: PASS, 12 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/student-credentials.ts tests/lib/student-credentials.test.ts
@@ -365,7 +371,7 @@ git commit -m "feat: add student email and password rules" \
 
 The rule and the language it is announced in are two things. `lib/page-section-labels.ts` already makes this split for section headings — the same reason applies here, and it is what keeps `lib/student-credentials.ts` free of copy.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/student-auth-labels.test.ts`:
 
@@ -426,7 +432,7 @@ describe("the failure messages", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 ```bash
 npx vitest run tests/lib/student-auth-labels.test.ts
@@ -434,7 +440,7 @@ npx vitest run tests/lib/student-auth-labels.test.ts
 
 Expected: FAIL — `Failed to resolve import "@/lib/student-auth-labels"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/student-auth-labels.ts`:
 
@@ -479,7 +485,7 @@ export const INVITE_USED =
 export const GENERIC_FAILURE = "Une erreur est survenue. Réessayez.";
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 ```bash
 npx vitest run tests/lib/student-auth-labels.test.ts
@@ -487,7 +493,7 @@ npx vitest run tests/lib/student-auth-labels.test.ts
 
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/student-auth-labels.ts tests/lib/student-auth-labels.test.ts
@@ -505,7 +511,7 @@ git commit -m "feat: add French copy for student sign-in" \
 
 Read `lib/chat-access.ts` and `lib/shelf-access.ts` first — this is a third sibling and must look like them. It returns a string rather than a bag of booleans so the page gets one `switch` and this test can enumerate the whole state space.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/student-gate.test.ts`:
 
@@ -605,7 +611,7 @@ describe("studentGate", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 ```bash
 npx vitest run tests/lib/student-gate.test.ts
@@ -613,7 +619,7 @@ npx vitest run tests/lib/student-gate.test.ts
 
 Expected: FAIL — `Failed to resolve import "@/lib/student-gate"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/student-gate.ts`:
 
@@ -673,7 +679,7 @@ export function studentGate(input: {
 }
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 ```bash
 npx vitest run tests/lib/student-gate.test.ts
@@ -681,7 +687,7 @@ npx vitest run tests/lib/student-gate.test.ts
 
 Expected: PASS, 10 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/student-gate.ts tests/lib/student-gate.test.ts
@@ -699,7 +705,7 @@ git commit -m "feat: add studentGate access rule" \
 
 Split deliberately in two halves in one file: pure transitions that take `now` as an argument (so the window arithmetic is provable without a `sleep`), and a thin `globalThis`-held store around them. Copy the `globalThis` idiom from `lib/prisma.ts:3-11` and `lib/chat-bus.ts:4-22`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/login-throttle.test.ts`:
 
@@ -757,7 +763,7 @@ describe("login throttle", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 ```bash
 npx vitest run tests/lib/login-throttle.test.ts
@@ -765,7 +771,7 @@ npx vitest run tests/lib/login-throttle.test.ts
 
 Expected: FAIL — `Failed to resolve import "@/lib/login-throttle"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/login-throttle.ts`:
 
@@ -845,7 +851,7 @@ export function clearAttempts(slug: string): void {
 }
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 ```bash
 npx vitest run tests/lib/login-throttle.test.ts
@@ -853,7 +859,7 @@ npx vitest run tests/lib/login-throttle.test.ts
 
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/login-throttle.ts tests/lib/login-throttle.test.ts
@@ -869,7 +875,7 @@ git commit -m "feat: add per-student sign-in throttle" \
 - Create: `lib/password-hash.ts`
 - Test: `tests/lib/password-hash.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/password-hash.test.ts`:
 
@@ -917,7 +923,7 @@ describe("password hashing", () => {
 
 **If that last assertion fails** because the installed bcryptjs *rejects* over-long input rather than truncating it, do not delete the test — invert it to assert the rejection it actually performs, and keep `MAX_PASSWORD_BYTES` either way. The point of the test is to record the library's real behaviour at the boundary.
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 ```bash
 npx vitest run tests/lib/password-hash.test.ts
@@ -925,7 +931,7 @@ npx vitest run tests/lib/password-hash.test.ts
 
 Expected: FAIL — `Failed to resolve import "@/lib/password-hash"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/password-hash.ts`:
 
@@ -959,7 +965,7 @@ export function verifyPassword(
 }
 ```
 
-- [ ] **Step 4: Run the tests and make sure they pass**
+- [x] **Step 4: Run the tests and make sure they pass**
 
 ```bash
 npx vitest run tests/lib/password-hash.test.ts
@@ -967,7 +973,7 @@ npx vitest run tests/lib/password-hash.test.ts
 
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Run the whole suite, then commit**
+- [x] **Step 5: Run the whole suite, then commit**
 
 ```bash
 npm test
@@ -995,7 +1001,7 @@ Two departures from `app/actions.ts` worth understanding before you write it:
 - **These actions return a result instead of throwing.** Everywhere else in this codebase an action throws and the client maps the failure to one French sentence. Here the messages *are* the product — a specific "at least 8 characters" for validation, one deliberately uniform sentence for every sign-in failure — and a thrown `Error` would either leak an internal string or lose that distinction.
 - **They do not call `requireTeacher`.** They are the student's entry point. What authorises a claim is the invite token, read from the cookie server-side.
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 Create `app/student-auth-actions.ts`:
 
@@ -1162,7 +1168,7 @@ export async function signOutStudent(slug: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 2: Verify it compiles and lints**
+- [x] **Step 2: Verify it compiles and lints**
 
 ```bash
 npm run typecheck && npm run lint
@@ -1170,7 +1176,7 @@ npm run typecheck && npm run lint
 
 Expected: both pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add app/student-auth-actions.ts
@@ -1187,7 +1193,7 @@ git commit -m "feat: add student claim, sign-in and sign-out actions" \
 
 Model it on `components/student/AddLinkRow.tsx` — same French copy, same `fieldClassName` reuse, same `--card-*` palette, same `router.refresh()` after a successful action. Its classes stay inline rather than moving to `components/card-styles.ts`, which is for strings repeated across flashcard components; these are used once, exactly as `AddLinkRow`'s are.
 
-- [ ] **Step 1: Write the component**
+- [x] **Step 1: Write the component**
 
 Create `components/student/StudentAuthPanel.tsx`:
 
@@ -1410,7 +1416,7 @@ export function StudentAuthPanel({
 }
 ```
 
-- [ ] **Step 2: Verify it compiles and lints**
+- [x] **Step 2: Verify it compiles and lints**
 
 ```bash
 npm run typecheck && npm run lint
@@ -1418,7 +1424,7 @@ npm run typecheck && npm run lint
 
 Expected: both pass. If ESLint objects to the nested ternary in the submit label, split it into a `const label` computed above the `return` rather than disabling the rule.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add components/student/StudentAuthPanel.tsx
@@ -1433,7 +1439,7 @@ git commit -m "feat: add student sign-in panel" \
 **Files:**
 - Modify: `app/g/[slug]/page.tsx`
 
-- [ ] **Step 1: Add the two imports**
+- [x] **Step 1: Add the two imports**
 
 After the existing `import { getCurrentTeacher } from "@/lib/session";` line, add:
 
@@ -1442,7 +1448,7 @@ import { studentGate } from "@/lib/student-gate";
 import { StudentAuthPanel } from "@/components/student/StudentAuthPanel";
 ```
 
-- [ ] **Step 2: Replace the group query and the `unlocked` computation**
+- [x] **Step 2: Replace the group query and the `unlocked` computation**
 
 Find this block (currently `app/g/[slug]/page.tsx:44-62`):
 
@@ -1512,7 +1518,7 @@ Replace it with:
   const unlocked = gate === "signed-in";
 ```
 
-- [ ] **Step 3: Render the panel and the two teacher notices**
+- [x] **Step 3: Render the panel and the two teacher notices**
 
 Find the `<StudentTabs …/>` block (currently `app/g/[slug]/page.tsx:167-174`) and insert directly **after** its closing `)}`:
 
@@ -1547,7 +1553,7 @@ Find the `<StudentTabs …/>` block (currently `app/g/[slug]/page.tsx:167-174`) 
       )}
 ```
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 npm run typecheck && npm run lint
@@ -1555,7 +1561,7 @@ npm run typecheck && npm run lint
 
 Expected: both pass. If typecheck complains that `group.name` does not exist, the `select` in Step 2 is missing `name: true`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/g/[slug]/page.tsx
@@ -1572,7 +1578,7 @@ git commit -m "feat: gate the student page on an account, not just a token" \
 
 `regenerateStudentLinks` becomes `resetStudentSignIn`. After this feature the two are the same operation: clearing the password without rotating the token would leave whoever is signed in still signed in, because their cookie holds that token.
 
-- [ ] **Step 1: Replace the action**
+- [x] **Step 1: Replace the action**
 
 Replace `app/actions.ts:144-162` in full:
 
@@ -1615,7 +1621,7 @@ export async function resetStudentSignIn(groupId: string) {
 }
 ```
 
-- [ ] **Step 2: Confirm nothing still references the old name**
+- [x] **Step 2: Confirm nothing still references the old name**
 
 ```bash
 grep -rn "regenerateStudentLinks" app components lib tests
@@ -1623,7 +1629,7 @@ grep -rn "regenerateStudentLinks" app components lib tests
 
 Expected: two hits, both fixed in Task 12 — `app/admin/page.tsx:9` and `app/admin/page.tsx:117`. If `grep` finds any others, update them the same way.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add app/actions.ts
@@ -1641,7 +1647,7 @@ Typecheck will fail until Task 12 lands, because `app/admin/page.tsx` still impo
 - Modify: `app/admin/page.tsx:6-9`, `app/admin/page.tsx:99-118`
 - Modify: `components/admin/GroupList.tsx`
 
-- [ ] **Step 1: Update the admin page's import and mapping**
+- [x] **Step 1: Update the admin page's import and mapping**
 
 In `app/admin/page.tsx`, change the import on line 9 from `regenerateStudentLinks,` to `resetStudentSignIn,`.
 
@@ -1666,7 +1672,7 @@ Then replace the `<GroupList …/>` call (lines 107-118) with:
 
 This explicit mapping is what keeps `passwordHash` on the server — `findMany` selects every column, and the map is the boundary. **Do not** replace it with a spread.
 
-- [ ] **Step 2: Extend `GroupSummary` and the props in `GroupList.tsx`**
+- [x] **Step 2: Extend `GroupSummary` and the props in `GroupList.tsx`**
 
 Replace lines 10-27 of `components/admin/GroupList.tsx`:
 
@@ -1695,7 +1701,7 @@ export function GroupList({
 }) {
 ```
 
-- [ ] **Step 3: Rename the reset handler's state and function**
+- [x] **Step 3: Rename the reset handler's state and function**
 
 In the same file, replace lines 32-33:
 
@@ -1724,7 +1730,7 @@ and replace `handleRegenerate` (lines 52-64) with:
   }
 ```
 
-- [ ] **Step 4: Add the `formatLongDate` import**
+- [x] **Step 4: Add the `formatLongDate` import**
 
 At the top of `components/admin/GroupList.tsx`, after the `canDeleteGroup` import:
 
@@ -1734,7 +1740,7 @@ import { formatLongDate } from "@/lib/format";
 
 The admin already renders dates this way — `components/admin/PageList.tsx:220` uses it for a tile eyebrow ("30 juillet 2026 · Everyone"). An English label beside an `fr-CA` date looks odd written down and is the established precedent; the alternative is a second date formatter for one line.
 
-- [ ] **Step 5: Replace the invite-link block**
+- [x] **Step 5: Replace the invite-link block**
 
 Replace the whole `{group.chatToken && ( … )}` block (lines 136-182) with:
 
@@ -1801,7 +1807,7 @@ Replace the whole `{group.chatToken && ( … )}` block (lines 136-182) with:
 
 After a reset the tile flips to the unclaimed branch and shows the fresh invite link — which matters, because **Jenn has to send it**. Until she does, the student's bookmark offers only a sign-in line with no account behind it, and the uniform-form rule means the page cannot say so.
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1809,7 +1815,7 @@ npm run typecheck && npm run lint && npm test
 
 Expected: all pass. If typecheck reports `onRegenerate` missing, a call site was left behind — re-run the grep from Task 11 Step 2.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/admin/page.tsx components/admin/GroupList.tsx
@@ -1826,11 +1832,11 @@ git commit -m "feat: show claim state and reset sign-in in the admin" \
 
 `CLAUDE.md` currently describes the token as the whole of student access. Three places state that and are now wrong.
 
-- [ ] **Step 1: Update the routes table**
+- [x] **Step 1: Update the routes table**
 
 In the `/g/[slug]` row, replace "the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the token" with "the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account".
 
-- [ ] **Step 2: Add a subsection to Auth**
+- [x] **Step 2: Add a subsection to Auth**
 
 Directly after the existing `### Auth` content about the teacher's single passkey, add:
 
@@ -1873,11 +1879,11 @@ Nothing here sends email. The address is stored for newsletters and chat alerts
 later; "I forgot my password" is Jenn pressing Reset sign-in.
 ```
 
-- [ ] **Step 3: Correct the Lesson chat paragraph**
+- [x] **Step 3: Correct the Lesson chat paragraph**
 
 In `### Lesson chat`, the sentence "`chatToken` unlocks the files tab and the chat on `/g/[slug]`" is now only half true. Replace it with "`chatToken` unlocks the files tab and the chat on `/g/[slug]`, but only once the student has claimed their account — on its own it now only permits *creating* that account (see *Auth*)".
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 ```bash
 npm run lint
@@ -1892,7 +1898,7 @@ git commit -m "docs: describe student sign-in in CLAUDE.md" \
 
 **Files:** none
 
-- [ ] **Step 1: Run the whole CI sequence in CI's order**
+- [x] **Step 1: Run the whole CI sequence in CI's order**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test && npm run build
@@ -1900,7 +1906,7 @@ npx prisma generate && npm run lint && npm run typecheck && npm test && npm run 
 
 Expected: all five pass. This is what `.github/workflows/ci.yml` runs, and per `docs/DEPLOY.md` a red build must not be deployed.
 
-- [ ] **Step 2: Seed a student and walk the claim flow by hand**
+- [x] **Step 2: Seed a student and walk the claim flow by hand**
 
 The actions and components have no unit tests by convention, so this script is their verification. Start the dev server (`npm run dev`) and, in another shell, create a student:
 
@@ -1932,11 +1938,14 @@ Walk each of these and confirm the stated result:
 | 12 | From `/admin?tab=groups`, press **Reset sign-in**, confirm | Tile flips to the invite link; the student's browser loses access on refresh |
 | 13 | Check the shelf and chat survived the reset | The student's pages and messages are all still there |
 
-- [ ] **Step 3: Confirm the password manager offer**
+- [ ] **Step 3: Confirm the password manager offer** — NOT VERIFIED: needs a
+      human at a real browser. The mechanism it checks is in place (both inputs
+      inside one `<form>`, `autoComplete="email"` with `new-password` on
+      sign-up / `current-password` on sign-in, confirmed in the rendered HTML).
 
 In a real browser (not a private window), complete step 5 above and confirm the browser or password manager offers to save the credentials. If it does not, check that both inputs are inside the one `<form>` and that `autoComplete` is `email` / `new-password` — that pairing is the whole mechanism.
 
-- [ ] **Step 4: Confirm no PII reached the logs**
+- [x] **Step 4: Confirm no PII reached the logs**
 
 ```bash
 grep -rn "student-auth" .next/ 2>/dev/null | head
@@ -1944,7 +1953,7 @@ grep -rn "student-auth" .next/ 2>/dev/null | head
 
 Then check the dev server's own output: the claim and reset lines must contain the **slug only**. If an email address appears anywhere in a log line, fix it before committing — that is SEC-DAT-1.00.
 
-- [ ] **Step 5: Clean up the test student and commit anything outstanding**
+- [x] **Step 5: Clean up the test student and commit anything outstanding**
 
 ```bash
 node -e "
