@@ -1,8 +1,7 @@
-import { formatWeekRange } from "@/lib/week";
-
-// The ⚜ eyebrow and the week range, which used to sit in the page header above
-// everything. They moved here because the header said "the card of the day"
-// over the files and board tabs too, which was simply wrong.
+// The ⚜ eyebrow. The week range that used to sit under it moved to
+// CardDateNav, which owns every date control on this tab: the range is the
+// SELECTED week now and doubles as the button that opens the calendar, and
+// neither of those is a static server-rendered line.
 //
 // This renders inside the CARD TAB'S BRANCH of the page body, not inside
 // StudentTabs, and that placement is the whole decision:
@@ -13,20 +12,11 @@ import { formatWeekRange } from "@/lib/week";
 //     nothing else on the page.
 //   - The teacher has no card tab. Living in the card branch means she loses
 //     this without a second rule anywhere saying so.
-export function CardHeading({
-  weekStart,
-  weekEnd,
-}: {
-  weekStart: Date;
-  weekEnd: Date;
-}) {
+export function CardHeading() {
   return (
     <div className="mx-auto mb-6 max-w-[560px] text-center">
-      <div className="mb-2 font-[family-name:var(--card-font-serif)] text-[13px] uppercase tracking-[6px] text-[var(--card-bleu)] opacity-80">
+      <div className="font-[family-name:var(--card-font-serif)] text-[13px] uppercase tracking-[6px] text-[var(--card-bleu)] opacity-80">
         ⚜ La carte du jour ⚜
-      </div>
-      <div className="font-[family-name:var(--card-font-mono)] text-[12px] uppercase tracking-[2px] text-[#8a7f6c]">
-        {formatWeekRange(weekStart, weekEnd)}
       </div>
     </div>
   );

@@ -2,10 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { getEffectiveCard } from "@/lib/cards";
+import { getEffectiveCard, listCardDates } from "@/lib/cards";
 import { Flashcard } from "@/components/Flashcard";
-import { WeekDayPicker } from "@/components/WeekDayPicker";
-import { weekRange, latestViewableDate } from "@/lib/week";
+import { CardDateNav } from "@/components/student/CardDateNav";
+import { latestViewableDate } from "@/lib/week";
 import { parseStudentTab } from "@/lib/student-tab";
 import { readToken, cookieNameFor } from "@/lib/student-tokens";
 import { listPagesForGroup } from "@/lib/pages";
@@ -130,11 +130,18 @@ export default async function GroupPage({
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const today = new Date(`${todayStr}T00:00:00Z`);
-  const selectedDate = parseDate(date, latestViewableDate(today));
+  // One value doing two jobs, deliberately: the ceiling parseDate clamps to,
+  // and the day Aujourd'hui goes to. Both are "the latest day a student may
+  // look at", which on a weekend is the Friday that closed the week.
+  const latest = latestViewableDate(today);
+  const selectedDate = parseDate(date, latest);
   const card = await getEffectiveCard(selectedDate);
 
   const selected = selectedDate.toISOString().slice(0, 10);
-  const { start: weekStart, end: weekEnd } = weekRange(today);
+  // Only for the card tab, and bounded, so the dates of pre-posted cards never
+  // reach the browser. An unlocked teacher has no card tab, so her page does
+  // not run this query at all.
+  const cardDates = tab === "card" ? await listCardDates(latest) : [];
 
   // Her line, not theirs. English for Jenn and French for the student, following
   // the split this codebase keeps everywhere else — and still nothing at all on
@@ -169,8 +176,14 @@ export default async function GroupPage({
 
       {tab === "card" ? (
         <>
-          <CardHeading weekStart={weekStart} weekEnd={weekEnd} />
-          <WeekDayPicker slug={slug} today={today} selected={selected} />
+          <CardHeading />
+          <CardDateNav
+            slug={slug}
+            selected={selected}
+            today={todayStr}
+            latest={latest.toISOString().slice(0, 10)}
+            cardDates={cardDates}
+          />
           {card ? (
             <Flashcard card={card} />
           ) : (
