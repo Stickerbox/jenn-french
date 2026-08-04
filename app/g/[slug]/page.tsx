@@ -184,6 +184,7 @@ export default async function GroupPage({
           pages={pages}
           today={today}
           canWrite={unlocked}
+          canDeleteAny={viewerIsTeacher}
           onTogglePin={setShelfPin.bind(null, group.id)}
           onDeleteLink={deleteShelfLink.bind(null, group.id)}
         />

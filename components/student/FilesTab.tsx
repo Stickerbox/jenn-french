@@ -42,6 +42,7 @@ export function FilesTab({
   pages,
   today,
   canWrite,
+  canDeleteAny = false,
   onTogglePin,
   onDeleteLink,
 }: {
@@ -53,6 +54,13 @@ export function FilesTab({
   today: Date;
   // False on the everyone group's public shelf and for an untokened visitor.
   canWrite: boolean;
+  // True only for the teacher. deleteShelfLink already authorises her to remove
+  // anything on a student's shelf; this stops the tile withholding the control.
+  //
+  // Every row rather than link rows only: she can already pin anything here,
+  // and a delete that applies to some tiles and not others is a rule to explain
+  // where there is no rule.
+  canDeleteAny?: boolean;
   onTogglePin?: (slug: string, pinned: boolean) => Promise<void>;
   onDeleteLink?: (slug: string) => Promise<void>;
 }) {
@@ -164,11 +172,16 @@ export function FilesTab({
                                 </button>
                               </form>
 
-                              {/* Anything they published, link or page, while
-                                  nobody else can see it yet. The server
-                                  re-checks with canStudentDelete; this just
-                                  avoids showing a control that would fail. */}
-                              {page.addedByStudent &&
+                              {/* For a student: anything they published, link
+                                  or page, while nobody else can see it yet —
+                                  the server re-checks with canStudentDelete and
+                                  this only avoids showing a control that would
+                                  fail. For the teacher: everything, which
+                                  deleteShelfLink has always allowed her.
+                                  Chat-filed links land here with
+                                  addedByStudent false, and hers were the rows
+                                  she could not reach. */}
+                              {(page.addedByStudent || canDeleteAny) &&
                                 onDeleteLink && (
                                   <form action={onDeleteLink.bind(null, page.slug)}>
                                     <button
