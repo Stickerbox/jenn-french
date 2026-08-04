@@ -433,13 +433,19 @@ fi
 # deletes its last use.
 NAME=$(basename "$(dirname "$(dirname "$INDEX")")")
 
-# An artifact that ships extra files is not self-contained, and the site's CSP
-# blocks everything a page loads from elsewhere — so those files would silently
-# go missing rather than fail loudly. Better to say so before publishing.
-EXTRAS=$(find "$(dirname "$INDEX")" -type f ! -name index.html | wc -l | tr -d ' ')
-if [ "$EXTRAS" != "0" ]; then
-  echo "⚠ '$NAME' has $EXTRAS file(s) beside index.html. Only index.html is published,"
-  echo "  and anything it loads from those files will be missing. Continuing anyway."
+# An artifact that is not self-contained loses whatever it links to: the site's
+# CSP blocks everything a page loads from elsewhere, so those files go missing
+# silently rather than failing loudly.
+#
+# The count comes from the row, where it was computed from the references
+# index.html actually makes. The old find counted every file in the directory,
+# so a stray .DS_Store flagged a page that was perfectly self-contained — and a
+# marker that appears on every row is one nobody reads.
+#
+# The dialog already showed this on the chosen row, so only the flag-driven
+# paths need telling.
+if [ "${REFS:-0}" != "0" ]; then
+  warn "This page links to $REFS file(s) that will not be published, so they will be missing. Continuing anyway."
 fi
 
 # --token first: an explicit value beats anything ambient, including the
