@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyReplacements,
+  DOCUMENT_BASE,
   escapeScriptBody,
   findCssRefs,
   findExternalRefs,
@@ -96,6 +97,36 @@ describe("findExternalRefs", () => {
     expect(ref.url).toBe("./styles.css");
   });
 
+  it("carries the bundle key a relative ref addresses", () => {
+    const [ref] = findExternalRefs(`<script src="./css/../app.js?v=2"></script>`);
+    expect(ref.relative).toBe(true);
+    // `url` is what the author wrote, so the report can name it; `localPath` is
+    // what the bundle is actually asked for.
+    expect(ref.url).toBe("./css/../app.js?v=2");
+    expect(ref.localPath).toBe("app.js");
+  });
+
+  it("leaves localPath null on a ref that climbs out of the artifact", () => {
+    const [ref] = findExternalRefs(`<img src="../../secret/key.pem">`);
+    expect(ref.relative).toBe(true);
+    expect(ref.localPath).toBeNull();
+  });
+
+  // An inline <style> is not a stylesheet of its own, so its refs key from the
+  // document root — the same key a <link href="./img/bg.png"> would produce.
+  // That equality is why the document is a local base with an empty directory
+  // rather than a variant of its own.
+  it("keys a relative url() in an inline style from the document root", () => {
+    const [ref] = findExternalRefs(`<style>a{background:url(./img/bg.png)}</style>`);
+    expect(ref.localPath).toBe("img/bg.png");
+  });
+
+  it("carries no localPath on an absolute ref", () => {
+    const [ref] = findExternalRefs(`<script src="${CDN}/a.js"></script>`);
+    expect(ref.relative).toBe(false);
+    expect(ref.localPath).toBeNull();
+  });
+
   it("finds refs inside an inline style block", () => {
     const html = `<style>@font-face{src:url("https://fonts.gstatic.com/a.woff2")}</style>`;
     const [ref] = findExternalRefs(html);
@@ -131,10 +162,10 @@ describe("findExternalRefs", () => {
 
 describe("findCssRefs", () => {
   it("resolves a relative url() against the stylesheet, not the page", () => {
-    const [ref] = findCssRefs(
-      `@font-face{src:url(./fonts/a.woff2)}`,
-      "https://cdn.jsdelivr.net/npm/pkg/dist/a.css",
-    );
+    const [ref] = findCssRefs(`@font-face{src:url(./fonts/a.woff2)}`, {
+      kind: "remote",
+      url: "https://cdn.jsdelivr.net/npm/pkg/dist/a.css",
+    });
     expect(ref.url).toBe("https://cdn.jsdelivr.net/npm/pkg/dist/fonts/a.woff2");
     expect(ref.relative).toBe(false);
   });
@@ -142,39 +173,63 @@ describe("findCssRefs", () => {
   it("reads an absolute url() as it stands", () => {
     const [ref] = findCssRefs(
       `@font-face{src:url("https://fonts.gstatic.com/a.woff2") format("woff2")}`,
-      "https://fonts.googleapis.com/css2",
+      { kind: "remote", url: "https://fonts.googleapis.com/css2" },
     );
     expect(ref.url).toBe("https://fonts.gstatic.com/a.woff2");
     expect(ref.kind).toBe("font");
   });
 
   it("does not double-count the url() belonging to an @import", () => {
-    const refs = findCssRefs(`@import url("https://x.test/a.css");`, null);
+    const refs = findCssRefs(`@import url("https://x.test/a.css");`, DOCUMENT_BASE);
     expect(refs).toHaveLength(1);
     expect(refs[0].form).toBe("css-text");
   });
 
   it("reads an @import with no url() wrapper", () => {
-    const [ref] = findCssRefs(`@import "https://x.test/a.css";`, null);
+    const [ref] = findCssRefs(`@import "https://x.test/a.css";`, DOCUMENT_BASE);
     expect(ref.url).toBe("https://x.test/a.css");
   });
 
   // Replacing the rule with the stylesheet's text would apply a print-only
   // sheet to the screen.
   it("marks an @import carrying a media condition unsafe", () => {
-    const [ref] = findCssRefs(`@import "https://x.test/a.css" print;`, null);
+    const [ref] = findCssRefs(`@import "https://x.test/a.css" print;`, DOCUMENT_BASE);
     expect(ref.unsafe).toBe(true);
   });
 
   it("ignores a data URI already inlined", () => {
-    expect(findCssRefs(`@font-face{src:url(data:font/woff2;base64,AA)}`, null))
+    expect(findCssRefs(`@font-face{src:url(data:font/woff2;base64,AA)}`, DOCUMENT_BASE))
       .toEqual([]);
   });
 
   it("offsets spans so a caller can splice into the document", () => {
     const html = `<style>a{background:url(https://x.test/a.png)}</style>`;
-    const [ref] = findCssRefs(html.slice(7, -8), null, 7);
+    const [ref] = findCssRefs(html.slice(7, -8), DOCUMENT_BASE, 7);
     expect(html.slice(ref.start, ref.end)).toBe("url(https://x.test/a.png)");
+  });
+
+  it("resolves a relative url() against a bundle stylesheet's own directory", () => {
+    const [ref] = findCssRefs(`@font-face{src:url(../fonts/a.woff2)}`, {
+      kind: "local",
+      dir: "css",
+    });
+
+    expect(ref.relative).toBe(true);
+    expect(ref.localPath).toBe("fonts/a.woff2");
+  });
+
+  // A sibling stylesheet naming a Google font must still reach the network. The
+  // bundle base changes where RELATIVE refs resolve from, not what counts as
+  // relative.
+  it("keeps a bundle stylesheet's absolute ref on the network", () => {
+    const [ref] = findCssRefs(
+      `@import url("https://fonts.googleapis.com/css2?family=Inter");`,
+      { kind: "local", dir: "css" },
+    );
+
+    expect(ref.relative).toBe(false);
+    expect(ref.localPath).toBeNull();
+    expect(ref.url).toBe("https://fonts.googleapis.com/css2?family=Inter");
   });
 });
 

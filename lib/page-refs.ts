@@ -1,4 +1,5 @@
 import { assetKindForUrl, type RefKind } from "@/lib/asset-policy";
+import { joinRef, normaliseAssetPath } from "@/lib/asset-path";
 
 // A deliberately small matcher, in the spirit of lib/inline-markup.ts: the
 // shapes it has to recognise are narrow and known, and an HTML parser would be
@@ -23,6 +24,16 @@ export type RefForm =
   | "url-value"
   | "css-url";
 
+// Where a relative ref resolves from. Two variants, not three: the document is a
+// local base with an empty directory, because an inline <style>'s url(./bg.png)
+// and a <link href="./bg.png"> must produce the same bundle key, and one rule is
+// what guarantees that rather than two that happen to agree today.
+export type RefBase =
+  | { kind: "remote"; url: string }
+  | { kind: "local"; dir: string };
+
+export const DOCUMENT_BASE: RefBase = { kind: "local", dir: "" };
+
 export type ExternalRef = {
   kind: RefKind;
   form: RefForm;
@@ -36,6 +47,10 @@ export type ExternalRef = {
   // non-empty. Always "" unless form is script-element or style-element.
   attrs: string;
   relative: boolean;
+  // The bundle key a relative ref addresses, normalised — or null when it
+  // addresses nothing inside the bundle, which is the case a report names and a
+  // lookup never attempts. Always null when `relative` is false.
+  localPath: string | null;
   // Known to be unsafe to inline before anything is fetched: an @import
   // carrying a media condition. Reported, never fetched.
   unsafe: boolean;
@@ -69,24 +84,41 @@ function decodeAttrUrl(value: string): string {
     .replace(/&amp;/gi, "&");
 }
 
-type Target = { url: string; relative: boolean };
+type Target = { url: string; relative: boolean; localPath: string | null };
 
-// baseUrl is the document (null) or the stylesheet a ref was found inside.
-function resolveRef(raw: string, baseUrl: string | null): Target | null {
+function absolute(url: string): Target {
+  return { url, relative: false, localPath: null };
+}
+
+// `base` is where a relative ref resolves from: a directory inside the uploaded
+// bundle, or the URL of a stylesheet that was fetched.
+function resolveRef(raw: string, base: RefBase): Target | null {
   const value = decodeAttrUrl(raw).trim();
   if (!value || IGNORED.test(value)) return null;
-  if (SCHEME.test(value)) return { url: value, relative: false };
+  if (SCHEME.test(value)) return absolute(value);
   // A protocol-relative URL is absolute with the page's scheme, which is https
   // in production. Upgrading it here means the allowlist gets to judge it
   // rather than it being silently dropped as relative.
-  if (value.startsWith("//")) return { url: `https:${value}`, relative: false };
-  if (baseUrl === null) return { url: value, relative: true };
+  if (value.startsWith("//")) return absolute(`https:${value}`);
+
+  if (base.kind === "local") {
+    return {
+      // The raw text, so the report names what the author wrote.
+      url: value,
+      relative: true,
+      // joinRef concatenates and normaliseAssetPath folds. Never the other way
+      // round, and never anywhere else — tools/publish-dia-artifact.sh uploads
+      // its keys unfolded precisely so this is the only implementation.
+      localPath: normaliseAssetPath(joinRef(base.dir, value)),
+    };
+  }
+
   try {
     // Resolved against the stylesheet's own URL, not the page's — that is what
     // CSS does, and it is what makes url(./fonts/x.woff2) inside a jsdelivr
     // stylesheet reach jsdelivr. Resolution preserves the host, so this cannot
     // reach off the allowlist; the allowlist is checked again regardless.
-    return { url: new URL(value, baseUrl).toString(), relative: false };
+    return absolute(new URL(value, base.url).toString());
   } catch {
     return null;
   }
@@ -149,7 +181,7 @@ export function findExternalRefs(html: string): ExternalRef[] {
   const refs: ExternalRef[] = [];
 
   for (const match of html.matchAll(SCRIPT)) {
-    const target = resolveRef(attr(match[1], "src") ?? "", null);
+    const target = resolveRef(attr(match[1], "src") ?? "", DOCUMENT_BASE);
     if (!target) continue;
     refs.push({
       kind: "script",
@@ -159,13 +191,14 @@ export function findExternalRefs(html: string): ExternalRef[] {
       end: match.index + match[0].length,
       attrs: attrsWithout(match[1], "src"),
       relative: target.relative,
+      localPath: target.localPath,
       unsafe: false,
     });
   }
 
   for (const match of html.matchAll(LINK)) {
     if (!isStylesheet(match[1])) continue;
-    const target = resolveRef(attr(match[1], "href") ?? "", null);
+    const target = resolveRef(attr(match[1], "href") ?? "", DOCUMENT_BASE);
     if (!target) continue;
     refs.push({
       kind: "style",
@@ -177,6 +210,7 @@ export function findExternalRefs(html: string): ExternalRef[] {
       // meant; nothing else a <link> carries has a meaning on a <style>.
       attrs: mediaAttr(match[1]),
       relative: target.relative,
+      localPath: target.localPath,
       unsafe: false,
     });
   }
@@ -184,7 +218,7 @@ export function findExternalRefs(html: string): ExternalRef[] {
   for (const match of html.matchAll(IMG)) {
     const src = attrMatch(match[1], "src");
     if (!src) continue;
-    const target = resolveRef(src.value, null);
+    const target = resolveRef(src.value, DOCUMENT_BASE);
     if (!target) continue;
     const offset = attrsOffset(match);
     refs.push({
@@ -195,6 +229,7 @@ export function findExternalRefs(html: string): ExternalRef[] {
       end: offset + src.end,
       attrs: "",
       relative: target.relative,
+      localPath: target.localPath,
       unsafe: false,
     });
   }
@@ -204,7 +239,7 @@ export function findExternalRefs(html: string): ExternalRef[] {
   // `@import url(fonts.googleapis.com/...)` reach its fonts within the depth cap.
   for (const match of html.matchAll(STYLE)) {
     const contentAt = match.index + match[0].indexOf(">") + 1;
-    refs.push(...findCssRefs(match[2], null, contentAt));
+    refs.push(...findCssRefs(match[2], DOCUMENT_BASE, contentAt));
   }
 
   return refs;
@@ -212,10 +247,11 @@ export function findExternalRefs(html: string): ExternalRef[] {
 
 // `offset` is where this CSS sits inside the document, so a ref found in an
 // inline <style> carries a span the document's own splicer can use. It is 0
-// when the CSS was fetched and is being rewritten on its own.
+// when the CSS was fetched or read from the bundle and is being rewritten on its
+// own.
 export function findCssRefs(
   css: string,
-  baseUrl: string | null,
+  base: RefBase,
   offset = 0,
 ): ExternalRef[] {
   const refs: ExternalRef[] = [];
@@ -223,7 +259,7 @@ export function findCssRefs(
 
   for (const match of css.matchAll(CSS_IMPORT)) {
     importSpans.push([match.index, match.index + match[0].length]);
-    const target = resolveRef(match[1] ?? match[2] ?? match[3] ?? "", baseUrl);
+    const target = resolveRef(match[1] ?? match[2] ?? match[3] ?? "", base);
     if (!target) continue;
     refs.push({
       kind: "style",
@@ -233,6 +269,7 @@ export function findCssRefs(
       end: offset + match.index + match[0].length,
       attrs: "",
       relative: target.relative,
+      localPath: target.localPath,
       // `@import "a.css" screen;` means "only for screens", and replacing the
       // rule with the stylesheet's text would apply it everywhere. Reported
       // rather than silently widened.
@@ -246,7 +283,7 @@ export function findCssRefs(
       ([from, to]) => match.index >= from && match.index < to,
     );
     if (inImport) continue;
-    const target = resolveRef(match[1] ?? match[2] ?? match[3] ?? "", baseUrl);
+    const target = resolveRef(match[1] ?? match[2] ?? match[3] ?? "", base);
     if (!target) continue;
     refs.push({
       kind: assetKindForUrl(target.url),
@@ -256,6 +293,7 @@ export function findCssRefs(
       end: offset + match.index + match[0].length,
       attrs: "",
       relative: target.relative,
+      localPath: target.localPath,
       unsafe: false,
     });
   }
