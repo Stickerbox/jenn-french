@@ -1,5 +1,5 @@
 #!/bin/bash
-# Publish the most recent Dia artifact to francaisavecjenn.ca.
+# Publish a Dia artifact to francaisavecjenn.ca.
 #
 # Dia serves its artifacts from chrome-untrusted://, a Chromium-internal scheme
 # no browser extension can be granted access to — which is why this reads the
@@ -7,12 +7,17 @@
 # there is nothing to scrape and nothing to copy by hand.
 #
 # Usage:
-#   publish-dia-artifact.sh                        # the newest artifact
+#   publish-dia-artifact.sh                        # choose from a dialog
+#   publish-dia-artifact.sh --latest               # the newest, no dialog
+#   publish-dia-artifact.sh <words in the title>   # e.g. crêpes
 #   publish-dia-artifact.sh --list                 # the ten newest, with dates
-#   publish-dia-artifact.sh <name>                 # e.g. montreal_french
 #   publish-dia-artifact.sh --token <value> [name] # supply the token inline
 #
-# Options go before the artifact name.
+# Options go before the title.
+#
+# Artifacts are identified by the <title> of their index.html, not by their
+# directory name: Dia calls most directories template_output, so the name
+# usually cannot tell two apart.
 #
 # The token is read from, in order: --token, then $PAGES_UPLOAD_TOKEN, then
 # ~/.config/francaisavecjenn/token. Nothing is written to disk, so --token has to
@@ -23,7 +28,8 @@
 # setup at all.
 #
 # The site defaults to production and can be overridden with $JENN_SITE (e.g.
-# http://localhost:3000 while testing).
+# http://localhost:3000 while testing). $DIA_ARTIFACTS overrides where artifacts
+# are read from, which is only useful for testing.
 
 set -euo pipefail
 

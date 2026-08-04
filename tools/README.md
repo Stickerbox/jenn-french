@@ -22,10 +22,10 @@ It works because Dia also writes every artifact to disk, as a plain directory:
   <UUID>/<artifact-name>/site/index.html
 ```
 
-Nothing is scraped and nothing is copied by hand — the script reads the newest
-`index.html`, takes the page title from its `<title>` tag, publishes it, copies
-the link to the clipboard, and opens the editor so you can pick which groups see
-it.
+Nothing is scraped and nothing is copied by hand — the script lists the artifacts
+on disk, takes each page title from its `<title>` tag, publishes the one you
+choose, copies the link to the clipboard, and opens the editor so you can pick
+which groups see it.
 
 ### Setting it up once
 
@@ -38,10 +38,20 @@ chmod 600 ~/.config/francaisavecjenn/token
 ### Using it
 
 ```bash
-tools/publish-dia-artifact.sh            # publish the newest artifact
+tools/publish-dia-artifact.sh            # choose from a dialog
+tools/publish-dia-artifact.sh --latest   # publish the newest, no dialog
 tools/publish-dia-artifact.sh --list     # the ten newest, with dates
-tools/publish-dia-artifact.sh montreal_french   # a specific one by name
+tools/publish-dia-artifact.sh crêpes     # a specific one, by words in its title
 ```
+
+With no arguments it opens a dialog listing the ten newest artifacts by title and
+date, newest already selected — so Return publishes today's page and the other
+nine are one arrow key away.
+
+Artifacts are identified by the `<title>` of their `index.html`. Dia writes most
+artifacts to a directory called `template_output`, so the directory name usually
+cannot tell two apart — an earlier version of this script selected by that name,
+which meant it could generally only re-pick the newest one.
 
 Against a local dev server:
 
@@ -58,17 +68,23 @@ So Jenn never touches a terminal:
 2. Add the action **Run Shell Script**.
 3. Set Shell to `/bin/bash` and paste the full path to the script, in quotes:
    `"/Users/<her>/…/jenn-french/tools/publish-dia-artifact.sh"`
-4. Name it **Publish latest page**, then in the sidebar tick **Pin in Menu Bar**.
+4. Name it **Publish a page**, then in the sidebar tick **Pin in Menu Bar**.
 
-She writes a page in Dia, clicks the menu-bar shortcut, and the link is on her
-clipboard. A keyboard shortcut can be added in the same panel.
+She writes a page in Dia, clicks the menu-bar shortcut, picks the page from the
+dialog, and the link is on her clipboard. A keyboard shortcut can be added in the
+same panel.
+
+The Shortcut needs no arguments and no changes when the script is updated: with
+none passed, it opens the chooser. Because a Shortcut discards the script's
+output, errors are shown in an alert window instead.
 
 ### What it warns about
 
-- **Extra files.** If an artifact ships images or stylesheets beside
-  `index.html`, only `index.html` is published and the rest go missing. The
-  script says so before publishing rather than letting it fail silently in front
-  of students.
+- **Linked files.** Only `index.html` is published. If a page links out to a
+  stylesheet, script or image sitting beside it, those go missing — the site's
+  CSP blocks everything a page loads from elsewhere. The dialog marks such a
+  page `⚠ N linked files` on its row, so you can pick a different one before
+  publishing rather than finding out afterwards.
 - **Files it could not include.** A page that loads a script, stylesheet, image
   or font from a known CDN has it folded into the page on publish, so it works
   behind the site's CSP without anything being loaded from elsewhere. Anything
