@@ -251,6 +251,40 @@ candidate_rows() {
       done
 }
 
+# stdin:  "mtime<TAB>path<TAB>title<TAB>refcount"
+# stdout: one display label per line, same order
+#
+# chooseFromList returns the chosen *string*, not an index, so two identical
+# labels are indistinguishable. Titles repeat across days and the timestamp
+# usually separates them, but regenerating a page twice inside a minute does
+# not. Suffixing later duplicates makes the label-to-row map total by
+# construction rather than by luck.
+build_labels() {
+  local mtime path title refs label i j n dup
+  local labels=()
+  while IFS=$'\t' read -r mtime path title refs; do
+    # %-d rather than %e, so a single-digit day gives "Fri 1 Aug" and not the
+    # double-spaced "Fri  1 Aug". The - padding modifier is usually a glibc
+    # extension; it was verified working in macOS's BSD date.
+    label="$title — $(date -r "$mtime" '+%a %-d %b %H:%M')"
+    if [ "${refs:-0}" -gt 1 ]; then
+      label="$label  ⚠ $refs linked files"
+    elif [ "${refs:-0}" = "1" ]; then
+      label="$label  ⚠ 1 linked file"
+    fi
+    labels[${#labels[@]}]="$label"
+  done
+  n=${#labels[@]}
+  for ((i = 0; i < n; i++)); do
+    dup=1
+    for ((j = 0; j < i; j++)); do
+      [ "${labels[$j]}" = "${labels[$i]}" ] && dup=$((dup + 1))
+    done
+    [ "$dup" -gt 1 ] && labels[$i]="${labels[$i]} ($dup)"
+    printf '%s\n' "${labels[$i]}"
+  done
+}
+
 if [ "$WANT_LIST" = "1" ]; then
   echo "Recent Dia artifacts:"
   list_artifacts | head -10 | while read -r mtime path; do
