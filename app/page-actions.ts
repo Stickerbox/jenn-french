@@ -8,6 +8,7 @@ import { getCurrentTeacher } from "@/lib/session";
 import { savePage, updatePageMeta, type SavePageInput } from "@/lib/pages";
 import { validatePageHtml } from "@/lib/page-html";
 import { validatePagePdf } from "@/lib/page-pdf";
+import { validatePageThumb } from "@/lib/page-thumb";
 import { parseLinkUrl } from "@/lib/link-url";
 import { readPageKind } from "@/lib/page-kind";
 import { canStudentDelete, shelfRole, type ShelfRole } from "@/lib/shelf-access";
@@ -197,6 +198,21 @@ async function readPdfForm(
   return { title, bytes: validated.bytes };
 }
 
+// The thumbnail field of a pdf submission, or null.
+//
+// A bad thumbnail is NOT a failed upload. The document is the thing being saved
+// and the glyph is a working fallback, so a rejected or absent preview is
+// dropped silently rather than turned into an error about a nicety she did not
+// ask for. Every other validation failure in these actions is reported; this one
+// deliberately is not.
+async function readThumb(formData: FormData): Promise<Uint8Array | null> {
+  const field = formData.get("thumb");
+  if (!(field instanceof File) || field.size === 0) return null;
+
+  const validated = validatePageThumb(new Uint8Array(await field.arrayBuffer()));
+  return validated.ok ? validated.bytes : null;
+}
+
 function readGroupIds(formData: FormData): string[] {
   return formData
     .getAll("groupIds")
@@ -219,6 +235,7 @@ export async function createPdfPage(formData: FormData): Promise<string> {
     title,
     pdf: bytes,
     pdfSize: bytes.byteLength,
+    thumb: await readThumb(formData),
     groupIds: readGroupIds(formData),
   });
 
@@ -241,6 +258,11 @@ export async function updatePdfPage(
       title,
       pdf: bytes,
       pdfSize: bytes.byteLength,
+      // Only read beside a new file. A form submitted without one has no new
+      // preview to offer, and the branch below must never be handed a thumbnail
+      // it would have to decide what to do with: writing null there would erase
+      // a good one.
+      thumb: await readThumb(formData),
       groupIds,
     });
   } else {
