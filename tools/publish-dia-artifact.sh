@@ -606,22 +606,56 @@ fi
 # mangled title bakes in a mangled bookmark. It is extracted exactly once, in
 # describe_artifacts, so the string the picker showed is the string sent here.
 
-# Only the file *path* crosses the process boundary, so 2 MB of arbitrary HTML
-# never meets shell word-splitting or quoting.
-BODY=$(osascript -l JavaScript -e '
-ObjC.import("Foundation");
+# Only the file *paths* cross the process boundary, so megabytes of arbitrary
+# HTML never meet shell word-splitting or quoting. The assets are read in here
+# for that reason and one more: their bytes may not be text at all.
+#
+# The title matters more than it looks: the server derives the page slug from it
+# when the payload sends no slug, and a slug never moves again once created. A
+# mangled title bakes in a mangled bookmark. It is extracted exactly once, in
+# describe_artifacts, so the string the picker showed is the string sent here.
+BODY=$(osascript -l JavaScript -e "$JXA_ASSETS" -e '
 function run(argv) {
-  var s = $.NSString.stringWithContentsOfFileEncodingError(argv[1], $.NSUTF8StringEncoding, null);
-  return JSON.stringify({ title: argv[0], html: s.js });
+  var index = argv[1];
+  var html = readUtf8(index);
+  if (html === null) { throw new Error("cannot read the artifact"); }
+
+  var root = siteRoot(index);
+  var assets = [];
+  collectAllRefs(root, html).forEach(function (ref) {
+    var full = usableAsset(root, ref);
+    // Dropped silently, because these are exactly the refs describe_artifacts
+    // already counted as missing and the picker already marked with a warning.
+    // The server names each one in its own report afterwards.
+    if (full === null) { return; }
+    var data = $.NSData.dataWithContentsOfFile(full);
+    if (data.isNil()) { return; }
+    assets.push({
+      // The ref VERBATIM: unfolded, still percent-encoded, query and all.
+      // lib/asset-path.ts normalises both this key and the document ref it has
+      // to meet, so the two agree by construction rather than by two
+      // implementations of one rule staying in step.
+      path: ref,
+      base64: data.base64EncodedStringWithOptions(0).js
+    });
+  });
+
+  return JSON.stringify({ title: argv[0], html: html, assets: assets });
 }' "$TITLE" "$INDEX")
 
-echo "Publishing \"${TITLE}\" ($(wc -c < "$INDEX" | tr -d ' ') bytes) to ${SITE} ..."
+EXTRA=""
+if [ "${TOTAL:-0}" != "0" ]; then
+  EXTRA=", plus $((TOTAL - MISSING)) file(s)"
+fi
+echo "Publishing \"${TITLE}\" ($(wc -c < "$INDEX" | tr -d ' ') bytes$EXTRA) to ${SITE} ..."
 
 # The body arrives on stdin, not in an argument. ARG_MAX is 1 MB while the
-# endpoint accepts 2 MB, so `-d "$BODY"` died with "argument list too long"
-# before sending anything for pages in between — a raw shell error rather than
-# this script's own reporting. Piping leaves the size ceiling where it belongs,
-# in MAX_PAGE_BYTES on the server.
+# endpoint accepts MAX_UPLOAD_BYTES, so `-d "$BODY"` died with "argument list too
+# long" before sending anything for pages in between — a raw shell error rather
+# than this script's own reporting. Piping leaves the size ceiling where it
+# belongs, on the server: this script carries no limit of its own, so a payload
+# that is too large comes back as the endpoint's own 413 message, which the die
+# below prints verbatim.
 RESPONSE=$(printf '%s' "$BODY" | curl -sS -w '\n%{http_code}' -X POST "$SITE/api/pages" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
