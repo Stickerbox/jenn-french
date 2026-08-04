@@ -141,14 +141,27 @@ export async function deleteMessage(messageId: string) {
   revalidatePath("/admin");
 }
 
-// Revoking a leaked bookmark. Both tokens move together: a link that leaked
-// probably leaked from the same place as its sibling.
-export async function regenerateStudentLinks(groupId: string) {
+// Was regenerateStudentLinks. After student sign-in these are one operation:
+// clearing the credential without rotating the token would leave whoever is
+// signed in still signed in, because their cookie holds that token — which is
+// exactly the case this exists for, evicting a stranger who claimed an invite
+// that leaked.
+//
+// Both tokens move together, as they did before: a link that leaked probably
+// leaked from the same place as its sibling.
+export async function resetStudentSignIn(groupId: string) {
   await requireTeacher();
 
-  await prisma.group.update({
+  const group = await prisma.group.update({
     where: { id: groupId },
-    data: { chatToken: newToken(), filesToken: newToken() },
+    data: {
+      chatToken: newToken(),
+      filesToken: newToken(),
+      email: null,
+      passwordHash: null,
+      claimedAt: null,
+    },
+    select: { slug: true },
   });
 
   // A token check only happens when a stream connects, so without this a tab
@@ -158,7 +171,11 @@ export async function regenerateStudentLinks(groupId: string) {
   // immediately always sees the new token already in place.
   chatBus.publishRevoke(groupId);
 
+  console.info(`[student-auth] reset ${group.slug}`);
+
   revalidatePath("/admin");
+  // The student's own page too: their gate state changed from under them.
+  revalidatePath(`/g/${group.slug}`);
 }
 
 // Stamps the chat as read at the moment Jenn actually opens the panel, not

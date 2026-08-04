@@ -54,8 +54,8 @@ export const chatBus = {
   },
 
   // A token check at connect is not revocation — a stream opened before
-  // "make new links" was clicked would otherwise relay forever on the old
-  // token. This is what lets regenerateStudentLinks force every open
+  // "Reset sign-in" was clicked would otherwise relay forever on the old
+  // token. This is what lets resetStudentSignIn force every open
   // connection for that group to reconnect and re-authenticate.
   publishRevoke(groupId: string) {
     emitter.emit(revokeEvent(groupId));
