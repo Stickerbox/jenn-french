@@ -50,7 +50,15 @@ export const SKIP_REASONS = {
   fetchFailed: "could not be fetched",
   wrongType: "was not the kind of file it claimed to be",
   tooBig: "would not fit inside the 2 MB page limit",
+  // These two are the same ref for two different reasons, and the cure differs.
+  // `relative` means no files were uploaded beside the document at all — the
+  // admin's paste box and the browser extension, neither of which can see a
+  // directory — so the answer is to publish with tools/publish-dia-artifact.sh
+  // instead. `missing` means files WERE uploaded and this one was not among
+  // them, or its ref pointed outside the artifact folder, so the answer is that
+  // the artifact is broken.
   relative: "is a file next to the page, and only the page itself is published",
+  missing: "was not found next to the page",
   unsafe: "could not be inlined safely",
   tooDeep: "sits behind too many stylesheets to reach",
 } as const;
