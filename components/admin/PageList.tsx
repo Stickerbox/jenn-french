@@ -15,6 +15,7 @@ import {
   pageGrid,
   pageSectionHeading,
   pageSectionList,
+  tileActionClass,
 } from "@/components/card-styles";
 import { sectionPages } from "@/lib/page-sections";
 import { adminSectionLabel } from "@/lib/page-section-labels";
@@ -46,9 +47,6 @@ export type PageSummary = {
   groupNames: string[];
   sharedWithEveryone: boolean;
 };
-
-const pageActionClass =
-  "flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]";
 
 // A pencil laid across a baseline: the nib, the barrel, the line it writes on.
 function PencilIcon() {
@@ -260,7 +258,7 @@ export function PageList({
                                 href={`/admin/pages/${page.slug}`}
                                 aria-label={`Edit ${page.title}`}
                                 title="Edit"
-                                className={pageActionClass}
+                                className={tileActionClass}
                               >
                                 <PencilIcon />
                               </Link>
@@ -279,7 +277,7 @@ export function PageList({
                                 download={`${page.slug}.${page.kind === "pdf" ? "pdf" : "html"}`}
                                 aria-label={`Download ${page.title}`}
                                 title="Download"
-                                className={pageActionClass}
+                                className={tileActionClass}
                               >
                                 <DownloadIcon />
                               </a>
@@ -313,7 +311,7 @@ export function PageList({
                                     : "Pin"
                                   : "Pick a student to pin for"
                               }
-                              className={cn(pageActionClass, "disabled:opacity-40")}
+                              className={cn(tileActionClass, "disabled:opacity-40")}
                             >
                               <PinIcon filled={page.pinnedAt !== null} />
                             </button>

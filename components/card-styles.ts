@@ -84,3 +84,10 @@ export const pageSectionHeading =
 // The gap between sections, on the parent rather than on each heading, so it
 // cannot depend on where a heading sits inside its own wrapper.
 export const pageSectionList = "space-y-8";
+
+// The round icon button in a tile's action slot — the pencil and download on a
+// page, the invite/reset/delete on a student. Here rather than local to one list
+// because two lists render it and a second copy is a second thing to keep in
+// step.
+export const tileActionClass =
+  "flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]";
