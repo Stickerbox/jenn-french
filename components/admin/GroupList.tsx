@@ -6,6 +6,7 @@ import { Tile } from "@/components/ui/Tile";
 import { SearchField } from "@/components/admin/SearchField";
 import { filterGroups } from "@/lib/admin-search";
 import { canDeleteGroup } from "@/lib/everyone";
+import { formatLongDate } from "@/lib/format";
 
 export type GroupSummary = {
   id: string;
@@ -14,23 +15,27 @@ export type GroupSummary = {
   isEveryone: boolean;
   unread: number;
   chatToken: string | null;
+  // Null until the student signs up. Both move together, so either one answers
+  // "claimed?" — email is the one displayed.
+  email: string | null;
+  claimedAt: Date | null;
 };
 
 export function GroupList({
   groups,
   onDelete,
-  onRegenerate,
+  onReset,
 }: {
   groups: GroupSummary[];
   onDelete: (groupId: string) => Promise<void>;
-  onRegenerate: (groupId: string) => Promise<void>;
+  onReset: (groupId: string) => Promise<void>;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [confirmingRegen, setConfirmingRegen] = useState<string | null>(null);
-  const [regenerating, setRegenerating] = useState<string | null>(null);
+  const [confirmingReset, setConfirmingReset] = useState<string | null>(null);
+  const [resetting, setResetting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const visible = filterGroups(groups, query);
@@ -49,17 +54,19 @@ export function GroupList({
     }
   }
 
-  async function handleRegenerate(id: string) {
-    setRegenerating(id);
+  async function handleReset(id: string) {
+    setResetting(id);
     setError(null);
     try {
-      await onRegenerate(id);
-      setConfirmingRegen(null);
+      await onReset(id);
+      setConfirmingReset(null);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not make new links");
+      setError(
+        err instanceof Error ? err.message : "Could not reset that sign-in",
+      );
     } finally {
-      setRegenerating(null);
+      setResetting(null);
     }
   }
 
@@ -135,46 +142,57 @@ export function GroupList({
 
               {group.chatToken && (
                 <>
-                  <p className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
-                    <code className="break-all">
-                      /g/{group.slug}?k={group.chatToken}
-                    </code>
-                  </p>
+                  {group.email === null ? (
+                    <p className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
+                      Invitation — share once:{" "}
+                      <code className="break-all">
+                        /g/{group.slug}?k={group.chatToken}
+                      </code>
+                    </p>
+                  ) : (
+                    // No link once claimed: the invite has been spent, and
+                    // showing a dead URL is a support call waiting to happen.
+                    <p className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
+                      <span className="break-all">{group.email}</span>
+                      {group.claimedAt !== null && (
+                        <> · signed up {formatLongDate(group.claimedAt)}</>
+                      )}
+                    </p>
+                  )}
 
                   <button
                     type="button"
                     onClick={() => {
                       setError(null);
-                      setConfirmingRegen(group.id);
+                      setConfirmingReset(group.id);
                     }}
                     className="mt-1 text-xs text-[var(--color-ink-muted)] underline"
                   >
-                    Make new links
+                    {group.email === null ? "New invite link" : "Reset sign-in"}
                   </button>
 
-                  {confirmingRegen === group.id && (
-                    <div className="mt-2 flex flex-wrap items-baseline gap-3">
+                  {confirmingReset === group.id && (
+                    <div className="mt-2 flex flex-wrap items-baseline gap-3 text-sm">
                       <span>
-                        Make new links for {group.name}? Their old links stop
-                        working.
+                        {group.email === null
+                          ? `Make a new invite link for ${group.name}? The old one stops working.`
+                          : `Reset sign-in for ${group.name}? Their email and password are cleared and their old links stop working. Their pages, chat and boards stay.`}
                       </span>
                       <button
                         type="button"
-                        onClick={() => setConfirmingRegen(null)}
-                        disabled={regenerating !== null}
+                        onClick={() => setConfirmingReset(null)}
+                        disabled={resetting !== null}
                         className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
                       >
                         Cancel
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleRegenerate(group.id)}
-                        disabled={regenerating !== null}
-                        className="mt-1 text-xs text-[var(--color-ink-muted)] underline disabled:opacity-50"
+                        onClick={() => handleReset(group.id)}
+                        disabled={resetting !== null}
+                        className="font-medium text-[var(--color-accent)] underline disabled:opacity-50"
                       >
-                        {regenerating === group.id
-                          ? "Making new links…"
-                          : "Make new links"}
+                        {resetting === group.id ? "Resetting…" : "Reset"}
                       </button>
                     </div>
                   )}

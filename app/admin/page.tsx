@@ -6,7 +6,7 @@ import {
   createGroup,
   deleteGlobalCard,
   deleteGroup,
-  regenerateStudentLinks,
+  resetStudentSignIn,
 } from "@/app/actions";
 import { logout } from "@/app/auth-actions";
 import { CardEditor } from "@/components/admin/CardEditor";
@@ -135,9 +135,11 @@ async function GroupsTab() {
           isEveryone: g.isEveryone,
           unread: unread.get(g.id) ?? 0,
           chatToken: g.chatToken,
+          email: g.email,
+          claimedAt: g.claimedAt,
         }))}
         onDelete={deleteGroup}
-        onRegenerate={regenerateStudentLinks}
+        onReset={resetStudentSignIn}
       />
     </div>
   );
