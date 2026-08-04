@@ -33,6 +33,8 @@ export type ShelfPage = {
   kind: PageKind;
   url: string | null;
   pdfSize: number | null;
+  // The preview's existence signal and its cache version; see PdfPreview.
+  pdfThumbAt: Date | null;
   addedByStudent: boolean;
 };
 
@@ -116,7 +118,15 @@ export function FilesTab({
                           page.kind === "link" && page.url ? (
                             <LinkPreview url={page.url} />
                           ) : page.kind === "pdf" ? (
-                            <PdfPreview size={page.pdfSize} />
+                            <PdfPreview
+                              slug={page.slug}
+                              size={page.pdfSize}
+                              thumbVersion={
+                                page.pdfThumbAt
+                                  ? new Date(page.pdfThumbAt).getTime()
+                                  : null
+                              }
+                            />
                           ) : (
                             <HtmlPreview slug={page.slug} version={pageVersion(page.updatedAt)} />
                           )
