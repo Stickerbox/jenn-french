@@ -35,7 +35,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | Route | Who | Notes |
 |---|---|---|
 | `/` | public | landing page |
-| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the student's own chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included, who once unlocked also gets *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. **Jenn's own chat is her inbox FAB and follows her session, not the token** — the only thing on this page that does, and it carries the delete and read-marker controls with it. Everything the gate controls is unchanged. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding a link or a page is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing |
+| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the student's own chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included, who once unlocked also gets *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. **Jenn's own chat is her inbox FAB and follows her session, not the token** — the only thing on this page that does, and it carries the delete and read-marker controls with it. Everything the gate controls is unchanged. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding a link or a page is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. The card tab carries the week's five day dots, a week-range line that opens a month calendar, and *Aujourd'hui*; a day with no card cannot be selected. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe; a pdf row redirects to `/p/[slug]/pdf` |
@@ -96,6 +96,10 @@ content-driven rule silently dropped styling from existing cards.
 Every date is UTC midnight, constructed as ``new Date(`${str}T00:00:00Z`)``, and
 formatted with `timeZone: "UTC"`. The teaching week runs Monday–Friday; both
 Saturday and Sunday belong to the week that just ended (`lib/week.ts`).
+`mondayOf` is where that rule lives and `weekDates` returns the five teaching
+days of any date's week. `lib/month-grid.ts` keeps its own copy of the same
+arithmetic on purpose — it steps over the weekend while walking a whole month,
+which is a different job.
 
 One deliberate exception, added 2026-08-04: **chat message grouping and
 timestamps are in the reader's local zone**, not UTC. `lib/chat-time.ts` is the
@@ -111,6 +115,18 @@ pre-posting is the teacher's workflow, and clamping would make those days
 unreachable from `/admin`. It does, however, snap a weekend date forward to the
 following Monday, including its `today` fallback, so `/admin` never opens on a
 non-teaching day; the five-column calendar is the UI half of the same rule.
+
+Two more things enforce the same bound now that the card page has a calendar
+students can page through. `listCardDates` (`lib/cards.ts`) filters to
+`<= latestViewableDate(today)` **in the query**, so the dates of pre-posted
+cards never reach the browser at all, and `isSelectableCardDate`
+(`lib/card-dates.ts`) re-checks it, because the calendar can page into a month
+the query said nothing about. A day with no card is disabled rather than absent:
+a calendar missing a Tuesday reads as a rendering fault. One value —
+`latestViewableDate(today)` — is both that ceiling and the day *Aujourd'hui*
+goes to, passed as a single prop because they are the same rule; on a weekend
+that is the Friday that closed the week, so the button appears to do nothing if
+you push the real Saturday and let `parseDate` clamp it back.
 
 ### Auth
 
@@ -133,7 +149,18 @@ in, and its clause order is the specification — see the comments. Two clauses
 exist for Jenn specifically: she must never be shown a sign-up form she could
 complete on a student's behalf, and after a claim her stored cookie is stale, so
 she is told to reopen the student from the admin rather than shown a student
-sign-in form. `unlocked` is derived from the gate and still never consults the
+sign-in form.
+
+`authPanelMode` sits beside it and answers a narrower question — which form, if
+any, to render — and returns `null` for the teacher in every state. That is not
+cosmetic: the panel's signed-in mode is *Se déconnecter*, and `signOutStudent`
+clears the **student's** cookie for that slug, which is the cookie `unlocked` is
+derived from, so the control offered her a way to lock herself out of the Files
+and Whiteboard tabs. It is a predicate rather than a seventh gate state because
+`unlocked` compares against `signed-in` and a new state would have to be added
+to that comparison too.
+
+`unlocked` is derived from the gate and still never consults the
 teacher session, which means **she cannot open the chat or a board for a student
 who has not signed up yet**. That is deliberate: there is nobody on the other
 end. Pages can still be assigned and pinned to that student from the admin.
@@ -337,7 +364,25 @@ sibling and shares its `requireShelfRole` guard. They may delete only what they
 added themselves, and only while nobody else can see it (`canStudentDelete`,
 which keys off `addedByStudent` rather than the kind, because the kind used to
 stand in for it and stopped being able to); the server re-checks that regardless
-of which controls the tile rendered. Because a student can now publish a
+of which controls the tile rendered.
+
+A third way in needs no control at all: **a link in a chat message is filed on
+that conversation's shelf automatically**, by `addChatLinks`
+(`lib/shelf-links.ts`) from the chat POST route, for whichever party sent it.
+`extractLinks` (`lib/chat-links.ts`) decides which URLs count and reuses
+`parseLinkUrl` rather than validating again — one guard, not two places for
+`javascript:` to get through. A scheme is required, because prose is full of
+things a URL parser would read as a hostname; five per message, because 4000
+characters is room for forty page rows; and a URL already on that shelf, or on
+the everyone shelf it inherits from, is skipped rather than duplicated.
+`addedByStudent` mirrors the sender, which is what decides whether the student
+can later delete it. It never throws and it runs after `createMessage`: a link
+that cannot be filed must not cost the message that mentioned it. The shelf
+updates on the next navigation to it, not live — there is deliberately no SSE
+frame for this. The everyone group is excluded for free, since `chatRole`
+refuses it before anything else.
+
+Because a student can now publish a
 document served from our origin, and a slug is derived from a title and so is
 guessable, `/p/[slug]` carries `robots: { index: false, follow: false }` and its
 raw route an `X-Robots-Tag`. The sandbox and the CSP are unchanged and are still
@@ -491,6 +536,18 @@ In the admin the tile links to `/p/[slug]` and a pencil icon
 links to the editor, not the reverse — following a thumbnail should show the
 page it is a thumbnail of.
 
+A **link** tile shows a trash icon in place of that pencil and the download
+beside it, which is the third clause of the same sentence: it trades the two
+controls it cannot use for the one it can. Until that existed a link could not
+be deleted anywhere — `/admin/pages/[slug]` 404s on a link row and
+`PageEditor`'s *Delete page* was the admin's only delete. It calls the same
+teacher-only `deletePage`, with no confirmation, matching that button. On a
+student's shelf the teacher now gets the × on **every** row (`canDeleteAny`),
+which adds no authority — `deleteShelfLink` has always let her remove anything
+there — and matters because chat-filed links arrive with `addedByStudent` false,
+precisely the set she could not reach. `canStudentDelete` is unchanged and is
+still re-checked on the server regardless of which controls a tile rendered.
+
 A pin is a `PagePin(pageId, groupId, pinnedAt)` row, not a column on the page:
 the same page is pinned on one student's shelf and not on another's. Still a
 timestamp rather than a boolean, for the reason it always was — pinned pages
@@ -595,6 +652,10 @@ local zone — the one deliberate exception to the project-wide UTC rule, see
 *Dates*. Retention is forever, deliberately — this is a teaching record. Jenn
 can delete an individual message, and can regenerate a student's tokens from
 the admin, which revokes both at once.
+
+A message carrying a URL also files it on that student's shelf — see *Files:
+pages, links and PDFs*. The message text is unchanged and still renders as
+plain text; linkifying it is deliberately not part of that.
 
 Jenn chats from an inbox: one FAB, on `/admin`, `/admin/pages/[slug]` and
 `/g/[slug]`, rendered by `components/chat/TeacherInbox.tsx` and invisible to
@@ -896,6 +957,13 @@ the slot.
 - **Imports** use the `@/` alias for repo-root-relative paths.
 - Server actions call `revalidatePath` for the page they affect. Deletes use
   `deleteMany` so a double-click or stale tab is a no-op rather than a P2025.
+- **Two fixed buttons share the bottom-right corner.** `InboxFab` is at
+  `bottom-6 right-4` on `/admin`, `/admin/pages/[slug]` and `/g/[slug]`; the add
+  `+` sits at `bottom-6 right-24`, to its left, in both `AdminChrome` and
+  `ShelfFab`. They are the same `z-50`, so a third fixed control at `right-4`
+  will silently paint over one of them — which is exactly what the admin's `+`
+  did until 2026-08-04. `bottom-24` is not a free slot either: that is where the
+  open panel and the add menu go.
 
 ## Docs
 
