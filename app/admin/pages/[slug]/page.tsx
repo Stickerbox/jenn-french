@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getPageForAdmin } from "@/lib/pages";
 import { updatePage, updatePdfPage, deletePage } from "@/app/page-actions";
 import { PageEditor } from "@/components/admin/PageEditor";
+import { TeacherInbox } from "@/components/chat/TeacherInbox";
 
 export default async function AdminPageEditor({
   params,
@@ -63,6 +64,10 @@ export default async function AdminPageEditor({
           onDelete={deletePage.bind(null, page.slug)}
         />
       </div>
+
+      {/* Outside the width wrapper: the FAB is fixed-positioned, and nesting it
+          inside a content column would imply the column constrains it. */}
+      <TeacherInbox />
     </main>
   );
 }

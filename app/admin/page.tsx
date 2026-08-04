@@ -26,6 +26,7 @@ import {
 } from "@/app/page-actions";
 import { listPagesForAdmin } from "@/lib/pages";
 import { PagesTabClient } from "@/components/admin/PagesTabClient";
+import { TeacherInbox } from "@/components/chat/TeacherInbox";
 
 export default async function AdminPage({
   searchParams,
@@ -83,6 +84,11 @@ export default async function AdminPage({
           {active === "pages" && <PagesTab groups={groups} />}
         </AdminChrome>
       </div>
+
+      {/* Outside the width wrapper: the FAB is fixed-positioned and a
+          max-width ancestor would have no effect, but nesting it inside a
+          content column implies otherwise. */}
+      <TeacherInbox />
     </main>
   );
 }

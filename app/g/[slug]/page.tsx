@@ -24,7 +24,10 @@ import { listWhiteboards } from "@/lib/whiteboards";
 import { boardLabels } from "@/lib/whiteboard-names";
 import { BoardTab } from "@/components/whiteboard/BoardTab";
 import { LiveBanner } from "@/components/whiteboard/LiveBanner";
-import { markChatRead, deleteMessage, deleteWhiteboard } from "@/app/actions";
+// markChatRead and deleteMessage left with TeacherInbox: both are controls over
+// her own conversation, and this page no longer decides who gets them.
+import { deleteWhiteboard } from "@/app/actions";
+import { TeacherInbox } from "@/components/chat/TeacherInbox";
 import {
   addShelfLink,
   addShelfPage,
@@ -285,24 +288,49 @@ export default async function GroupPage({
         </div>
       )}
 
-      {unlocked ? (
+      {viewerIsTeacher ? (
+        // Her inbox owns the provider here, so `body` sits inside it and the
+        // board tab still has a stream to read. Two providers would mean two
+        // EventSources.
+        //
+        // She gets no ChatFab: the inbox replaces it, and it reaches her on
+        // this page through her session rather than through this student's
+        // token. `unlocked` is untouched and still gates everything in `body` —
+        // a teacher without the token sees the same page body a stranger does.
+        //
+        // Deliberately independent of the gate. In "unclaimed" she gets the
+        // conversation with the composer replaced by the invite; in
+        // "teacher-stale" — her cookie left behind by the token rotation a
+        // claim performs — she keeps the conversation and loses only the tabs,
+        // which is strictly better than losing both.
+        <TeacherInbox studentSlug={slug}>
+          {body}
+          {/* Still on `unlocked`, not on her session: the shelf controls belong
+              to the page body, which the token gates. Only the chat moved. */}
+          {unlocked && (
+            <ShelfFab
+              onAddLink={addShelfLink.bind(null, group.id)}
+              onAddPage={addShelfPage.bind(null, group.id)}
+            />
+          )}
+        </TeacherInbox>
+      ) : unlocked ? (
         <StreamProvider url={streamUrl({ isTeacher: false, slug })}>
           {body}
           <ChatFab
             slug={slug}
-            token={null}
-            self={viewerIsTeacher ? "teacher" : "student"}
-            onOpen={
-              viewerIsTeacher ? markChatRead.bind(null, group.id) : undefined
-            }
-            onDeleteMessage={viewerIsTeacher ? deleteMessage : undefined}
             labels={{
               title: "Clavardage",
               empty: "Aucun message pour l'instant.",
               placeholder: "Écrivez un message…",
               send: "Envoyer",
               close: "Fermer",
+              // Never shown — a student has no list to go back to — but the
+              // panel's label type asks for it.
+              back: "Retour",
               locale: "fr-CA",
+              today: "Aujourd'hui",
+              // Never shown either: onDeleteMessage is not passed here.
               deleteMessage: "Supprimer",
             }}
           />

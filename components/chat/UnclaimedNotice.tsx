@@ -27,10 +27,14 @@ export function UnclaimedNotice({
 
   // Fetched on mount rather than shipped with the conversation list: this is
   // chatToken, a live credential, and the list renders on every teacher page.
+  //
+  // No synchronous reset of `link`/`copied` here, for two reasons that agree:
+  // react-hooks/set-state-in-effect rejects it, and InboxFab keys this
+  // component on groupId, so switching students remounts it with both already
+  // at their initial values. The `cancelled` flag below is still needed — that
+  // guards a response, not a render.
   useEffect(() => {
     let cancelled = false;
-    setLink(null);
-    setCopied(false);
     void onInviteLink(groupId).then((value) => {
       // A response that arrives after she has moved to another student must not
       // paint that student's panel with this one's invite.
