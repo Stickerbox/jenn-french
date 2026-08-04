@@ -66,7 +66,7 @@ The arithmetic `dayOfWeek === 0 ? 6 : dayOfWeek - 1` is written out three times 
 - Modify: `lib/week.ts:19-30` (`weekRange`)
 - Test: `tests/lib/week.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add these two `describe` blocks to `tests/lib/week.test.ts`, after the existing `weekRange` block. The file's `utc` and `iso` helpers already exist at the top — use them, do not redefine them.
 
@@ -154,13 +154,13 @@ import {
 } from "@/lib/week";
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/lib/week.test.ts`
 
 Expected: FAIL. The message names the missing exports — `mondayOf is not a function` / `weekDates is not a function`.
 
-- [ ] **Step 3: Implement both functions and rewrite `weekRange` in their terms**
+- [x] **Step 3: Implement both functions and rewrite `weekRange` in their terms**
 
 In `lib/week.ts`, replace the whole `weekRange` function (currently lines 16–30, including its comment) with:
 
@@ -211,13 +211,13 @@ export function weekRange(date: Date): { start: Date; end: Date } {
 
 `new Date(date)` copies rather than aliases, which is what keeps the three "does not mutate" tests green.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/lib/week.test.ts`
 
 Expected: PASS, all blocks. The pre-existing `weekRange` assertions passing unchanged is what proves this was a refactor and not a behaviour change — if any of them fail, `mondayOf` is wrong, not the test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/week.ts tests/lib/week.test.ts && git commit -m "refactor: extract mondayOf and weekDates in lib/week" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -231,7 +231,7 @@ git add lib/week.ts tests/lib/week.test.ts && git commit -m "refactor: extract m
 - Create: `lib/card-dates.ts`
 - Test: `tests/lib/card-dates.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/card-dates.test.ts`:
 
@@ -287,13 +287,13 @@ describe("isSelectableCardDate", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/card-dates.test.ts`
 
 Expected: FAIL — `Failed to resolve import "@/lib/card-dates"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/card-dates.ts`:
 
@@ -317,13 +317,13 @@ export function isSelectableCardDate(
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/lib/card-dates.test.ts`
 
 Expected: PASS, 6 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/card-dates.ts tests/lib/card-dates.test.ts && git commit -m "feat: add isSelectableCardDate" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -340,7 +340,7 @@ git add lib/card-dates.ts tests/lib/card-dates.test.ts && git commit -m "feat: a
 
 Note before you start: `parseLinkUrl` returns `new URL(...).toString()`, which **normalises**. `https://tv5.ca` comes back as `https://tv5.ca/` with a trailing slash. Every expected value below reflects that; it is not a typo, and it is already how `addShelfLink` stores a link today.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/chat-links.test.ts`:
 
@@ -432,13 +432,13 @@ describe("extractLinks", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/chat-links.test.ts`
 
 Expected: FAIL — `Failed to resolve import "@/lib/chat-links"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/chat-links.ts`:
 
@@ -511,7 +511,7 @@ export function extractLinks(
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/lib/chat-links.test.ts`
 
@@ -519,7 +519,7 @@ Expected: PASS, 15 tests.
 
 If the Wikipedia case fails, check that you have not added `)` to `TRAILING` — it is handled only by the conditional loop, deliberately.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/chat-links.ts tests/lib/chat-links.test.ts && git commit -m "feat: extract shareable links from a chat message body" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -536,7 +536,7 @@ git add lib/chat-links.ts tests/lib/chat-links.test.ts && git commit -m "feat: e
 - Modify: `app/api/chat/[slug]/route.ts:62-63`
 - Read first (do not modify): `lib/pages.ts` (`savePage`), `lib/link-title.ts` (`titleFromUrl`)
 
-- [ ] **Step 1: Write `lib/shelf-links.ts`**
+- [x] **Step 1: Write `lib/shelf-links.ts`**
 
 ```ts
 import { prisma } from "@/lib/prisma";
@@ -614,7 +614,7 @@ export async function addChatLinks(input: {
 }
 ```
 
-- [ ] **Step 2: Add the import and the `revalidatePath` import to the chat route**
+- [x] **Step 2: Add the import and the `revalidatePath` import to the chat route**
 
 At the top of `app/api/chat/[slug]/route.ts`, add two imports beside the existing ones:
 
@@ -623,7 +623,7 @@ import { revalidatePath } from "next/cache";
 import { addChatLinks } from "@/lib/shelf-links";
 ```
 
-- [ ] **Step 3: Call it between `createMessage` and the response**
+- [x] **Step 3: Call it between `createMessage` and the response**
 
 In the same file, replace these two lines (currently 62–63):
 
@@ -673,13 +673,13 @@ with:
   return NextResponse.json(message, { status: 201 });
 ```
 
-- [ ] **Step 4: Typecheck and lint**
+- [x] **Step 4: Typecheck and lint**
 
 Run: `npx tsc --noEmit && npx eslint lib/shelf-links.ts "app/api/chat/[slug]/route.ts"`
 
 Expected: no output from either. If `tsc` complains that `addedByStudent` is not assignable, you are on the `pdf` branch of `SavePageInput` — check that `kind: "link"` is present and spelled exactly.
 
-- [ ] **Step 5: Verify the round trip in the running app**
+- [ ] **Step 5: Verify the round trip in the running app** (manual — not run)
 
 This is the only verification for this task, so do all of it.
 
@@ -693,7 +693,7 @@ This is the only verification for this task, so do all of it.
 8. Send a message with no URL. **Expected:** no new tile, and the message sends normally.
 9. Send `va sur www.tv5.ca.` **Expected:** no new tile — the scheme-less case, working as designed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/shelf-links.ts "app/api/chat/[slug]/route.ts" && git commit -m "feat: file links shared in the chat onto the student's shelf" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -711,7 +711,7 @@ git add lib/shelf-links.ts "app/api/chat/[slug]/route.ts" && git commit -m "feat
 - Modify: `app/g/[slug]/page.tsx:262-264`
 - Test: `tests/lib/student-gate.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/lib/student-gate.test.ts`, after the existing `studentGate` block:
 
@@ -762,13 +762,13 @@ Extend the import on line 2:
 import { authPanelMode, studentGate } from "@/lib/student-gate";
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/student-gate.test.ts`
 
 Expected: FAIL — `authPanelMode is not a function`.
 
-- [ ] **Step 3: Implement it, and move the type**
+- [x] **Step 3: Implement it, and move the type**
 
 Append to `lib/student-gate.ts`:
 
@@ -811,13 +811,13 @@ export function authPanelMode(
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/lib/student-gate.test.ts`
 
 Expected: PASS — the existing `studentGate` block plus 6 new tests.
 
-- [ ] **Step 5: Point the component at the moved type**
+- [x] **Step 5: Point the component at the moved type**
 
 In `components/student/StudentAuthPanel.tsx`, delete lines 23–30 (the comment and the local `export type AuthPanelMode = Extract<…>`) and change the type import on line 7 from:
 
@@ -833,7 +833,7 @@ import type { AuthPanelMode } from "@/lib/student-gate";
 
 `StudentGate` is not referenced anywhere else in that file — the only use was the `Extract` that has moved.
 
-- [ ] **Step 6: Use it in the page**
+- [x] **Step 6: Use it in the page**
 
 In `app/g/[slug]/page.tsx`, extend the import on line 21:
 
@@ -863,7 +863,7 @@ with:
       {panelMode && <StudentAuthPanel slug={slug} mode={panelMode} />}
 ```
 
-- [ ] **Step 7: Typecheck, then verify in the app**
+- [~] **Step 7: Typecheck** (done) **then verify in the app** (manual — not run)
 
 Run: `npx tsc --noEmit`
 
@@ -875,7 +875,7 @@ Then with `npm run dev` running, as the **teacher**, open a claimed student from
 
 Then open the same student's page in the student's own browser profile. **Expected:** *Se déconnecter* is still present for them.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add lib/student-gate.ts tests/lib/student-gate.test.ts components/student/StudentAuthPanel.tsx "app/g/[slug]/page.tsx" && git commit -m "fix: never show a student's sign-out control to the teacher" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -890,7 +890,7 @@ One className, and the comment beside it is most of the value — the next perso
 **Files:**
 - Modify: `components/admin/AdminChrome.tsx:128-133`
 
-- [ ] **Step 1: Move the Fab and record why**
+- [x] **Step 1: Move the Fab and record why**
 
 In `components/admin/AdminChrome.tsx`, replace the `<Fab>` opening tag (lines 128–133):
 
@@ -926,7 +926,7 @@ with:
 
 `AddMenu` above it keeps `bottom-24 right-4`, matching `ShelfFab`, where the menu also hangs above the chat button rather than above its own trigger. Do not move it.
 
-- [ ] **Step 2: Verify both buttons are reachable**
+- [ ] **Step 2: Verify both buttons are reachable** (manual — not run)
 
 With `npm run dev` running, sign in and open `/admin`.
 
@@ -934,7 +934,7 @@ With `npm run dev` running, sign in and open `/admin`.
 
 **Expected on `/admin/pages/<slug>`:** the chat bubble only, still no `+`. That screen has no `AdminChrome` and deliberately gains none.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add components/admin/AdminChrome.tsx && git commit -m "fix: move the admin add button out from under the chat FAB" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -951,7 +951,7 @@ Until now `/admin/pages/[slug]` 404s on a link row, `PageList` therefore hides t
 - Modify: `components/admin/PagesTabClient.tsx`
 - Modify: `app/admin/page.tsx:21-26` and `:174-182`
 
-- [ ] **Step 1: Add a `TrashIcon` to `PageList.tsx`**
+- [x] **Step 1: Add a `TrashIcon` to `PageList.tsx`**
 
 Directly after the existing `DownloadIcon` function (which ends at line 90), add:
 
@@ -980,7 +980,7 @@ function TrashIcon() {
 }
 ```
 
-- [ ] **Step 2: Add the prop**
+- [x] **Step 2: Add the prop**
 
 In the same file, add to the destructured parameters (after `onTogglePin,` on line 114) and to the type. The prop:
 
@@ -997,7 +997,7 @@ The type entry, placed after `onTogglePin`'s:
   onDelete: (slug: string) => Promise<void>;
 ```
 
-- [ ] **Step 3: Turn the action slot's guard into a ternary**
+- [x] **Step 3: Turn the action slot's guard into a ternary**
 
 Replace the `{page.kind !== "link" && ( … )}` block inside `action=` (lines 250–285, from the comment through the closing `)}`) with:
 
@@ -1064,7 +1064,7 @@ Replace the `{page.kind !== "link" && ( … )}` block inside `action=` (lines 25
 
 The pin `<form>` that follows it is unchanged and stays inside the same wrapping `<div className="flex items-center gap-1">`.
 
-- [ ] **Step 4: Pass it through `PagesTabClient`**
+- [x] **Step 4: Pass it through `PagesTabClient`**
 
 In `components/admin/PagesTabClient.tsx`, add to the destructured props and the type:
 
@@ -1081,7 +1081,7 @@ In `components/admin/PagesTabClient.tsx`, add to the destructured props and the 
 
 and add `onDelete={onDelete}` to the `<PageList>` element, after `onTogglePin`.
 
-- [ ] **Step 5: Pass `deletePage` in from the page**
+- [x] **Step 5: Pass `deletePage` in from the page**
 
 In `app/admin/page.tsx`, add `deletePage` to the existing `@/app/page-actions` import (lines 21–26):
 
@@ -1102,13 +1102,13 @@ and add one prop to the `<PagesTabClient>` element inside `PagesTab` (line ~175)
       onDelete={deletePage}
 ```
 
-- [ ] **Step 6: Typecheck and lint**
+- [x] **Step 6: Typecheck and lint**
 
 Run: `npx tsc --noEmit && npx eslint components/admin/PageList.tsx components/admin/PagesTabClient.tsx app/admin/page.tsx`
 
 Expected: no output.
 
-- [ ] **Step 7: Verify in the app**
+- [ ] **Step 7: Verify in the app** (manual — not run)
 
 With `npm run dev`, open `/admin?tab=pages`.
 
@@ -1118,7 +1118,7 @@ Click a link tile's trash. **Expected:** the tile is gone after the page re-rend
 
 Open a student's `/g/<slug>?tab=files` and confirm the link is gone from there too.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add components/admin/PageList.tsx components/admin/PagesTabClient.tsx app/admin/page.tsx && git commit -m "feat: delete a link from its tile in the admin Pages tab" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -1134,7 +1134,7 @@ git add components/admin/PageList.tsx components/admin/PagesTabClient.tsx app/ad
 - Modify: `components/student/FilesTab.tsx:41-58` and `:167-183`
 - Modify: `app/g/[slug]/page.tsx:178-185`
 
-- [ ] **Step 1: Add the prop**
+- [x] **Step 1: Add the prop**
 
 In `components/student/FilesTab.tsx`, add to the destructured parameters after `canWrite,`:
 
@@ -1156,7 +1156,7 @@ and to the type, after `canWrite`'s entry:
 
 Defaulting to `false` is what leaves `/f/[token]` untouched — that page passes neither this nor `onDeleteLink`, and `canWrite={false}` means the whole action slot is `undefined` there anyway. `filesToken` addresses a shelf and must never carry the power to write to it.
 
-- [ ] **Step 2: Widen the condition**
+- [x] **Step 2: Widen the condition**
 
 Replace the delete block's guard (lines 167–172, comment included):
 
@@ -1187,7 +1187,7 @@ with:
 
 Everything inside the block — the `<form>`, the button, the `×` — is unchanged.
 
-- [ ] **Step 3: Pass it from the page**
+- [x] **Step 3: Pass it from the page**
 
 In `app/g/[slug]/page.tsx`, add one prop to the `<FilesTab>` element (lines 178–185):
 
@@ -1202,13 +1202,13 @@ In `app/g/[slug]/page.tsx`, add one prop to the `<FilesTab>` element (lines 178�
         />
 ```
 
-- [ ] **Step 4: Typecheck**
+- [x] **Step 4: Typecheck**
 
 Run: `npx tsc --noEmit`
 
 Expected: no output.
 
-- [ ] **Step 5: Verify both roles**
+- [ ] **Step 5: Verify both roles** (manual — not run)
 
 With `npm run dev`, as the **teacher**, open a claimed student from `/admin?tab=groups` and go to *Les fichiers*.
 
@@ -1218,7 +1218,7 @@ As the **student**, on the same shelf: **expected** a × only on rows they added
 
 On `/f/<filesToken>`: **expected** no pins and no ×, exactly as before. A pinned page shows the corner marker instead.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/student/FilesTab.tsx "app/g/[slug]/page.tsx" && git commit -m "feat: let the teacher delete any row from a student's shelf" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -1235,7 +1235,7 @@ A pure refactor with **no visible change to the admin**. That is the acceptance 
 - Rewrite: `components/admin/AdminDatePicker.tsx`
 - Read first (do not modify): `lib/month-grid.ts`
 
-- [ ] **Step 1: Create `components/ui/MonthCalendar.tsx`**
+- [x] **Step 1: Create `components/ui/MonthCalendar.tsx`**
 
 ```tsx
 "use client";
@@ -1449,7 +1449,7 @@ export function MonthCalendar({
 }
 ```
 
-- [ ] **Step 2: Rewrite `components/admin/AdminDatePicker.tsx`**
+- [x] **Step 2: Rewrite `components/admin/AdminDatePicker.tsx`**
 
 Replace the whole file. The trigger, the `en-CA` formatting, the dismissal effect and the `basePath` push are unchanged; the panel markup, the `cursor` state, `stepMonth` and the re-seed inside `toggle()` are gone.
 
@@ -1585,13 +1585,13 @@ export function AdminDatePicker({
 
 `className="left-0"` is not optional — the old panel had `left-0` baked in, and position now arrives as a prop. Without it the popover is positioned by whatever the browser infers and drifts right.
 
-- [ ] **Step 3: Typecheck and lint**
+- [x] **Step 3: Typecheck and lint**
 
 Run: `npx tsc --noEmit && npx eslint components/ui/MonthCalendar.tsx components/admin/AdminDatePicker.tsx`
 
 Expected: no output. If eslint reports `react-hooks/refs`, you have read a ref during render — the two refs here are only touched inside the effect and the handlers, so re-check against the code above.
 
-- [ ] **Step 4: Verify the admin popover is unchanged**
+- [ ] **Step 4: Verify the admin popover is unchanged** (manual — not run)
 
 With `npm run dev`, open `/admin?tab=daily` and click the date field.
 
@@ -1599,7 +1599,7 @@ With `npm run dev`, open `/admin?tab=daily` and click the date field.
 
 One behaviour to check specifically, because it is the thing the refactor changed internally: page forward two months, press Escape, then reopen. **Expected:** it opens on the selected day's month again, not on the month you paged to. That is the seed-on-mount working.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/ui/MonthCalendar.tsx components/admin/AdminDatePicker.tsx && git commit -m "refactor: extract MonthCalendar from AdminDatePicker" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -1612,7 +1612,7 @@ git add components/ui/MonthCalendar.tsx components/admin/AdminDatePicker.tsx && 
 **Files:**
 - Modify: `lib/cards.ts` (append)
 
-- [ ] **Step 1: Add the query**
+- [x] **Step 1: Add the query**
 
 Append to `lib/cards.ts`:
 
@@ -1649,13 +1649,13 @@ export async function listCardDates(upTo: Date): Promise<string[]> {
 
 `prisma` is already imported at the top of that file — do not add a second import.
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npx tsc --noEmit`
 
 Expected: no output.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add lib/cards.ts && git commit -m "feat: add listCardDates for the student's card calendar" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -1673,7 +1673,7 @@ The visible half of item 5. `CardDateNav` absorbs `WeekDayPicker` and takes the 
 - Delete: `components/WeekDayPicker.tsx`
 - Modify: `app/g/[slug]/page.tsx` (imports, the date block, the card branch)
 
-- [ ] **Step 1: Create `components/student/CardDateNav.tsx`**
+- [x] **Step 1: Create `components/student/CardDateNav.tsx`**
 
 ```tsx
 "use client";
@@ -1870,7 +1870,7 @@ export function CardDateNav({
 }
 ```
 
-- [ ] **Step 2: Rewrite `components/student/CardHeading.tsx`**
+- [x] **Step 2: Rewrite `components/student/CardHeading.tsx`**
 
 Replace the whole file. It keeps the eyebrow, loses the range line and therefore both props and the `formatWeekRange` import. The three-bullet placement comment is retained because it is still true and still the reason this component exists at all.
 
@@ -1902,13 +1902,13 @@ export function CardHeading() {
 
 The eyebrow's `mb-2` is dropped along with the line it was spacing from.
 
-- [ ] **Step 3: Delete `WeekDayPicker`**
+- [x] **Step 3: Delete `WeekDayPicker`**
 
 ```bash
 git rm components/WeekDayPicker.tsx
 ```
 
-- [ ] **Step 4: Rewire `app/g/[slug]/page.tsx`**
+- [x] **Step 4: Rewire `app/g/[slug]/page.tsx`**
 
 Four edits.
 
@@ -1985,13 +1985,13 @@ with:
           />
 ```
 
-- [ ] **Step 5: Typecheck and lint**
+- [x] **Step 5: Typecheck and lint**
 
 Run: `npx tsc --noEmit && npx eslint components/student/CardDateNav.tsx components/student/CardHeading.tsx "app/g/[slug]/page.tsx"`
 
 Expected: no output. If `tsc` reports `weekStart`/`weekEnd` unused or undefined, edit (c) or (d) is half-applied.
 
-- [ ] **Step 6: Verify against real data**
+- [ ] **Step 6: Verify against real data** (manual — not run)
 
 You need cards on several dates across two months. If the dev database is thin, create them: `/admin?tab=daily`, pick a date in the calendar, fill *English prompt* and *French answer*, save; repeat. Make at least one **weekday with no card** inside a week that has others, and leave at least one week entirely empty.
 
@@ -2008,7 +2008,7 @@ Then open `/g/<slug>` as a student and check each of these:
 9. **An untokened visitor** (a private window, no `?k=`) still gets the eyebrow, the range line, the calendar and the strip. The card is public and this navigation is part of it.
 10. **The teacher, unlocked**, still has no card tab and lands on *Les fichiers*.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add components/student/CardDateNav.tsx components/student/CardHeading.tsx "app/g/[slug]/page.tsx" && git commit -m "feat: give the student's card page a month calendar and a Today button" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -2023,7 +2023,7 @@ git add components/student/CardDateNav.tsx components/student/CardHeading.tsx "a
 **Files:**
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1: The `/g/[slug]` routes-table row**
+- [x] **Step 1: The `/g/[slug]` routes-table row**
 
 Find this fragment inside the `/g/[slug]` row of the Routes table:
 
@@ -2035,7 +2035,7 @@ Insert immediately after it, in the same cell:
 The card tab carries the week's five day dots, a week-range line that opens a month calendar, and *Aujourd'hui*; a day with no card cannot be selected.
 ```
 
-- [ ] **Step 2: The Dates section**
+- [x] **Step 2: The Dates section**
 
 Find:
 
@@ -2070,7 +2070,7 @@ that is the Friday that closed the week, so the button appears to do nothing if
 you push the real Saturday and let `parseDate` clamp it back.
 ```
 
-- [ ] **Step 3: The Auth section**
+- [x] **Step 3: The Auth section**
 
 Find:
 
@@ -2089,7 +2089,7 @@ and Whiteboard tabs. It is a predicate rather than a seventh gate state because
 to that comparison too.
 ```
 
-- [ ] **Step 4: The Files section — chat links and the two deletes**
+- [x] **Step 4: The Files section — chat links and the two deletes**
 
 Find:
 
@@ -2135,7 +2135,7 @@ precisely the set she could not reach. `canStudentDelete` is unchanged and is
 still re-checked on the server regardless of which controls a tile rendered.
 ```
 
-- [ ] **Step 5: The Lesson chat section**
+- [x] **Step 5: The Lesson chat section**
 
 Find:
 
@@ -2149,7 +2149,7 @@ pages, links and PDFs*. The message text is unchanged and still renders as
 plain text; linkifying it is deliberately not part of that.
 ```
 
-- [ ] **Step 6: The `+` FAB, in the Conventions section**
+- [x] **Step 6: The `+` FAB, in the Conventions section**
 
 This one has no existing sentence to anchor on, because nothing in `CLAUDE.md`
 records where the fixed buttons sit. Append it as a **new final bullet** to the
@@ -2166,13 +2166,13 @@ records where the fixed buttons sit. Append it as a **new final bullet** to the
   open panel and the add menu go.
 ```
 
-- [ ] **Step 7: Verify the file still reads straight**
+- [x] **Step 7: Verify the file still reads straight**
 
 Run: `git diff CLAUDE.md`
 
 Read every hunk. Each insertion must sit inside the section it belongs to, not straddle a heading, and must not repeat a sentence already two paragraphs above it.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add CLAUDE.md && git commit -m "docs: record chat links, the card calendar and the three uncovered controls" --trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -2186,31 +2186,31 @@ CI (`.github/workflows/ci.yml`) runs these in this order. Run all of them locall
 
 **Files:** none modified.
 
-- [ ] **Step 1: Regenerate the Prisma client**
+- [x] **Step 1: Regenerate the Prisma client**
 
 Run: `npx prisma generate`
 
 Expected: `Generated Prisma Client`. No migration was added, so nothing else should happen. If Prisma reports a schema drift, something in this plan was misapplied — no task touches `schema.prisma`.
 
-- [ ] **Step 2: Lint**
+- [x] **Step 2: Lint**
 
 Run: `npm run lint`
 
 Expected: no output, exit 0.
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `npm run typecheck`
 
 Expected: no output, exit 0.
 
-- [ ] **Step 4: Tests**
+- [x] **Step 4: Tests**
 
 Run: `npm test`
 
 Expected: every file passes, including the four this plan touched — `chat-links`, `card-dates`, `week`, `student-gate`. Confirm the counts: `week.test.ts` gained 11 tests, `student-gate.test.ts` gained 6, `chat-links.test.ts` has 15, `card-dates.test.ts` has 6.
 
-- [ ] **Step 5: Build**
+- [x] **Step 5: Build**
 
 Run: `npm run build`
 
