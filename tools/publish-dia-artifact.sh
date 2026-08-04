@@ -46,7 +46,32 @@ LIST_ROWS=10
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-die() { echo "✗ $1" >&2; exit 1; }
+gui_alert() {
+  # activate first, or an alert raised from a menu-bar Shortcut can open behind
+  # whatever is frontmost and read as the click having done nothing.
+  osascript -l JavaScript -e '
+function run(argv) {
+  var app = Application.currentApplication();
+  app.includeStandardAdditions = true;
+  app.activate();
+  app.displayAlert("Publish to francaisavecjenn.ca", { message: argv[0], as: "critical" });
+}' "$1" >/dev/null 2>&1 || true
+}
+
+# Every message this script printed was invisible to the teacher: a Shortcuts
+# "Run Shell Script" action discards stdout and stderr, so a failure surfaced as
+# a generic Shortcuts banner with no reason in it. The wording does not change;
+# the TTY test only decides whether it is also drawn.
+#
+# This is environment detection, which the spec rejects for *selection* — the
+# page published must never depend on invisible state, because a slug is
+# permanent. It is fine for presentation, which changes only visibility.
+die() { echo "✗ $1" >&2; [ -t 2 ] || gui_alert "$1"; exit 1; }
+
+# Non-fatal, and deliberately not alerted: the paths that reach warn are the
+# terminal and scripted ones. The path with no terminal shows the picker, where
+# the same information is a marker on the row.
+warn() { echo "⚠ $1" >&2; }
 
 # Options are consumed up front so they work in any order. The previous form
 # tested "$1" positionally, which meant only a leading --local was recognised.
