@@ -128,32 +128,6 @@ export async function createMessage(
   return message;
 }
 
-// One grouped query rather than one per student — the Students tab renders
-// every group at once.
-export async function unreadCounts(): Promise<Map<string, number>> {
-  const groups = await prisma.group.findMany({
-    where: { isEveryone: false },
-    select: { id: true, teacherLastReadAt: true },
-  });
-
-  const counts = new Map<string, number>();
-  for (const group of groups) {
-    counts.set(
-      group.id,
-      await prisma.message.count({
-        where: {
-          groupId: group.id,
-          fromTeacher: false,
-          ...(group.teacherLastReadAt
-            ? { createdAt: { gt: group.teacherLastReadAt } }
-            : {}),
-        },
-      }),
-    );
-  }
-  return counts;
-}
-
 export async function markTeacherRead(groupId: string): Promise<void> {
   await prisma.group.update({
     where: { id: groupId },

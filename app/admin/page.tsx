@@ -17,7 +17,7 @@ import { GroupList } from "@/components/admin/GroupList";
 import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
 import { parseAdminTab } from "@/lib/admin-tab";
-import { unreadCounts } from "@/lib/messages";
+import { listConversations } from "@/lib/inbox";
 import {
   createPage,
   createPdfPage,
@@ -120,10 +120,14 @@ async function DailyWordTab({
 // Each tab runs its own queries, apart from the group list the FAB above needs
 // on all three.
 async function GroupsTab() {
-  const [groups, unread] = await Promise.all([
+  // The group query stays as it is — including its email/claimedAt selection —
+  // because this list includes the everyone row, which has no conversation and
+  // so is absent from listConversations.
+  const [groups, conversations] = await Promise.all([
     prisma.group.findMany({ orderBy: { name: "asc" } }),
-    unreadCounts(),
+    listConversations(),
   ]);
+  const unread = new Map(conversations.map((c) => [c.groupId, c.unread]));
 
   return (
     <div className="mx-auto w-full max-w-[560px]">
