@@ -35,7 +35,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | Route | Who | Notes |
 |---|---|---|
 | `/` | public | landing page |
-| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the token, teacher included — a teacher session adds only the delete and read-marker controls once unlocked, plus *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding a link or a page is a `+` FAB left of the chat button, present on every tab, and either party may pin a page |
+| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included — a teacher session adds only the delete and read-marker controls once unlocked, plus *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding a link or a page is a `+` FAB left of the chat button, present on every tab, and either party may pin a page |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe; a pdf row redirects to `/p/[slug]/pdf` |
@@ -109,6 +109,43 @@ passkey exists, and there is no UI to add a second or remove one — transferrin
 account means deleting the `Passkey` row on the server (see `docs/DEPLOYMENT.md`).
 The session is a 7-day httpOnly cookie holding the teacher id (`lib/session.ts`);
 deleting the passkey does not invalidate it.
+
+Students sign in with an email address and a password, on `/g/[slug]` itself.
+`?k=<chatToken>` is no longer a key: it is a **single-use invitation** that
+permits creating the account, and the first sign-in is the sign-up. Claiming
+**rotates `chatToken`**, which spends the invitation — without that rotation,
+`unlocked` (`holdsToken && claimed`) would admit anyone still holding a
+forwarded copy of the same link, with no password. `filesToken` is not rotated
+on claim, only on reset.
+
+`studentGate` (`lib/student-gate.ts`) decides which of six states a visitor is
+in, and its clause order is the specification — see the comments. Two clauses
+exist for Jenn specifically: she must never be shown a sign-up form she could
+complete on a student's behalf, and after a claim her stored cookie is stale, so
+she is told to reopen the student from the admin rather than shown a student
+sign-in form. `unlocked` is derived from the gate and still never consults the
+teacher session, which means **she cannot open the chat or a board for a student
+who has not signed up yet**. That is deliberate: there is nobody on the other
+end. Pages can still be assigned and pinned to that student from the admin.
+
+Passwords are bcrypt, cost 12, through `lib/password-hash.ts` — **the async API
+only**, because one pm2 fork process serves every SSE stream and a synchronous
+hash would stall the `: ping` heartbeats. The 72-byte cap in
+`lib/student-credentials.ts` is not cosmetic: bcrypt silently truncates past it,
+and `tests/lib/password-hash.test.ts` pins that behaviour so the cap is not
+"cleaned up" later. Sign-in failures are one message that names both fields, an
+unclaimed student still costs a hash, and the form renders identically either
+way — three halves of one defence against slug enumeration.
+
+`resetStudentSignIn` (`app/actions.ts`) replaces the old
+`regenerateStudentLinks`: it clears the credential and rotates both tokens,
+because clearing a password without rotating would leave whoever is signed in
+still signed in. It obliges Jenn to send the new invite — the student's page
+cannot tell them their account was reset without telling a stranger the same
+thing.
+
+Nothing here sends email. The address is stored for newsletters and chat alerts
+later; "I forgot my password" is Jenn pressing Reset sign-in.
 
 Every mutating server action in `app/actions.ts` and `app/ai-actions.ts` starts with
 a teacher check. Add one to any new action — `ai-actions` without it is an
@@ -479,7 +516,9 @@ unlocked, she additionally gets the delete control and the read-marker
 (`markChatRead`) that used to live on the deleted admin route.
 
 Each student row carries two tokens. `chatToken` unlocks the files tab and the
-chat on `/g/[slug]`; `filesToken` addresses `/f/[token]` and nothing else, so
+chat on `/g/[slug]`, but only once the student has claimed their account — on
+its own it now only permits *creating* that account (see *Auth*);
+`filesToken` addresses `/f/[token]` and nothing else, so
 sharing a files link never hands over the conversation. As of 2026-07-31 the
 admin shows only the chat link, so `filesToken` has no UI surface, though it
 remains minted and rotated alongside `chatToken` and reachable only by reading
