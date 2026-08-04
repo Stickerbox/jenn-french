@@ -1,16 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
   PALETTE,
+  boardHasContent,
   dropTrailingEmptyPages,
   foldOps,
   type Colour,
   type DrawOp,
   type Op,
 } from "@/lib/whiteboard-ops";
+import { navigationTarget, shouldGuardNavigation } from "@/lib/leave-guard";
+import { LeaveBoardDialog } from "@/components/whiteboard/LeaveBoardDialog";
 import { hitTest, opBounds } from "@/lib/whiteboard-hit";
 import { toLogical, type Box } from "@/lib/whiteboard-geometry";
 import { reviseOp, stepTextSize, type Revision } from "@/lib/whiteboard-revise";
@@ -65,6 +69,16 @@ export function BoardEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [liveError, setLiveError] = useState(false);
+
+  const router = useRouter();
+
+  // The href she clicked, held while the dialog asks what to do about it. Null
+  // means no dialog.
+  const [leavingTo, setLeavingTo] = useState<string | null>(null);
+  // Set once she has answered, so neither listener below fires again for a
+  // decision she has already made. A ref rather than state: the listeners read
+  // it during an event, not during a render.
+  const leaving = useRef(false);
 
   // Opened once, on mount. A failure here is not fatal: she can still draw and
   // save, the student simply will not watch it happen — which is exactly what
@@ -158,6 +172,10 @@ export function BoardEditor({
 
   const scene = foldOps(ops);
   const visible = scene[page] ?? [];
+
+  // The same question save() asks. Shared rather than re-expressed, so the
+  // dialog can never appear for a board whose save would refuse it as empty.
+  const dirty = boardHasContent(ops);
 
   function boxOf(): Box {
     const rect = surface.current?.getBoundingClientRect();
@@ -415,30 +433,170 @@ export function BoardEditor({
     return () => window.removeEventListener("keydown", onKey);
   }, [selected, draft, page]);
 
-  async function save() {
-    setSaving(true);
-    setError(null);
-    try {
-      const kept = dropTrailingEmptyPages(foldOps(ops));
-      if (kept.every((p) => p.length === 0)) {
-        setError("Le tableau est vide.");
-        setSaving(false);
+  // A capture-phase listener on the document, rather than a guard that the tab
+  // strip and the back-to-admin link opt into.
+  //
+  // Those two are not the only anchors on this page and they will not be the
+  // last. A guard you have to remember to wire is one a future link will not
+  // have, and the failure is a lost lesson with no error — the same shape of
+  // risk chatRole's comment describes about a rule duplicated across two files.
+  // Catching an anchor that did not need guarding costs one dialog; missing one
+  // costs a board.
+  //
+  // Capture phase specifically, so this runs before next/link's own handler and
+  // can preventDefault the navigation it was about to perform.
+  useEffect(() => {
+    if (!dirty) return;
+
+    function onClick(event: MouseEvent) {
+      if (leaving.current) return;
+
+      const node = event.target;
+      if (!(node instanceof Element)) return;
+      const anchor = node.closest("a");
+      // An SVG <a> is also matched by that selector and is not what we mean.
+      if (!(anchor instanceof HTMLAnchorElement)) return;
+
+      if (
+        !shouldGuardNavigation({
+          // The resolved absolute form. getAttribute("href") would give a
+          // relative string and every comparison in the rule would be false.
+          href: anchor.href || null,
+          target: anchor.target || null,
+          download: anchor.hasAttribute("download"),
+          modified:
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey ||
+            event.button !== 0,
+          currentUrl: window.location.href,
+        })
+      ) {
         return;
       }
 
+      event.preventDefault();
+      event.stopPropagation();
+      // Any stale save error belongs to the last attempt, not to this question.
+      setError(null);
+      setLeavingTo(anchor.href);
+    }
+
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [dirty]);
+
+  // The browser's own prompt for closing or reloading the tab. Its wording is
+  // the browser's and cannot be replaced, which is exactly why the in-app
+  // dialog above exists rather than relying on this alone.
+  //
+  // Installed only while there is something to lose: a prompt on an empty board
+  // teaches her to dismiss prompts.
+  useEffect(() => {
+    if (!dirty) return;
+
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      if (leaving.current) return;
+      event.preventDefault();
+      // Deprecated, and still what some browsers require before they will show
+      // the prompt at all.
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
+  // Frees the server's live-board slot when the page really does go away.
+  //
+  // NOT gated on `dirty`, and the difference from the two effects above is the
+  // whole point of this one. They ask about CONTENT, which an empty board has
+  // none of. This frees a SLOT, which an empty board occupies just as fully:
+  // liveBoards.open() returns false when one is already open for the group and
+  // /api/whiteboard/[slug]/open turns that into a 409, so a board abandoned
+  // without a discard makes her NEXT board for this student open with the live
+  // view already broken — "Diffusion en direct indisponible" — for the life of
+  // the process.
+  //
+  // pagehide rather than beforeunload: beforeunload fires BEFORE she has
+  // answered the prompt, and discarding a board she then chose to keep is the
+  // exact failure this guard exists to prevent.
+  //
+  // A discard after a successful /finish is harmless — liveBoards.discard is
+  // documented tolerant of a group with no board, and the student's client
+  // treats "saved" and "closed" the same way.
+  useEffect(() => {
+    function onPageHide(event: PageTransitionEvent) {
+      // Going into the back/forward cache, not away. The page may come back to
+      // a board that is still hers.
+      if (event.persisted) return;
+
+      const url = `/api/whiteboard/${slug}/discard`;
+      // sendBeacon is specified to outlive the document; fetch is not. The
+      // route reads nothing from the request body, so a bodyless POST is a
+      // valid call to it.
+      if (navigator.sendBeacon) navigator.sendBeacon(url);
+      else void fetch(url, { method: "POST", keepalive: true });
+    }
+
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, [slug]);
+
+  function discard() {
+    void fetch(`/api/whiteboard/${slug}/discard`, { method: "POST" });
+  }
+
+  // Returns whether the board is now stored, rather than calling onSaved itself.
+  // The leave dialog needs to save and then NAVIGATE, and onSaved returns her to
+  // the archive on this page — which is not where she was going.
+  //
+  // `saving` is deliberately not reset on success: either onSaved or a
+  // navigation unmounts this component, and clearing it first would flash the
+  // button back to "Terminé" on the way out.
+  async function persist(): Promise<boolean> {
+    setSaving(true);
+    setError(null);
+    try {
+      if (!boardHasContent(ops)) {
+        setError("Le tableau est vide.");
+        setSaving(false);
+        return false;
+      }
+
+      const kept = dropTrailingEmptyPages(foldOps(ops));
       const response = await fetch(`/api/whiteboard/${slug}/finish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ops, thumbnail: renderThumbnail(kept[0]) }),
       });
       if (!response.ok) throw new Error("save failed");
-      onSaved();
+      return true;
     } catch {
       // The log is still in state, so she can press Terminé again rather than
       // losing the board.
       setError("Échec de l'enregistrement. Réessayez.");
       setSaving(false);
+      return false;
     }
+  }
+
+  async function save() {
+    if (await persist()) onSaved();
+  }
+
+  // Both listeners are off from here. Without this an external location.assign
+  // would immediately hit beforeunload and ask her the same question twice.
+  function navigate(href: string) {
+    leaving.current = true;
+    const target = navigationTarget(href, window.location.origin);
+    if (target.kind === "internal") router.push(target.path);
+    else window.location.assign(target.href);
+  }
+
+  async function saveAndLeave(href: string) {
+    if (await persist()) navigate(href);
   }
 
   const selectedOp = selected ? visible.find((op) => op.id === selected) : undefined;
@@ -600,7 +758,7 @@ export function BoardEditor({
           <button
             type="button"
             onClick={() => {
-              void fetch(`/api/whiteboard/${slug}/discard`, { method: "POST" });
+              discard();
               onCancel();
             }}
             className="rounded-full border border-[var(--card-line)] px-4 py-2 text-sm"
@@ -612,6 +770,19 @@ export function BoardEditor({
           </button>
         </div>
       </div>
+
+      {leavingTo && (
+        <LeaveBoardDialog
+          saving={saving}
+          error={error}
+          onSave={() => void saveAndLeave(leavingTo)}
+          onDiscard={() => {
+            discard();
+            navigate(leavingTo);
+          }}
+          onCancel={() => setLeavingTo(null)}
+        />
+      )}
     </div>
   );
 }
