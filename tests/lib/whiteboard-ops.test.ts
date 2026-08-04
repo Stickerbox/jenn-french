@@ -3,6 +3,7 @@ import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
   PALETTE,
+  boardHasContent,
   dropTrailingEmptyPages,
   foldOps,
   foldPage,
@@ -194,5 +195,40 @@ describe("the logical canvas", () => {
   it("is a fixed size, because four different pixel sizes render the same ops", () => {
     expect(BOARD_WIDTH).toBe(1600);
     expect(BOARD_HEIGHT).toBe(1000);
+  });
+});
+
+describe("boardHasContent", () => {
+  it("is false for an untouched board", () => {
+    expect(boardHasContent([])).toBe(false);
+  });
+
+  it("is true for one stroke", () => {
+    expect(boardHasContent([stroke("a")])).toBe(true);
+  });
+
+  // The case that decides the shape of this function. `ops.length > 0` would
+  // say true here, the dialog would offer to save, and the save would refuse
+  // the board as empty.
+  it("is false when everything drawn has been removed", () => {
+    expect(
+      boardHasContent([
+        stroke("a"),
+        { id: "r", page: 0, kind: "remove", targets: ["a"] },
+      ]),
+    ).toBe(false);
+  });
+
+  it("is true for a stroke on a later page with earlier pages empty", () => {
+    expect(boardHasContent([stroke("a", 2)])).toBe(true);
+  });
+
+  it("is false for pages she added and never drew on", () => {
+    expect(
+      boardHasContent([
+        stroke("a", 1),
+        { id: "r", page: 1, kind: "remove", targets: ["a"] },
+      ]),
+    ).toBe(false);
   });
 });

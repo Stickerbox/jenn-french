@@ -205,3 +205,17 @@ export function dropTrailingEmptyPages<T>(pages: T[][]): T[][] {
   while (end > 1 && pages[end - 1].length === 0) end -= 1;
   return pages.slice(0, end);
 }
+
+// Whether this log would survive a save.
+//
+// /finish refuses a board whose folded pages are all empty, and
+// BoardEditor.save() checks the same thing before posting — so the leave guard
+// has to ask the identical question. A looser test (ops.length > 0) would raise
+// the dialog for a board holding one stroke and a remove of it, and its primary
+// button — save — would then fail as empty. A dialog whose main action cannot
+// succeed is a trap, so the predicate is shared rather than re-expressed.
+export function boardHasContent(ops: Op[]): boolean {
+  return !dropTrailingEmptyPages(foldOps(ops)).every(
+    (page) => page.length === 0,
+  );
+}
