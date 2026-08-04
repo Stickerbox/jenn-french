@@ -5,7 +5,12 @@ import { cookies } from "next/headers";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
-import { savePage, updatePageMeta, type SavePageInput } from "@/lib/pages";
+import {
+  savePage,
+  setPageThumbnail,
+  updatePageMeta,
+  type SavePageInput,
+} from "@/lib/pages";
 import { validatePageHtml } from "@/lib/page-html";
 import { validatePagePdf } from "@/lib/page-pdf";
 import { validatePageThumb } from "@/lib/page-thumb";
@@ -334,6 +339,32 @@ export async function addShelfPage(
     addedByStudent: role === "student",
   });
 
+  revalidatePages(slug);
+}
+
+// Stores a captured preview of an html page. The picture is taken in the
+// browser, against the page as it is already stored — see
+// components/html-thumbnail.ts — so this only writes what it is handed.
+//
+// Teacher-only, and the narrowness is deliberate rather than an oversight.
+// Publishing an html document is teacher-only again now that the student's FAB
+// offers a link and a PDF, and a PDF's thumbnail still arrives inside its own
+// upload's FormData under requireShelfRole. One authority per path, neither
+// widened: there is no route by which a student reaches this.
+//
+// A rejected thumbnail is NOT an error and returns silently, exactly as
+// readThumb documents. The document is already saved; this is decoration on top
+// of it, and the fallback is the live iframe, which is a working preview.
+export async function setPageThumb(
+  slug: string,
+  formData: FormData,
+): Promise<void> {
+  await requireTeacher();
+
+  const thumb = await readThumb(formData);
+  if (!thumb) return;
+
+  await setPageThumbnail(slug, thumb);
   revalidatePages(slug);
 }
 

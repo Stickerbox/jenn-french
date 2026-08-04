@@ -115,6 +115,11 @@ export function FilesTab({
               <ul className={pageGrid}>
                 {section.pages.map((page) => {
                   const target = pageTarget(page);
+                  // One expression for both previews; see PageList, which
+                  // computes the same thing for the same reason.
+                  const thumbVersion = page.thumbAt
+                    ? new Date(page.thumbAt).getTime()
+                    : null;
                   return (
                     <li key={page.id}>
                       <PageTile
@@ -129,14 +134,14 @@ export function FilesTab({
                             <PdfPreview
                               slug={page.slug}
                               size={page.pdfSize}
-                              thumbVersion={
-                                page.thumbAt
-                                  ? new Date(page.thumbAt).getTime()
-                                  : null
-                              }
+                              thumbVersion={thumbVersion}
                             />
                           ) : (
-                            <HtmlPreview slug={page.slug} version={pageVersion(page.updatedAt)} />
+                            <HtmlPreview
+                              slug={page.slug}
+                              version={pageVersion(page.updatedAt)}
+                              thumbVersion={thumbVersion}
+                            />
                           )
                         }
                         // Kept for a read-only visitor: without it a page sitting

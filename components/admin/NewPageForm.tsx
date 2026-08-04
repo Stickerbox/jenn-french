@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import type { NewPageInput, PageSaveResult } from "@/app/page-actions";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
 import { renderPdfThumbnail } from "@/components/admin/pdf-thumbnail";
+import { captureAndStoreThumbnail } from "@/components/html-thumbnail";
 
 // Audience first, content second — DOM order matters on the document half,
 // because there the paste is the submit and there is nothing left to fill in
@@ -85,6 +86,26 @@ export function NewPageForm({
     try {
       const result = await onSubmit({ html, groupIds });
       router.refresh();
+
+      // After the save, never before: the capture frames the page as it is
+      // STORED, through the same route and the same CSP a student gets, so a
+      // preview can only ever be honest about what that page actually does.
+      // Framing the html in memory would render assets the stored page cannot
+      // load and put a perfect picture over a broken document.
+      //
+      // Not awaited into the flow below and unable to fail it — onDone() and
+      // the skipped-assets branch behave exactly as they did. A page with no
+      // JPEG renders the live iframe, which is a working preview.
+      //
+      // The version is null deliberately. This form does not hold updatedAt,
+      // and any token it could pass would be stale by construction on a page
+      // written a moment ago; null omits ?v= and takes the no-store response,
+      // which is exactly right for a one-shot read. ThumbBackfill reads from
+      // the server and passes a real one.
+      void captureAndStoreThumbnail(result.slug, null).then((stored) => {
+        // Only when something landed, so the common failure costs no render.
+        if (stored) router.refresh();
+      });
       // The sheet closing is what makes the one-gesture flow feel finished, so
       // it still closes on a clean publish. It stays open when something could
       // not be folded in, because that list exists nowhere else — closing would

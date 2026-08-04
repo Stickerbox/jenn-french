@@ -27,6 +27,9 @@ import {
 } from "@/app/page-actions";
 import { listPagesForAdmin } from "@/lib/pages";
 import { PagesTabClient } from "@/components/admin/PagesTabClient";
+import { ThumbBackfill } from "@/components/admin/ThumbBackfill";
+import { readPageKind } from "@/lib/page-kind";
+import { pageVersion } from "@/lib/page-version";
 import { TeacherInbox } from "@/components/chat/TeacherInbox";
 
 export default async function AdminPage({
@@ -169,17 +172,31 @@ async function PagesTab({
   // one the filter should degrade quietly on rather than crash.
   const everyoneName = groups.find((g) => g.isEveryone)?.name ?? null;
 
+  // Derived from the list already fetched above rather than queried again: the
+  // two facts it needs — the kind and whether a preview exists — are both in
+  // SHELF_SELECT, and `thumb` itself is deliberately not, which is the whole
+  // reason thumbAt is a separate column.
+  const missingThumbs = pages
+    .filter((page) => readPageKind(page) === "html" && page.thumbAt === null)
+    .map((page) => ({ slug: page.slug, version: pageVersion(page.updatedAt) }));
+
   // No 560px cap out here, unlike the other tabs: the page grid uses the
   // whole 1152px so four tiles are worth looking at. PagesTabClient caps its
   // own controls.
   return (
-    <PagesTabClient
-      pages={pages}
-      groups={groups.map((g) => ({ id: g.id, name: g.name }))}
-      everyoneName={everyoneName}
-      today={new Date()}
-      onTogglePin={setShelfPin}
-      onDelete={deletePage}
-    />
+    <>
+      {/* Teacher-only, which /admin already guarantees for everything it
+          renders — this needs no guard of its own, and adding one would imply
+          the rest of the tab has a weaker one. */}
+      <ThumbBackfill pages={missingThumbs} />
+      <PagesTabClient
+        pages={pages}
+        groups={groups.map((g) => ({ id: g.id, name: g.name }))}
+        everyoneName={everyoneName}
+        today={new Date()}
+        onTogglePin={setShelfPin}
+        onDelete={deletePage}
+      />
+    </>
   );
 }

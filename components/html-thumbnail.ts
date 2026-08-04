@@ -11,6 +11,7 @@
 
 import { CAPTURE_MESSAGE } from "@/lib/printable-bootstrap";
 import { MAX_THUMB_BYTES } from "@/lib/page-thumb";
+import { setPageThumb } from "@/app/page-actions";
 
 // A laptop, not a tile. The page has to lay out the way opening it would —
 // sizing the frame to a thumbnail would render the document's own mobile
@@ -62,6 +63,38 @@ export async function captureHtmlThumbnail(
     ]);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Captures a page and stores the result, or does nothing at all.
+ *
+ * The whole sequence in one place because there are three callers — the two
+ * admin write paths and ThumbBackfill — and the order matters in the same way
+ * for all three: the capture runs AFTER the save, against the stored page.
+ *
+ * Inherits captureHtmlThumbnail's totality and extends it over the write: it
+ * returns `false` rather than throwing when there is nothing to store or the
+ * store failed. A PUBLISH MUST NEVER TURN INTO AN ERROR BECAUSE A PREVIEW DID
+ * NOT RENDER — the tile simply keeps the live iframe and is retried on the next
+ * visit to the Pages tab.
+ */
+export async function captureAndStoreThumbnail(
+  slug: string,
+  version: string | null,
+): Promise<boolean> {
+  try {
+    const blob = await captureHtmlThumbnail(slug, version);
+    if (blob === null) return false;
+
+    const formData = new FormData();
+    // The field name readThumb reads, and a filename because a Blob with none
+    // does not serialise as a File.
+    formData.set("thumb", blob, "thumb.jpg");
+    await setPageThumb(slug, formData);
+    return true;
+  } catch {
+    return false;
   }
 }
 

@@ -69,6 +69,87 @@ const CAPTURE_BOOTSTRAP = `<script>
     } catch (e) {}
   }
 
+  // Freezes the animated present onto a clone.
+  //
+  // An SVG image renders in the browser's secure static mode: no scripts, no
+  // network, AND NO ANIMATIONS — every CSS animation is pinned at its first
+  // keyframe. The Dia artifacts this feature exists for are full of
+  // \`@keyframes fade-in { from { opacity: 0 } }\`, so a straight serialisation
+  // photographs them at opacity 0 and stores a picture of an empty page under a
+  // real page's title. Two of the three real artifacts tested captured as bare
+  // background colour before this existed.
+  //
+  // The cure is to copy what is ACTUALLY on screen right now — the computed
+  // value, after the animation has run — onto the clone as an inline style, and
+  // turn the animation off so nothing rewinds it. Only opacity and transform,
+  // and only when they are not already the default: those two carry every
+  // reveal effect worth naming, and copying every property of every node would
+  // cost more than the picture is worth.
+  function settle(live, copy) {
+    var from = live.querySelectorAll("*");
+    var to = copy.querySelectorAll("*");
+    // Lockstep, and it holds because the copy is a deep clone of the live tree
+    // taken a moment ago and nothing has mutated either since.
+    var n = Math.min(from.length, to.length);
+    for (var i = 0; i < n; i++) {
+      var s = window.getComputedStyle(from[i]);
+      if (!s) continue;
+      var style = to[i].style;
+      if (s.opacity !== "" && s.opacity !== "1") style.opacity = s.opacity;
+      if (s.transform && s.transform !== "none") style.transform = s.transform;
+      // Belt and braces: without this a keyframe could still win over the
+      // inline value once the image is rasterised.
+      style.animation = "none";
+      style.transition = "none";
+    }
+  }
+
+  // True when nearly every pixel matches the first one — a page of one colour,
+  // which is what a failed rasterisation looks like. Deliberately crude: it has
+  // to separate "a document" from "a rectangle", not judge composition. The
+  // threshold is low so a genuinely minimal page — a title on a plain ground —
+  // still counts as content.
+  function isBlank(ctx, canvas) {
+    try {
+      var d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      var r0 = d[0], g0 = d[1], b0 = d[2];
+      var differing = 0, sampled = 0;
+      // Every fourth pixel. Enough to find a paragraph of text, cheap enough
+      // not to be felt on a 320px canvas.
+      for (var i = 0; i < d.length; i += 16) {
+        sampled++;
+        if (Math.abs(d[i] - r0) + Math.abs(d[i+1] - g0) + Math.abs(d[i+2] - b0) > 24) {
+          differing++;
+        }
+      }
+      return sampled === 0 || differing / sampled < 0.005;
+    } catch (e) {
+      // A tainted canvas throws here. Not blank as far as we can tell, and the
+      // toBlob below will fail on its own if the taint is real.
+      return false;
+    }
+  }
+
+  // Waits for the document's own webfonts before photographing it.
+  //
+  // Not a nicety. These artifacts inline their typefaces as data: URLs, and a
+  // document serialised before they are ready rasterises with no text at all —
+  // not fallback text, NONE — so the picture is the page's background colour
+  // and nothing else. That failure was observed on real artifacts and is
+  // timing-dependent, which is the worst kind: it passes on a warm machine and
+  // fails on a cold one. document.fonts.ready is the actual signal, so it is
+  // waited on rather than guessed at with a longer delay.
+  //
+  // Both arms of the then() run the capture: a font that fails to load is a
+  // page rendered in a fallback face, which is still worth a picture.
+  function whenReady(go) {
+    if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
+      document.fonts.ready.then(go, go);
+    } else {
+      go();
+    }
+  }
+
   function capture() {
     var root = document.documentElement;
     // The frame's own viewport, which the parent sized to a laptop. The page
@@ -80,7 +161,13 @@ const CAPTURE_BOOTSTRAP = `<script>
     // Serialised AFTER scripts have run, which is the point: a page whose
     // layout is drawn by JavaScript is captured as it ends up, not as it was
     // delivered. The known cost is that a <canvas> serialises blank.
-    var markup = new XMLSerializer().serializeToString(root);
+    //
+    // A clone, because the live tree must not be touched — this document is
+    // also what the student is looking at if the capture ever runs anywhere
+    // visible, and settle() below writes inline styles.
+    var clone = root.cloneNode(true);
+    settle(root, clone);
+    var markup = new XMLSerializer().serializeToString(clone);
     var svg =
       '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '">' +
       '<foreignObject x="0" y="0" width="' + w + '" height="' + h + '">' +
@@ -105,6 +192,17 @@ const CAPTURE_BOOTSTRAP = `<script>
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
+        // A BLANK PICTURE IS WORSE THAN NO PICTURE, and this is the guard that
+        // makes that true rather than aspirational. foreignObject rasterisation
+        // is browser-dependent and sometimes draws a document's background and
+        // none of its content — observed on real artifacts, not hypothetically.
+        // Such a result is still a valid JPEG, so without this check it would
+        // be stored, and a stored picture REPLACES the live iframe: the tile
+        // would go from a working preview to a flat rectangle, which is exactly
+        // the "working feature showing the wrong thing" this design keeps
+        // refusing. Reporting null instead leaves the iframe in place.
+        if (isBlank(ctx, canvas)) { reply(null); return; }
+
         canvas.toBlob(function (blob) { reply(blob); }, "image/jpeg", 0.6);
       } catch (e) {
         // A tainted canvas throws here. It resolves to the live iframe, which
@@ -112,9 +210,12 @@ const CAPTURE_BOOTSTRAP = `<script>
         reply(null);
       }
     };
-    // data: and not blob:. Both are in img-src, but a blob URL minted inside an
-    // opaque origin is the fragile one, and an SVG image never loads external
-    // subresources anyway — every asset it can draw was already inlined.
+    // data: and NOT blob:, and this was measured rather than assumed. Both are
+    // in img-src, so the CSP permits either; a blob URL minted inside this
+    // frame's opaque origin simply never loads, and swapping to one took the
+    // capture from four pages in four to zero in four, three runs running.
+    // An SVG image loads no external subresources anyway, so the encoding cost
+    // buys nothing back — it is just the only one of the two that works here.
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   }
 
@@ -128,7 +229,13 @@ const CAPTURE_BOOTSTRAP = `<script>
     // Nothing may throw out of here. A thrown error inside the frame is
     // invisible to the parent and would cost it the full timeout.
     try {
-      capture();
+      whenReady(function () {
+        try {
+          capture();
+        } catch (e) {
+          reply(null);
+        }
+      });
     } catch (e) {
       reply(null);
     }

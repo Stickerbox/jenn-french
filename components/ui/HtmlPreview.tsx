@@ -23,12 +23,50 @@ export function HtmlPreview({
   // forgot it would silently fall back to the uncached URL, and the symptom —
   // a shelf that is merely slow — is invisible in review.
   version,
+  thumbVersion,
   className,
 }: {
   slug: string;
   version: string;
+  // thumbAt as epoch milliseconds, or null when nothing has been captured yet.
+  // Required for the same reason `version` is: a caller that forgot it would
+  // silently take the slow path, and a shelf that is merely slower is invisible
+  // in review. PdfPreview's prop of the same name has the same shape on purpose.
+  thumbVersion: number | null;
   className?: string;
 }) {
+  // A stored picture, which is what makes a page whose layout is drawn by
+  // JavaScript preview as itself rather than as a blank box — the frame below
+  // can never run a script, and must not.
+  if (thumbVersion !== null) {
+    return (
+      <div
+        className={cn(
+          "relative aspect-[4/3] overflow-hidden bg-white",
+          className,
+        )}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- a route serving
+            a stored blob is not something next/image can optimise, and the tile
+            has already decided its own box. */}
+        <img
+          // ?v= is not decoration. The route answers `immutable` for a year, so
+          // this parameter is the ONLY thing that lets a replaced document's
+          // picture be replaced. That route and the two previews are three
+          // parts of one decision and none can change alone.
+          src={`/p/${slug}/thumb?v=${thumbVersion}`}
+          // Identical to PdfPreview's, deliberately: two kinds of page produce
+          // one kind of tile, and the top of a document is the part that
+          // identifies it.
+          className="h-full w-full object-cover object-top"
+          alt=""
+          aria-hidden
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn("relative aspect-[4/3] overflow-hidden bg-white", className)}
@@ -41,9 +79,13 @@ export function HtmlPreview({
         // thumbnail has no control surface to stop it. This is strictly
         // stronger than /p/[slug]'s sandbox, so it adds no exposure — and the
         // raw route's `frame-ancestors 'self'` already permits framing here.
-        // The cost is that a page drawn entirely by JavaScript previews blank.
-        // That is not detectable from out here: the frame has an opaque origin,
-        // so there is nothing to read back and no fallback to trigger.
+        // The cost is that a page drawn entirely by JavaScript previews blank,
+        // and it is not detectable from out here: the frame has an opaque
+        // origin, so there is nothing to read back and no fallback to trigger.
+        // That cost is what the stored JPEG above exists to remove — captured
+        // once, in Jenn's browser, in a frame that DOES run scripts. This
+        // branch is the fallback, so the blank case survives only until a
+        // capture succeeds.
         sandbox=""
         loading="lazy"
         // Decorative. The tile's title link is its accessible name, so a screen

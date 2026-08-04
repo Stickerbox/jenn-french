@@ -317,6 +317,33 @@ export async function updatePageMeta(
   });
 }
 
+// Writes the two thumbnail columns and NOTHING else — its own function beside
+// updatePageMeta for exactly the reason updatePageMeta exists. savePage writes
+// every content column on every call, and that flat invariant is the only thing
+// stopping a replaced document from keeping the previous document's picture; a
+// "leave the content alone" case inside it would put a hole in the one place
+// the invariant is enforced.
+//
+// The order this runs in is deliberate and is the whole design: savePage nulls
+// both columns, and the capture happens AFTERWARDS, against the stored page.
+// The gap between the two is a tile with no JPEG, which renders the live
+// iframe. Nothing is broken during it.
+//
+// updateMany rather than update, so a page deleted between the save and the
+// capture is a no-op rather than a P2025 — the same reason deletes use
+// deleteMany.
+export async function setPageThumbnail(
+  slug: string,
+  jpeg: Uint8Array,
+): Promise<void> {
+  await prisma.page.updateMany({
+    where: { slug },
+    // Buffer on the way in, matching how savePage and Passkey.publicKey write
+    // bytes.
+    data: { thumb: Buffer.from(jpeg), thumbAt: new Date() },
+  });
+}
+
 // Re-exported so callers that only need the shelf row's shape do not import
 // three modules to describe one thing.
 export type ShelfPage = Awaited<ReturnType<typeof listPagesForGroup>>[number];

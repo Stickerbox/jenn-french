@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import type { PageInput, PageSaveResult } from "@/app/page-actions";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
 import { renderPdfThumbnail } from "@/components/admin/pdf-thumbnail";
+import { captureAndStoreThumbnail } from "@/components/html-thumbnail";
 
 export type PageEditorGroup = { id: string; name: string };
 
@@ -108,6 +109,20 @@ export function PageEditor({
       } else {
         const result = await onSubmit({ title, html, groupIds });
         setSkipped(result.skipped);
+
+        // The html branch only. A pdf save must never touch these columns —
+        // its picture comes from renderPdfThumbnail inside its own submission
+        // above, and capturing here would photograph a document that is not
+        // this one.
+        //
+        // After the save and against the stored page, for the reason
+        // NewPageForm records; null version for the reason it records too.
+        // savePage has just nulled both columns, so between here and the reply
+        // the tile shows the live iframe rather than the previous document's
+        // picture — a missing preview, never a stale one.
+        void captureAndStoreThumbnail(result.slug, null).then((stored) => {
+          if (stored) router.refresh();
+        });
       }
       setSaved(true);
       router.refresh();

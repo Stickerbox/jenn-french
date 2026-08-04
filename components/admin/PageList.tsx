@@ -240,6 +240,13 @@ export function PageList({
             <ul className={pageGrid}>
               {section.pages.map((page) => {
                 const target = pageTarget(page);
+                // One expression for both previews, because one pair of columns
+                // now serves both kinds. Null means nothing has been captured
+                // yet, and each preview has its own working fallback for that —
+                // the glyph for a pdf, the live iframe for a document.
+                const thumbVersion = page.thumbAt
+                  ? new Date(page.thumbAt).getTime()
+                  : null;
                 return (
                   <li key={page.id}>
                     {/* The tile opens the page, the way the student's does, and
@@ -261,16 +268,16 @@ export function PageList({
                           <LinkPreview url={page.url} />
                         ) : page.kind === "pdf" ? (
                           <PdfPreview
-                              slug={page.slug}
-                              size={page.pdfSize}
-                              thumbVersion={
-                                page.thumbAt
-                                  ? new Date(page.thumbAt).getTime()
-                                  : null
-                              }
-                            />
+                            slug={page.slug}
+                            size={page.pdfSize}
+                            thumbVersion={thumbVersion}
+                          />
                         ) : (
-                          <HtmlPreview slug={page.slug} version={pageVersion(page.updatedAt)} />
+                          <HtmlPreview
+                            slug={page.slug}
+                            version={pageVersion(page.updatedAt)}
+                            thumbVersion={thumbVersion}
+                          />
                         )
                       }
                       action={
