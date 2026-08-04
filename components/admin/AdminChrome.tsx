@@ -129,7 +129,17 @@ export function AdminChrome({
         label="Add"
         expanded={open === "menu"}
         onClick={() => setOpen(open === null ? "menu" : null)}
-        className="bottom-6 right-4"
+        // Left of the chat bubble, not underneath it. InboxFab is ALSO fixed at
+        // bottom-6 right-4 with the same z-50, and <TeacherInbox /> renders
+        // after this component in app/admin/page.tsx — so at right-4 this
+        // button was painted over exactly, and the one control that adds a
+        // student, a link or a page was unreachable on the screen that lists
+        // all three.
+        //
+        // ShelfFab made this same move on the student page for the same reason:
+        // side by side, neither ever covers the other and neither has to move.
+        // Stacked is not an option — bottom-24 is where the open panel goes.
+        className="bottom-6 right-24"
       >
         <svg
           width="24"
