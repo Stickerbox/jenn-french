@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HtmlPasteBox } from "@/components/ui/HtmlPasteBox";
 import { FileDropZone } from "@/components/ui/FileDropZone";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 import { MAX_PDF_BYTES } from "@/lib/page-pdf";
 import { cn } from "@/lib/utils";
 import type { NewPageInput, PageSaveResult } from "@/app/page-actions";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
+import { renderPdfThumbnail } from "@/components/admin/pdf-thumbnail";
 
-// Audience first, paste second — DOM order matters here, because the paste is
-// the submit. There is no Save button: the title comes from the document, so
-// once the audience is chosen there is nothing left to fill in.
+// Audience first, content second — DOM order matters on the document half,
+// because there the paste is the submit and there is nothing left to fill in
+// once the audience is chosen.
+//
+// The PDF half is deliberately NOT that flow any more. Choosing a file used to
+// upload it immediately, which meant she could not tick a student afterwards —
+// the sheet had already closed. So a staged PDF opens a title field and a Save
+// button, and choosing the file stages it and nothing else.
 export function NewPageForm({
   groups,
   defaultGroupId,
@@ -39,6 +47,18 @@ export function NewPageForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [skipped, setSkipped] = useState<PageSaveResult["skipped"]>([]);
+
+  // The staged PDF, and null until she chooses one. Staging is not submitting.
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfTitle, setPdfTitle] = useState("");
+  // The same don't-clobber rule the default audience has, for the same reason:
+  // a title derived from a filename must never overwrite one she typed herself.
+  const [titleTouched, setTitleTouched] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  // The in-flight preview render. A ref so submit can AWAIT it rather than race
+  // a boolean: staging a file and pressing Save at once would otherwise drop the
+  // preview silently.
+  const thumbJob = useRef<Promise<Blob | null> | null>(null);
 
   // Adjusted during render rather than in an effect: this is state derived from
   // a prop, and react-hooks/set-state-in-effect rejects the effect form for
@@ -81,12 +101,10 @@ export function NewPageForm({
     }
   }
 
-  // The PDF half of the same one-gesture flow: choosing the file is the submit,
-  // exactly as the paste is on the document half, and the title comes from the
-  // filename the way the document's comes from its <title>. A derived title
-  // becomes a permanent slug — that is the accepted cost on both paths, and the
-  // title stays editable at /admin/pages/<slug> afterwards.
-  async function handlePdf(file: File) {
+  // Stages the file and NOTHING else. It does not submit and it does not close
+  // the sheet: she has to be able to tick a student after choosing the document,
+  // which the old choose-is-submit flow made impossible.
+  function handlePdf(file: File) {
     setError(null);
     // Checked again on the server, which is the authority. Telling her before a
     // 3 MB upload rather than after.
@@ -95,13 +113,47 @@ export function NewPageForm({
       return;
     }
 
+    setPdfFile(file);
+    // The title still comes from the filename, the way the document's comes
+    // from its <title> — but only until she edits it herself.
+    if (!titleTouched) setPdfTitle(file.name.replace(/\.pdf$/i, ""));
+
+    setPreparing(true);
+    // Started on stage rather than at submit so it renders WHILE she picks the
+    // audience. The work is free: she was going to spend that time choosing.
+    const job = renderPdfThumbnail(file);
+    thumbJob.current = job;
+    void job.then(() => {
+      // A newer file may have been staged while this one was rendering.
+      if (thumbJob.current !== job) return;
+      setPreparing(false);
+    });
+  }
+
+  // The only submit path for a PDF. Not reachable from the drop zone, not from
+  // an onChange, and nothing calls requestSubmit().
+  async function handlePdfSubmit() {
+    if (!pdfFile) return;
+
     setSaving(true);
+    setError(null);
     try {
       const formData = new FormData();
-      formData.set("title", file.name.replace(/\.pdf$/i, ""));
+      formData.set("title", pdfTitle);
       for (const id of groupIds) formData.append("groupIds", id);
-      formData.set("pdf", file);
+      formData.set("pdf", pdfFile);
+      // Awaited, not read from state: a render still in flight is not a reason
+      // to save without a preview, and a failed one resolves null and saves
+      // without one — which is the fallback the glyph exists to be.
+      const rendered = thumbJob.current ? await thumbJob.current : null;
+      if (rendered) formData.set("thumb", rendered, "thumb.jpg");
+
       await onSubmitPdf(formData);
+      setPdfFile(null);
+      setPdfTitle("");
+      setTitleTouched(false);
+      setPreparing(false);
+      thumbJob.current = null;
       router.refresh();
       onDone();
     } catch (err) {
@@ -169,22 +221,67 @@ export function NewPageForm({
       <div className="text-sm font-medium text-[var(--color-ink)]">
         PDF
         <FileDropZone
-          fileName={null}
-          fileSize={null}
-          hasExisting={false}
+          fileName={pdfFile?.name ?? null}
+          fileSize={pdfFile?.size ?? null}
+          hasExisting={pdfFile !== null}
           accept=".pdf,application/pdf"
           inputLabel="PDF to publish"
-          emptyHint={
-            saving
-              ? "Publishing…"
-              : "Drop a PDF here, or click to choose one — it publishes straight away"
-          }
-          existingHint=""
+          emptyHint="Drop a PDF here, or click to choose one"
+          existingHint="Drop another to replace it."
           onFile={handlePdf}
         />
+        {preparing && (
+          <p className="mt-1 text-xs font-normal text-[var(--color-ink-muted)]">
+            Preparing preview…
+          </p>
+        )}
         <p className="mt-2 text-sm font-normal text-[var(--color-ink-muted)]">
           The title comes from the filename. Up to 3 MB.
         </p>
+
+        {/* Only once something is staged. Until then this half of the sheet is
+            one control, exactly as it was. */}
+        {pdfFile && (
+          <div className="mt-3 flex flex-col gap-3">
+            <label className="text-sm font-medium text-[var(--color-ink)]">
+              Title
+              <Input
+                value={pdfTitle}
+                onChange={(e) => {
+                  setTitleTouched(true);
+                  setPdfTitle(e.target.value);
+                }}
+                required
+              />
+            </label>
+
+            <div className="flex items-center justify-center gap-4">
+              <Button
+                type="button"
+                onClick={() => void handlePdfSubmit()}
+                // A preview still rendering is deliberately NOT a reason she
+                // cannot save: the submit awaits the job anyway.
+                disabled={saving || pdfTitle.trim() === ""}
+              >
+                {saving ? "Publishing…" : "Publish PDF"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPdfFile(null);
+                  setPdfTitle("");
+                  setTitleTouched(false);
+                  setPreparing(false);
+                  thumbJob.current = null;
+                }}
+                disabled={saving}
+                className="text-sm font-normal text-[var(--color-ink-muted)] underline"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (

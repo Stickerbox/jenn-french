@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +11,7 @@ import type { PageKind } from "@/lib/page-kind";
 import { cn } from "@/lib/utils";
 import type { PageInput, PageSaveResult } from "@/app/page-actions";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
+import { renderPdfThumbnail } from "@/components/admin/pdf-thumbnail";
 
 export type PageEditorGroup = { id: string; name: string };
 
@@ -52,6 +53,12 @@ export function PageEditor({
   // Saving without it is a rename or a change of audience, which the action
   // reads as "leave the bytes".
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  // The in-flight preview render. Held as a ref so submit can AWAIT it rather
+  // than race a boolean: if she stages a file and presses Save immediately, the
+  // preview is still rendering and reading a piece of state would silently drop
+  // it.
+  const thumbJob = useRef<Promise<Blob | null> | null>(null);
   // The html lives here, exactly as it did behind the drop zone — the paste box
   // simply never shows it. Saving without pasting anything re-submits the
   // identical document, so page-actions needs no change.
@@ -89,6 +96,14 @@ export function PageEditor({
         // Absent when she is editing a stored PDF's title or audience without
         // choosing a new file. The action reads that as "leave the bytes".
         if (pdfFile) formData.set("pdf", pdfFile);
+        // Awaited, not read from state: see the note on thumbJob. A failed
+        // render resolves null and the page saves without a preview, which is
+        // the fallback the glyph exists to be.
+        const rendered = thumbJob.current ? await thumbJob.current : null;
+        // Only ever sent beside a new file, for the same reason the bytes are:
+        // without one there is no new preview to offer, and updatePageMeta must
+        // not be handed a thumbnail it would have to decide what to do with.
+        if (pdfFile && rendered) formData.set("thumb", rendered, "thumb.jpg");
         await onSubmitPdf(formData);
       } else {
         const result = await onSubmit({ title, html, groupIds });
@@ -185,8 +200,25 @@ export function PageEditor({
                 return;
               }
               setPdfFile(file);
+              setPreparing(true);
+
+              // Started here rather than at submit so it runs WHILE she picks
+              // the audience. The work is free: she was going to spend that
+              // time choosing anyway.
+              const job = renderPdfThumbnail(file);
+              thumbJob.current = job;
+              void job.then(() => {
+                // A newer file may have been staged while this one rendered.
+                if (thumbJob.current !== job) return;
+                setPreparing(false);
+              });
             }}
           />
+          {preparing && (
+            <p className="mt-1 text-xs font-normal text-[var(--color-ink-muted)]">
+              Preparing preview…
+            </p>
+          )}
         </div>
       ) : (
         <div className="text-sm font-medium text-[var(--color-ink)]">
