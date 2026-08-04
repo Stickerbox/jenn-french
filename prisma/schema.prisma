@@ -107,6 +107,23 @@ model Page {
   // actually load, for the same reason it reads `url` and not `html`. It is
   // also what the tile puts under the glyph, via formatFileSize.
   pdfSize   Int?
+  // A JPEG of page 1, rendered by Jenn's browser at upload time. Bytes rather
+  // than a base64 data URL in a String — unlike Whiteboard.thumbnail, which is
+  // inlined into an <img src> and has no route to be served from. This one has
+  // /p/[slug]/thumb, so base64 would cost a third more room in a database the
+  // nightly VACUUM INTO copies whole, for nothing.
+  pdfThumb   Bytes?
+  // Existence signal and cache version in one column.
+  //
+  // Existence, because no shelf query may select `pdfThumb` — the same lesson
+  // `pdfSize` records one column earlier: a tile grid that loads a blob to
+  // decide whether to draw a picture has already paid for the picture it might
+  // not draw.
+  //
+  // Version, because /p/[slug]/thumb answers `immutable` for a year and the tile
+  // appends ?v= this. A replacement moves it, which is the only thing making
+  // that cache safe on a row that can change.
+  pdfThumbAt DateTime?
   // True when a student added it rather than Jenn. A boolean rather than an
   // author id for the reason Message.fromTeacher is one: there are exactly two
   // participants and one of them has no row to point at.
