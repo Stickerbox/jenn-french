@@ -82,12 +82,35 @@ async function publish(tab) {
     throw new Error(data.error || `The site said ${response.status}.`);
   }
 
+  // The site folds a page's external scripts, stylesheets, images and fonts into
+  // the document when it publishes, and lists whatever it could not. The count
+  // goes in the notification because a notification has no room for URLs; the
+  // list goes to the console, which is where the service worker inspector is.
+  //
+  // Array.isArray rather than a truthiness test: the extension is loaded
+  // unpacked and is not redeployed with the site, so it will outlive at least
+  // one version that does not send the field.
+  const skipped = Array.isArray(data.skipped) ? data.skipped : [];
+  if (skipped.length > 0) {
+    console.log(
+      `[publish] could not be included:\n${skipped
+        .map((item) => `  ${item.url} — ${item.reason}`)
+        .join("\n")}`,
+    );
+  }
+
   // Published with no groups, so the link works immediately but no class sees
   // it yet. Opening the editor is how she picks the groups and fixes the title
   // without having to find the page in the admin list.
   const slug = data.url.split("/p/").pop();
   chrome.tabs.create({ url: `${siteUrl}/admin/pages/${slug}` });
-  notify("Published", data.url, true);
+  notify(
+    "Published",
+    skipped.length > 0
+      ? `${data.url} — ${skipped.length} file(s) could not be included`
+      : data.url,
+    true,
+  );
 }
 
 // The browser's own message here is developer-speak and names no remedy, so
