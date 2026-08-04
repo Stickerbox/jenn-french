@@ -1,11 +1,17 @@
-// Ten wrong guesses for one student inside fifteen minutes locks that student's
-// sign-in for fifteen minutes. A success clears it.
+// Ten wrong guesses against one identity inside fifteen minutes lock it for
+// fifteen minutes. A success clears it.
 //
-// Keyed by slug, not by IP. The attack is against one student, and an IP behind
-// nginx means trusting X-Forwarded-For, a header the client sets. The accepted
-// cost is that someone who knows a slug can lock that student out on purpose:
-// bounded to fifteen minutes, self-healing, no action needed from Jenn — a
-// better failure than a limit anyone can bypass by varying a header.
+// Keyed by identity, not by IP. The attack is against one student, and an IP
+// behind nginx means trusting X-Forwarded-For, a header the client sets. The
+// accepted cost is that someone who knows a slug can lock that student out on
+// purpose: bounded to fifteen minutes, self-healing, no action needed from
+// Jenn — a better failure than a limit anyone can bypass by varying a header.
+//
+// There are two ways to reach a student's account and they are throttled
+// separately, so callers pass a PREFIXED key: `slug:marie` from the per-page
+// form, `email:marie@example.ca` from /signin. Both namespaces share one Map,
+// and without the prefix a student whose slug happened to equal someone's
+// address would share their counter.
 
 export type AttemptState = { failures: number; firstFailureAt: number };
 
@@ -48,7 +54,10 @@ export function isLocked(
 // mode. Under cluster mode each worker would keep its own counter and the limit
 // would silently become as many times looser as there are workers — the same
 // trap the chat bus and the live whiteboard carry. See docs/DEPLOYMENT.md
-// before changing how the app is started.
+// before changing how the app is started. This throttle is now the FOURTH thing
+// depending on fork mode, alongside the chat bus, the live board and the SSE
+// stream — and /signin, which is reachable without knowing any slug, is the one
+// that would be cheapest to attack if it ever became per-worker.
 const globalForThrottle = globalThis as unknown as {
   loginAttempts: Map<string, AttemptState> | undefined;
 };
@@ -60,14 +69,17 @@ if (process.env.NODE_ENV !== "production") {
   globalForThrottle.loginAttempts = attempts;
 }
 
-export function isSlugLocked(slug: string, now = Date.now()): boolean {
-  return isLocked(attempts.get(slug), now);
+// `key` is prefixed — `slug:marie` or `email:marie@example.ca`. Named for what
+// it takes rather than isSlugLocked, because a function called isSlugLocked
+// handed an email address is a comment that lies.
+export function isLockedFor(key: string, now = Date.now()): boolean {
+  return isLocked(attempts.get(key), now);
 }
 
-export function noteFailure(slug: string, now = Date.now()): void {
-  attempts.set(slug, recordFailure(attempts.get(slug), now));
+export function noteFailure(key: string, now = Date.now()): void {
+  attempts.set(key, recordFailure(attempts.get(key), now));
 }
 
-export function clearAttempts(slug: string): void {
-  attempts.delete(slug);
+export function clearAttempts(key: string): void {
+  attempts.delete(key);
 }

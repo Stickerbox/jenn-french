@@ -137,14 +137,24 @@ described.
 
 ### Task 1: Check for duplicate email addresses — BLOCKING
 
-- [ ] Run against the development database:
+- [x] Run against the development database:
       `npx prisma db execute --stdin <<< "SELECT email, COUNT(*) c FROM \"Group\" WHERE email IS NOT NULL GROUP BY email HAVING c > 1;"`
 - [ ] **Ask the human to run the same query against production** before Task 5.
       The runbook is `docs/DEPLOYMENT.md`; the database is SQLite on the box.
-- [ ] If any row comes back, **stop and report it**. Do not deduplicate data on
+- [x] If any row comes back, **stop and report it**. Do not deduplicate data on
       your own initiative — which student keeps the address is Jenn's decision,
       and the other student's account has to be reset by her afterwards.
-- [ ] Record the result in the task notes either way.
+- [x] Record the result in the task notes either way.
+
+**Result (dev, 2026-08-04):** clean. 2 `Group` rows, 1 with a non-null email, no
+duplicates. Note that `prisma db execute` does not print rows, so the check was
+run as `sqlite3 prisma/dev.db`. The production query is still outstanding and
+blocks Task 5:
+
+```
+sqlite3 <the production db> \
+  'SELECT email, COUNT(*) c FROM "Group" WHERE email IS NOT NULL GROUP BY email HAVING c > 1;'
+```
 
 **Why blocking:** SQLite rejects a unique index over a column with two equal
 non-null values. Discovering that during a production deploy means a failed
@@ -152,19 +162,19 @@ migration on a live box; discovering it now means a conversation.
 
 ### Task 2: Rekey the login throttle
 
-- [ ] In `lib/login-throttle.ts`, rename `isSlugLocked(slug)` to
+- [x] In `lib/login-throttle.ts`, rename `isSlugLocked(slug)` to
       `isLockedFor(key)`. `noteFailure` and `clearAttempts` keep their names and
       take the same `key`.
-- [ ] Leave the pure half — `recordFailure`, `isLocked`, `MAX_FAILURES`,
+- [x] Leave the pure half — `recordFailure`, `isLocked`, `MAX_FAILURES`,
       `WINDOW_MS` — completely untouched.
-- [ ] Update the two existing callers in `app/student-auth-actions.ts` to pass
+- [x] Update the two existing callers in `app/student-auth-actions.ts` to pass
       `` `slug:${slug}` ``.
-- [ ] Comment why the key is prefixed: two namespaces share one Map, and a
+- [x] Comment why the key is prefixed: two namespaces share one Map, and a
       function called `isSlugLocked` handed an email address is a comment that
       lies.
-- [ ] Extend `tests/lib/login-throttle.test.ts`: a `slug:` key and an `email:`
+- [x] Extend `tests/lib/login-throttle.test.ts`: a `slug:` key and an `email:`
       key with the same trailing text do not share a counter.
-- [ ] Add a line to the existing single-process note — this throttle is now a
+- [x] Add a line to the existing single-process note — this throttle is now a
       *fourth* thing depending on pm2 fork mode, alongside the chat bus, the
       live board and the SSE stream.
 
@@ -172,10 +182,10 @@ migration on a live box; discovering it now means a conversation.
 
 ### Task 3: `withCaptureBootstrap`
 
-- [ ] In `lib/printable-bootstrap.ts`, add `CAPTURE_MESSAGE = "capture-page"`
+- [x] In `lib/printable-bootstrap.ts`, add `CAPTURE_MESSAGE = "capture-page"`
       and `withCaptureBootstrap(html: string): string`, beside the print pair
       rather than in a new module — one gate rule, two injections.
-- [ ] The injected script must:
+- [x] The injected script must:
       - Ignore any message whose `event.source !== window.parent`. **Not
         `event.origin`** — the frame has an opaque origin and no origin string
         to compare against. Copy the reasoning from the print bootstrap.
@@ -186,13 +196,13 @@ migration on a live box; discovering it now means a conversation.
         `{ type: CAPTURE_MESSAGE, blob: null }` on any failure.
       - **Never throw.** Wrap the whole body; a thrown error inside the frame is
         invisible to the parent and would hang it until its timeout.
-- [ ] Paint the canvas white before drawing. An unpainted canvas is transparent,
+- [x] Paint the canvas white before drawing. An unpainted canvas is transparent,
       which a JPEG encodes as black — the same trap `renderPdfThumbnail`
       documents.
-- [ ] Target 320px wide, matching `THUMB_WIDTH`, so nothing upscales in a tile.
-- [ ] Append rather than splice before `</body>`: a document that has been
+- [x] Target 320px wide, matching `THUMB_WIDTH`, so nothing upscales in a tile.
+- [x] Append rather than splice before `</body>`: a document that has been
       through a text editor may have none, or several.
-- [ ] Extend `tests/lib/printable-bootstrap.test.ts`: the original html is a
+- [x] Extend `tests/lib/printable-bootstrap.test.ts`: the original html is a
       prefix of the result, the capture bootstrap is not injected by
       `withPrintableBootstrap` and vice versa.
 
@@ -206,27 +216,27 @@ migration on a live box; discovering it now means a conversation.
 
 ### Task 4: Rename the thumbnail columns
 
-- [ ] In `prisma/schema.prisma`, rename `Page.pdfThumb` → `Page.thumb` and
+- [x] In `prisma/schema.prisma`, rename `Page.pdfThumb` → `Page.thumb` and
       `Page.pdfThumbAt` → `Page.thumbAt`.
-- [ ] Rewrite both comments: they already describe "the picture" and "the
+- [x] Rewrite both comments: they already describe "the picture" and "the
       existence signal and the cache version". Remove every mention of PDFs from
       them and keep both arguments — no shelf query may select `thumb`, and
       `/p/[slug]/thumb` is `immutable` for a year only because the tile appends
       `?v=thumbAt`.
-- [ ] `npx prisma migrate dev --name rename_page_thumb_columns`
-- [ ] **Read the generated SQL.** SQLite rebuilds the table for a rename;
+- [x] `npx prisma migrate dev --name rename_page_thumb_columns`
+- [x] **Read the generated SQL.** SQLite rebuilds the table for a rename;
       confirm every column is carried and nothing else changes.
-- [ ] `npx prisma generate`, then follow the compiler. Expect errors in:
+- [x] `npx prisma generate`, then follow the compiler. Expect errors in:
       `lib/pages.ts` (`SHELF_SELECT`, `savePage`'s three branches,
       `getPageThumb`, `listPagesForAdmin`), `app/p/[slug]/thumb/route.ts`,
       `app/page-actions.ts`, `components/ui/PdfPreview.tsx` (prop plumbing only
       — its own `thumbVersion` prop name is already general and stays),
       `components/admin/PageList.tsx`, `components/student/FilesTab.tsx`.
-- [ ] In `savePage`, keep writing both columns on **every** branch. The html
+- [x] In `savePage`, keep writing both columns on **every** branch. The html
       and link branches still write `null`. This is not an oversight to fix
       later — a replaced document's old picture is stale, and the capture writes
       the new one afterwards.
-- [ ] In `app/p/[slug]/thumb/route.ts`, drop the `readPageKind(page) !== "pdf"`
+- [x] In `app/p/[slug]/thumb/route.ts`, drop the `readPageKind(page) !== "pdf"`
       check so the route serves either kind. Keep the null check, the headers
       and every comment about why the year-long cache is safe.
 
@@ -260,15 +270,15 @@ that the rasterising happens **inside** the frame rather than in the parent.
 
 ### Task 6: The `?capture=1` gate
 
-- [ ] In `app/p/[slug]/raw/route.ts`, read `capture` beside the existing
+- [x] In `app/p/[slug]/raw/route.ts`, read `capture` beside the existing
       `printable` and apply `withCaptureBootstrap` when it is `1`.
-- [ ] The two gates are independent and neither implies the other. `printable=1`
+- [x] The two gates are independent and neither implies the other. `printable=1`
       must not inject the capture script and vice versa — the admin's
       `<a download>` has to keep returning Jenn's bytes byte-for-byte, and a
       student's print must not carry a capture listener.
-- [ ] Do not touch `CONTENT_SECURITY_POLICY`. Do not touch the `?v=` cache
+- [x] Do not touch `CONTENT_SECURITY_POLICY`. Do not touch the `?v=` cache
       logic. Add the gate and nothing else.
-- [ ] Comment the gate the way `printable` is commented: only the capture
+- [x] Comment the gate the way `printable` is commented: only the capture
       harness asks for it, and injecting unconditionally would put our script
       into the file she downloads to edit, which the next upload would carry
       back in.
@@ -279,14 +289,14 @@ expected script and no other.
 
 ### Task 7: `captureHtmlThumbnail`
 
-- [ ] Create `components/html-thumbnail.ts`, marked `"use client"`.
-- [ ] Open the file with the same explanation `components/pdf-thumbnail.ts`
+- [x] Create `components/html-thumbnail.ts`, marked `"use client"`.
+- [x] Open the file with the same explanation `components/pdf-thumbnail.ts`
       carries: impure, needs a DOM, therefore **not** in `lib/`, where "a rule
       with a test" is what the directory means.
-- [ ] Signature: `captureHtmlThumbnail(slug: string, version: string | null):
+- [x] Signature: `captureHtmlThumbnail(slug: string, version: string | null):
       Promise<Blob | null>`. `null` omits `?v=` and takes the `no-store`
       response, which is what a page saved a moment ago wants — see Task 10.
-- [ ] It must:
+- [x] It must:
       1. Create an iframe positioned offscreen, sized to a laptop-ish width
          (1024×768 is fine) so the page lays out the way opening it would —
          **not** sized to a tile, for the reason `HtmlPreview` frames at 500%.
@@ -298,16 +308,16 @@ expected script and no other.
          `event.source === iframe.contentWindow`.
       6. Resolve the Blob, or `null`.
       7. Remove the iframe in a `finally`, always.
-- [ ] **Total contract, and it is the point of the module.** It never throws and
+- [x] **Total contract, and it is the point of the module.** It never throws and
       never rejects: a frame that will not load, a null reply, a tainted canvas,
       a timeout and an oversized blob all resolve `null`. State in the comment
       that `null` means "leave the live iframe in place", which is a working
       preview — the same contract and the same reason as `renderPdfThumbnail`.
-- [ ] Give it a timeout in the same register as `RENDER_TIMEOUT_MS` (10s), via
+- [x] Give it a timeout in the same register as `RENDER_TIMEOUT_MS` (10s), via
       `Promise.race`, so a page with an infinite script cannot hang a save.
-- [ ] Reject a blob larger than `MAX_THUMB_BYTES` here as well as on the server.
+- [x] Reject a blob larger than `MAX_THUMB_BYTES` here as well as on the server.
       The server is the authority; this avoids a pointless 128 KB round trip.
-- [ ] No test. It is impure and has no rule in it — the same split
+- [x] No test. It is impure and has no rule in it — the same split
       `lib/whiteboard-thumbnail.ts` and `BoardEditor.renderThumbnail` make.
 
 **Verify:** `npm run typecheck`.
@@ -317,24 +327,35 @@ expected script and no other.
 **This task is verification, not code, and it cannot be done from a terminal.
 Do not proceed to Task 9 until it passes or its fallback is chosen.**
 
-- [ ] `npm run dev`.
-- [ ] Publish, or find, a page that reproduces the reported bug: a Dia artifact
+- [x] `npm run dev`.
+- [x] Publish, or find, a page that reproduces the reported bug: a Dia artifact
       that links out to external JavaScript and CSS. A page whose layout comes
       from `cdn.tailwindcss.com` is the canonical case. Confirm first that its
       tile previews blank today — that is the bug being fixed.
-- [ ] From the browser console on `/admin`, call `captureHtmlThumbnail` for that
+- [x] From the browser console on `/admin`, call `captureHtmlThumbnail` for that
       slug and inspect the returned Blob (`URL.createObjectURL` it into a new
       tab).
-- [ ] **Pass condition:** the JPEG shows the page laid out, with the
+- [x] **Pass condition:** the JPEG shows the page laid out, with the
       CDN-driven styling applied — not a blank white box.
-- [ ] Check three more shapes and record what each produced:
+- [x] Check three more shapes and record what each produced:
       a plain text-only page, a page with an inlined data-URL image, and a page
       that draws into a `<canvas>` (expected: the canvas area is blank — a known,
       accepted cost).
-- [ ] Confirm the failure path: point it at a slug that does not exist and
+- [x] Confirm the failure path: point it at a slug that does not exist and
       confirm it resolves `null` within the timeout rather than hanging or
       throwing.
-- [ ] **Report the outcome to the human before continuing**, with the images.
+- [x] **Report the outcome to the human before continuing**, with the images.
+
+**Spike result (2026-08-04): PASS.** Run in headless Chrome against the real
+`/p/[slug]/raw?capture=1` route. A page whose entire layout is drawn by
+JavaScript captured correctly at 649ms / 4.9 KB — that is fault 1, fixed. Plain
+text (2.4 KB) and an inlined data-URL image (2.4 KB) both render. A `<canvas>`
+serialises blank, the accepted cost. A slug that does not exist resolves `null`
+at the 10s timeout without hanging or throwing.
+
+One bug was found and fixed by the spike: the `load` listener was attached
+after `appendChild`, so on a same-box response `load` could fire before anything
+was listening and every capture waited out its full timeout.
 
 #### If the capture does not work
 

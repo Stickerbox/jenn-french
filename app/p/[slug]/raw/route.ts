@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { getPageBySlug } from "@/lib/pages";
 import { readPageKind } from "@/lib/page-kind";
 import { pageVersion } from "@/lib/page-version";
-import { withPrintableBootstrap } from "@/lib/printable-bootstrap";
+import {
+  withCaptureBootstrap,
+  withPrintableBootstrap,
+} from "@/lib/printable-bootstrap";
 
 // The iframe sandbox is the primary control; this is the second layer. Every
 // directive here is deliberately restricted to what the document carries
@@ -55,15 +58,28 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
-  // Gated, and the gate is the point. The shell frames this route WITH the
-  // parameter so a student can print; the admin's <a download> and every
-  // HtmlPreview thumbnail hit it WITHOUT, and get Jenn's bytes exactly as she
-  // uploaded them. Injecting unconditionally would put our script into the file
-  // she downloads to edit, and the next upload would carry it back in.
-  const printable = new URL(request.url).searchParams.get("printable") === "1";
-  const body = printable ? withPrintableBootstrap(page.html) : page.html;
+  // Two gates, and the gate is the point in both cases. The shell frames this
+  // route WITH ?printable=1 so a student can print; the capture harness frames
+  // it WITH ?capture=1 to photograph the page for a tile. The admin's
+  // <a download> and every HtmlPreview thumbnail hit it WITHOUT either, and get
+  // Jenn's bytes exactly as she uploaded them. Injecting unconditionally would
+  // put our script into the file she downloads to edit, and the next upload
+  // would carry it back in.
+  //
+  // The two are INDEPENDENT and neither implies the other. A print must not
+  // carry a capture listener and a capture must not carry a print one: they
+  // are separate listeners on the same message channel, and a document holding
+  // both would answer a message it was never sent.
+  const query = new URL(request.url).searchParams;
+  const printable = query.get("printable") === "1";
+  const capture = query.get("capture") === "1";
+  const body = printable
+    ? withPrintableBootstrap(page.html)
+    : capture
+      ? withCaptureBootstrap(page.html)
+      : page.html;
 
-  const asked = new URL(request.url).searchParams.get("v");
+  const asked = query.get("v");
   const current = pageVersion(page.updatedAt);
   const cacheable = current !== "" && asked === current;
 

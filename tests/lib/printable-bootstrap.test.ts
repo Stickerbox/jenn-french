@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  CAPTURE_MESSAGE,
   PRINT_MESSAGE,
+  withCaptureBootstrap,
   withPrintableBootstrap,
 } from "@/lib/printable-bootstrap";
 
@@ -39,5 +41,60 @@ describe("withPrintableBootstrap", () => {
     const result = withPrintableBootstrap("<p>fragment</p>");
     expect(result).toContain("<p>fragment</p>");
     expect(result).toContain("window.print()");
+  });
+});
+
+describe("withCaptureBootstrap", () => {
+  it("leaves the teacher's document byte-identical and appends after it", () => {
+    expect(withCaptureBootstrap(DOC).startsWith(DOC)).toBe(true);
+  });
+
+  it("authenticates the sender by window, not by origin", () => {
+    // The capture frame is sandboxed without allow-same-origin, so it has an
+    // opaque origin and no origin string it could compare against.
+    expect(withCaptureBootstrap(DOC)).toContain(
+      "event.source !== window.parent",
+    );
+  });
+
+  it("listens for exactly the message the harness sends", () => {
+    expect(withCaptureBootstrap(DOC)).toContain(
+      JSON.stringify(CAPTURE_MESSAGE),
+    );
+  });
+
+  it("paints the canvas white before drawing", () => {
+    // An unpainted canvas is transparent, which a JPEG encodes as black.
+    expect(withCaptureBootstrap(DOC)).toContain("fillRect");
+  });
+
+  it("works on a document with no body tag to splice into", () => {
+    const result = withCaptureBootstrap("<p>fragment</p>");
+    expect(result).toContain("<p>fragment</p>");
+    expect(result).toContain("foreignObject");
+  });
+});
+
+describe("the two bootstraps are independent", () => {
+  // Neither gate implies the other. The admin's <a download> hits the raw route
+  // with no parameter at all and has to get Jenn's bytes back; a student's
+  // print must not carry a capture listener, and a capture must not carry a
+  // print one.
+  it("does not inject the capture listener when asked to print", () => {
+    expect(withPrintableBootstrap(DOC)).not.toContain(
+      JSON.stringify(CAPTURE_MESSAGE),
+    );
+    expect(withPrintableBootstrap(DOC)).not.toContain("foreignObject");
+  });
+
+  it("does not inject the print listener when asked to capture", () => {
+    expect(withCaptureBootstrap(DOC)).not.toContain(
+      JSON.stringify(PRINT_MESSAGE),
+    );
+    expect(withCaptureBootstrap(DOC)).not.toContain("window.print()");
+  });
+
+  it("uses two different messages", () => {
+    expect(CAPTURE_MESSAGE).not.toBe(PRINT_MESSAGE);
   });
 });

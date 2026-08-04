@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getPageThumb } from "@/lib/pages";
-import { readPageKind } from "@/lib/page-kind";
 
-// The third mirror of one contract: /raw serves only an html row, /pdf only a
-// pdf row's document, and this one only a pdf row's preview. Each 404s the
-// others. One handler branching on kind under three header regimes is the thing
-// a later edit gets wrong, which is why there are three files.
+// The third mirror of one contract: /raw serves only an html row and /pdf only
+// a pdf row's document. This one serves a picture, of either kind — a pdf's
+// first page or an html document's laid-out top — because the columns behind it
+// mean "the picture" and never meant "the PDF's picture". It still 404s
+// everything else, and it still has headers the other two could not share,
+// which is why there are three files rather than one handler branching on kind.
 //
 // Public, exactly like /p/[slug] and /p/[slug]/pdf. It leaks strictly less than
 // the document it summarises, and the note that a PDF put here is a PDF on the
@@ -17,24 +18,25 @@ export async function GET(
   const { slug } = await params;
 
   const page = await getPageThumb(slug);
-  if (!page || readPageKind(page) !== "pdf") {
-    return new NextResponse("Not found", { status: 404 });
-  }
-  // A pdf row with no preview 404s rather than falling back to anything. The
-  // tile only builds this URL when pdfThumbAt is non-null, so reaching here
-  // means a hand-typed URL or a row edited underneath a cached page.
-  if (page.pdfThumb === null || page.pdfThumbAt === null) {
+  // No kind check. A row with a stored picture is the only thing this serves,
+  // and the columns are the authority on that — a kind check here would 404 the
+  // html previews this route now exists to carry.
+  //
+  // A row with no preview 404s rather than falling back to anything. The tile
+  // only builds this URL when thumbAt is non-null, so reaching here means a
+  // hand-typed URL or a row edited underneath a cached page.
+  if (!page || page.thumb === null || page.thumbAt === null) {
     return new NextResponse("Not found", { status: 404 });
   }
 
-  return new NextResponse(new Uint8Array(page.pdfThumb), {
+  return new NextResponse(new Uint8Array(page.thumb), {
     headers: {
       "Content-Type": "image/jpeg",
       // Never let a mislabelled blob be re-interpreted as something executable.
       "X-Content-Type-Options": "nosniff",
       // Matches what the raw route grew on 2026-08-02.
       "X-Robots-Tag": "noindex",
-      // A YEAR, and safe ONLY because the tile appends ?v=<pdfThumbAt>. On a
+      // A YEAR, and safe ONLY because the tile appends ?v=<thumbAt>. On a
       // stable URL this would pin a replaced document's picture in every browser
       // that had ever seen it, with no way to evict it. This route and
       // PdfPreview are two halves of one decision; neither can change alone.

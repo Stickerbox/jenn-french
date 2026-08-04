@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  clearAttempts,
   isLocked,
+  isLockedFor,
+  noteFailure,
   recordFailure,
   MAX_FAILURES,
   WINDOW_MS,
@@ -47,5 +50,36 @@ describe("login throttle", () => {
     const later = recordFailure(failTimes(MAX_FAILURES - 1), WINDOW_MS + 1);
     expect(later.failures).toBe(1);
     expect(isLocked(later, WINDOW_MS + 1)).toBe(false);
+  });
+});
+
+describe("throttle keys", () => {
+  // The two ways into a student's account — the per-page form and /signin —
+  // share one Map, and the prefix is the only thing keeping them apart. A
+  // student whose slug equalled someone's address would otherwise be locked out
+  // by failures that were never aimed at them.
+  it("does not share a counter between a slug key and an email key", () => {
+    const text = "marie@example.ca";
+    clearAttempts(`slug:${text}`);
+    clearAttempts(`email:${text}`);
+
+    for (let i = 0; i < MAX_FAILURES; i += 1) noteFailure(`email:${text}`, 0);
+
+    expect(isLockedFor(`email:${text}`, 0)).toBe(true);
+    expect(isLockedFor(`slug:${text}`, 0)).toBe(false);
+  });
+
+  it("locks a key once its failures reach the maximum, and a success clears it", () => {
+    const key = "slug:marie";
+    clearAttempts(key);
+
+    for (let i = 0; i < MAX_FAILURES - 1; i += 1) noteFailure(key, 0);
+    expect(isLockedFor(key, 0)).toBe(false);
+
+    noteFailure(key, 0);
+    expect(isLockedFor(key, 0)).toBe(true);
+
+    clearAttempts(key);
+    expect(isLockedFor(key, 0)).toBe(false);
   });
 });

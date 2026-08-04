@@ -13,10 +13,15 @@ import {
   TOO_MANY_TRIES,
 } from "@/lib/student-auth-labels";
 import { hashPassword, verifyPassword } from "@/lib/password-hash";
-import { clearAttempts, isSlugLocked, noteFailure } from "@/lib/login-throttle";
+import { clearAttempts, isLockedFor, noteFailure } from "@/lib/login-throttle";
 
 // A year, matching what middleware.ts sets when it moves ?k= into a cookie.
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+
+// The throttle's two namespaces. Prefixed so they cannot collide: a student
+// whose slug happened to equal someone's address would otherwise share one
+// counter, and /signin's failures would lock a per-page form that is not it.
+const slugKey = (slug: string) => `slug:${slug}`;
 
 // A result rather than a thrown Error, unlike every action in app/actions.ts.
 // The message is the product here: specific for validation, deliberately
@@ -48,7 +53,7 @@ export async function claimStudent(
   // Before any hashing: hashing is expensive on purpose, so an unthrottled
   // endpoint that hashes attacker input is a CPU-exhaustion vector against a
   // two-core box.
-  if (isSlugLocked(slug)) return { error: TOO_MANY_TRIES };
+  if (isLockedFor(slugKey(slug))) return { error: TOO_MANY_TRIES };
 
   const normalised = normaliseEmail(email);
   if (normalised === null) return { error: credentialProblemLabel("bad-email") };
@@ -67,7 +72,7 @@ export async function claimStudent(
   const store = await cookies();
   const presented = store.get(cookieNameFor(slug))?.value ?? null;
   if (presented !== group.chatToken) {
-    noteFailure(slug);
+    noteFailure(slugKey(slug));
     return { error: INVITE_USED };
   }
 
@@ -92,7 +97,7 @@ export async function claimStudent(
   if (count !== 1) return { error: INVITE_USED };
 
   await setStudentCookie(slug, freshToken);
-  clearAttempts(slug);
+  clearAttempts(slugKey(slug));
 
   // No chatBus.publishRevoke here, unlike resetStudentSignIn, and the absence
   // is deliberate: before a claim nobody is signed in, because `unlocked`
@@ -109,7 +114,7 @@ export async function signInStudent(
   email: string,
   password: string,
 ): Promise<AuthResult> {
-  if (isSlugLocked(slug)) return { error: TOO_MANY_TRIES };
+  if (isLockedFor(slugKey(slug))) return { error: TOO_MANY_TRIES };
 
   const normalised = normaliseEmail(email);
 
@@ -123,7 +128,7 @@ export async function signInStudent(
     },
   });
   if (!group || group.isEveryone || group.chatToken === null) {
-    noteFailure(slug);
+    noteFailure(slugKey(slug));
     return { error: SIGN_IN_FAILED };
   }
 
@@ -143,13 +148,13 @@ export async function signInStudent(
     normalised !== null && group.email !== null && normalised === group.email;
 
   if (!emailOk || !passwordOk) {
-    noteFailure(slug);
+    noteFailure(slugKey(slug));
     // One message for every failure. Never which half was wrong.
     return { error: SIGN_IN_FAILED };
   }
 
   await setStudentCookie(slug, group.chatToken);
-  clearAttempts(slug);
+  clearAttempts(slugKey(slug));
   revalidatePath(`/g/${slug}`);
   return { ok: true };
 }

@@ -51,8 +51,8 @@ export async function savePage(input: SavePageInput): Promise<string> {
           url: null,
           pdf: null,
           pdfSize: null,
-          pdfThumb: null,
-          pdfThumbAt: null,
+          thumb: null,
+          thumbAt: null,
         }
       : input.kind === "link"
         ? {
@@ -61,8 +61,8 @@ export async function savePage(input: SavePageInput): Promise<string> {
             url: input.url,
             pdf: null,
             pdfSize: null,
-            pdfThumb: null,
-            pdfThumbAt: null,
+            thumb: null,
+            thumbAt: null,
           }
         : {
             kind: "pdf",
@@ -71,8 +71,8 @@ export async function savePage(input: SavePageInput): Promise<string> {
             // Buffer on the way in, matching how Passkey.publicKey is written.
             pdf: Buffer.from(input.pdf),
             pdfSize: input.pdfSize,
-            pdfThumb: input.thumb ? Buffer.from(input.thumb) : null,
-            pdfThumbAt: input.thumb ? new Date() : null,
+            thumb: input.thumb ? Buffer.from(input.thumb) : null,
+            thumbAt: input.thumb ? new Date() : null,
           };
 
   // One interactive transaction, not an upsert followed by a separate group
@@ -133,11 +133,11 @@ const SHELF_SELECT = {
   kind: true,
   url: true,
   pdfSize: true,
-  // The signal, not the picture. `pdfThumb` is deliberately absent for the same
+  // The signal, not the picture. `thumb` is deliberately absent for the same
   // reason `html` is: selecting a blob to draw a grid of titles ships the thing
   // the grid was avoiding. The tile turns this timestamp into a ?v= on
   // /p/[slug]/thumb and the browser fetches the bytes only for tiles it renders.
-  pdfThumbAt: true,
+  thumbAt: true,
   addedByStudent: true,
 } as const;
 
@@ -186,8 +186,8 @@ export function getPageThumb(slug: string) {
       kind: true,
       url: true,
       pdfSize: true,
-      pdfThumb: true,
-      pdfThumbAt: true,
+      thumb: true,
+      thumbAt: true,
     },
   });
 }
@@ -248,7 +248,7 @@ export async function listPagesForAdmin() {
     kind: readPageKind(page),
     url: page.url,
     pdfSize: page.pdfSize,
-    pdfThumbAt: page.pdfThumbAt,
+    thumbAt: page.thumbAt,
     addedByStudent: page.addedByStudent,
     groupIds: page.groups.map((g) => g.group.id),
     groupNames: page.groups.map((g) => g.group.name),

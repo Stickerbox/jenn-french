@@ -23,7 +23,7 @@ export function PdfPreview({
 }: {
   slug: string;
   size: number | null;
-  // pdfThumbAt as epoch milliseconds, or null when there is no stored preview.
+  // thumbAt as epoch milliseconds, or null when there is no stored preview.
   // A cache-busting version and an existence signal at once, which is why that
   // column is a timestamp rather than a boolean.
   thumbVersion: number | null;

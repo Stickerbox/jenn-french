@@ -42,7 +42,7 @@ export type PageSummary = {
   url: string | null;
   pdfSize: number | null;
   // The preview's existence signal and its cache version; see PdfPreview.
-  pdfThumbAt: Date | null;
+  thumbAt: Date | null;
   addedByStudent: boolean;
   groupNames: string[];
   sharedWithEveryone: boolean;
@@ -264,8 +264,8 @@ export function PageList({
                               slug={page.slug}
                               size={page.pdfSize}
                               thumbVersion={
-                                page.pdfThumbAt
-                                  ? new Date(page.pdfThumbAt).getTime()
+                                page.thumbAt
+                                  ? new Date(page.thumbAt).getTime()
                                   : null
                               }
                             />
