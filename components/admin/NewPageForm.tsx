@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { HtmlPasteBox } from "@/components/ui/HtmlPasteBox";
+import { FileDropZone } from "@/components/ui/FileDropZone";
+import { MAX_PDF_BYTES } from "@/lib/page-pdf";
 import { cn } from "@/lib/utils";
 import type { NewPageInput } from "@/app/page-actions";
 
@@ -13,6 +15,7 @@ export function NewPageForm({
   groups,
   defaultGroupId,
   onSubmit,
+  onSubmitPdf,
   onDone,
 }: {
   groups: { id: string; name: string }[];
@@ -20,6 +23,9 @@ export function NewPageForm({
   // being looked at; null when the filter is "All".
   defaultGroupId: string | null;
   onSubmit: (input: NewPageInput) => Promise<unknown>;
+  // Separate from onSubmit because the payloads differ in kind, not just in
+  // shape: a document is a string and a PDF is bytes in FormData.
+  onSubmitPdf: (formData: FormData) => Promise<unknown>;
   onDone: () => void;
 }) {
   const router = useRouter();
@@ -55,6 +61,36 @@ export function NewPageForm({
     setError(null);
     try {
       await onSubmit({ html, groupIds });
+      router.refresh();
+      onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // The PDF half of the same one-gesture flow: choosing the file is the submit,
+  // exactly as the paste is on the document half, and the title comes from the
+  // filename the way the document's comes from its <title>. A derived title
+  // becomes a permanent slug — that is the accepted cost on both paths, and the
+  // title stays editable at /admin/pages/<slug> afterwards.
+  async function handlePdf(file: File) {
+    setError(null);
+    // Checked again on the server, which is the authority. Telling her before a
+    // 3 MB upload rather than after.
+    if (file.size > MAX_PDF_BYTES) {
+      setError("That PDF is larger than 3 MB.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const formData = new FormData();
+      formData.set("title", file.name.replace(/\.pdf$/i, ""));
+      for (const id of groupIds) formData.append("groupIds", id);
+      formData.set("pdf", file);
+      await onSubmitPdf(formData);
       router.refresh();
       onDone();
     } catch (err) {
@@ -116,6 +152,27 @@ export function NewPageForm({
         <p className="mt-2 text-sm font-normal text-[var(--color-ink-muted)]">
           The title comes from the document. You can rename it afterwards; the
           link it gets is permanent.
+        </p>
+      </div>
+
+      <div className="text-sm font-medium text-[var(--color-ink)]">
+        PDF
+        <FileDropZone
+          fileName={null}
+          fileSize={null}
+          hasExisting={false}
+          accept=".pdf,application/pdf"
+          inputLabel="PDF to publish"
+          emptyHint={
+            saving
+              ? "Publishing…"
+              : "Drop a PDF here, or click to choose one — it publishes straight away"
+          }
+          existingHint=""
+          onFile={handlePdf}
+        />
+        <p className="mt-2 text-sm font-normal text-[var(--color-ink-muted)]">
+          The title comes from the filename. Up to 3 MB.
         </p>
       </div>
 

@@ -42,12 +42,15 @@ export function AdminChrome({
   onCreateStudent,
   onCreateLink,
   onCreatePage,
+  onCreatePdfPage,
   children,
 }: {
   groups: { id: string; name: string }[];
   onCreateStudent: (name: string) => Promise<void>;
   onCreateLink: (input: LinkInput) => Promise<unknown>;
   onCreatePage: (input: NewPageInput) => Promise<unknown>;
+  // Bytes, so a FormData rather than an input object — see createPdfPage.
+  onCreatePdfPage: (formData: FormData) => Promise<unknown>;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -112,6 +115,7 @@ export function AdminChrome({
             groups={groups}
             defaultGroupId={activeGroupId}
             onSubmit={onCreatePage}
+            onSubmitPdf={onCreatePdfPage}
             onDone={() => done("pages")}
           />
         </AddSheet>

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getCurrentTeacher } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getPageForAdmin } from "@/lib/pages";
-import { updatePage, deletePage } from "@/app/page-actions";
+import { updatePage, updatePdfPage, deletePage } from "@/app/page-actions";
 import { PageEditor } from "@/components/admin/PageEditor";
 
 export default async function AdminPageEditor({
@@ -17,7 +17,8 @@ export default async function AdminPageEditor({
   const { slug } = await params;
   const page = await getPageForAdmin(slug);
   // A link has no document, so there is nothing here to edit. 404 rather than
-  // rendering an upload form over a row that can never accept one.
+  // rendering an upload form over a row that can never accept one. A pdf row
+  // can: replacing the file, the title or the audience all belong here.
   if (!page || page.kind === "link") notFound();
 
   const groups = await prisma.group.findMany({
@@ -49,13 +50,16 @@ export default async function AdminPageEditor({
           groups={groups}
           initial={{
             title: page.title,
-            // Narrowed by the guard above: an html row always has html. The ??
-            // satisfies the compiler, which cannot see that from here.
+            // Empty for a pdf row, which has no document to hold. The kind
+            // below is what decides which of the two the form submits.
             html: page.html ?? "",
             groupIds: page.groupIds,
+            kind: page.kind,
+            pdfSize: page.pdfSize,
           }}
           submitLabel="Save page"
           onSubmit={updatePage.bind(null, page.slug)}
+          onSubmitPdf={updatePdfPage.bind(null, page.slug)}
           onDelete={deletePage.bind(null, page.slug)}
         />
       </div>

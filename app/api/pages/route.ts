@@ -104,16 +104,18 @@ async function publish(request: Request): Promise<NextResponse> {
     groupIds = found.map((f) => f.id);
   }
 
-  // Without this the publish extension would silently convert a link into a
-  // page, at a slug students already hold.
+  // Without this the publish extension would silently convert a link — or a
+  // stored PDF — into a page, at a slug students already hold. This endpoint
+  // publishes documents and nothing else, so anything that is not html is
+  // refused rather than replaced.
   if (slug) {
     const existing = await prisma.page.findUnique({
       where: { slug },
-      select: { kind: true, url: true },
+      select: { kind: true, url: true, pdfSize: true },
     });
-    if (existing && readPageKind(existing) === "link") {
+    if (existing && readPageKind(existing) !== "html") {
       return NextResponse.json(
-        { error: "That slug belongs to a link." },
+        { error: "That slug belongs to a link or a PDF." },
         { status: 400 },
       );
     }

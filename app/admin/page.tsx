@@ -18,7 +18,12 @@ import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
 import { parseAdminTab } from "@/lib/admin-tab";
 import { unreadCounts } from "@/lib/messages";
-import { createPage, createLink, setShelfPin } from "@/app/page-actions";
+import {
+  createPage,
+  createPdfPage,
+  createLink,
+  setShelfPin,
+} from "@/app/page-actions";
 import { listPagesForAdmin } from "@/lib/pages";
 import { PagesTabClient } from "@/components/admin/PagesTabClient";
 
@@ -71,6 +76,7 @@ export default async function AdminPage({
           onCreateStudent={createGroup}
           onCreateLink={createLink}
           onCreatePage={createPage}
+          onCreatePdfPage={createPdfPage}
         >
           {active === "daily" && <DailyWordTab selected={selected} today={today} />}
           {active === "groups" && <GroupsTab />}

@@ -5,7 +5,7 @@ import { cardEyebrow, pageTileFrame } from "@/components/card-styles";
 
 export function PageTile({
   href,
-  external,
+  newTab,
   title,
   eyebrow,
   preview,
@@ -14,18 +14,21 @@ export function PageTile({
   className,
 }: {
   href: string;
-  // An off-site destination. The title has to become a plain <a> rather than a
-  // next/link <Link>, and it must carry rel="noopener" — without it the opened
-  // page gets a window.opener handle back to this tab and can navigate it
-  // somewhere else while the student is reading (reverse tabnabbing).
-  external?: boolean;
+  // Opens in a new tab. Two cases: an off-site link, and a PDF of ours — a
+  // student browsing a shelf should not lose it to a document. Either way the
+  // title has to become a plain <a> rather than a next/link <Link>, and it must
+  // carry rel="noopener": without it an off-site page gets a window.opener
+  // handle back to this tab and can navigate it somewhere else while the
+  // student is reading (reverse tabnabbing). It costs nothing on our own
+  // origin, so the same branch serves both.
+  newTab?: boolean;
   title: string;
   eyebrow: string;
-  // A node rather than a slug, deliberately. Support for links to pages we do
-  // not host is planned; that variant passes its own renderer here and this
-  // component does not change, because it never learns what kind of thing it
-  // is previewing. A cross-origin URL generally cannot be framed at all, so
-  // that renderer will not be HtmlPreview with a different src.
+  // A node rather than a slug, deliberately, and three renderers have now
+  // taken the slot: HtmlPreview frames the document, LinkPreview draws a glyph
+  // for a URL that generally cannot be framed at all, and PdfPreview does the
+  // same for bytes. This component learns nothing about which it was handed,
+  // which is why a third kind cost it only a prop rename.
   preview: ReactNode;
   // A marker over the preview's corner — today a pin. A slot for the same
   // reason as `preview`: the tile does not learn what a pin is, and a later
@@ -52,7 +55,7 @@ export function PageTile({
             invalid HTML that browsers repair by splitting the element. */}
         {/* The duplicated class string is deliberate: hoisting it to a constant
             to avoid repeating it twice reads worse than the repetition. */}
-        {external ? (
+        {newTab ? (
           <a
             href={href}
             target="_blank"

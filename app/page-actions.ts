@@ -5,8 +5,9 @@ import { cookies } from "next/headers";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
-import { savePage, type SavePageInput } from "@/lib/pages";
+import { savePage, updatePageMeta, type SavePageInput } from "@/lib/pages";
 import { validatePageHtml } from "@/lib/page-html";
+import { validatePagePdf } from "@/lib/page-pdf";
 import { parseLinkUrl } from "@/lib/link-url";
 import { readPageKind } from "@/lib/page-kind";
 import { canStudentDelete, shelfRole, type ShelfRole } from "@/lib/shelf-access";
@@ -158,6 +159,83 @@ export async function updatePage(slug: string, input: PageInput): Promise<void> 
   revalidatePages(slug);
 }
 
+// Bytes arrive as a File in FormData, not as a base64 string, and this is a
+// deliberate departure from the rule in 2026-07-30-uploaded-pages-design.md
+// that a page action "takes a string and never handles a file". The reason is
+// arithmetic: base64 costs a third more, and 3 MB of PDF would arrive as 4 MB
+// of payload against a 4 MB nginx limit — a 413 before Next ever saw it.
+async function readPdfForm(
+  formData: FormData,
+): Promise<{ title: string; bytes: Uint8Array | null }> {
+  const title = requireTitle(String(formData.get("title") ?? ""));
+
+  const file = formData.get("pdf");
+  // Size and not presence: an untouched file input serialises as an empty File
+  // rather than being absent, and "she changed the title without choosing a new
+  // document" is the common case on the edit screen.
+  if (!(file instanceof File) || file.size === 0) return { title, bytes: null };
+
+  const validated = validatePagePdf(new Uint8Array(await file.arrayBuffer()));
+  if (!validated.ok) throw new Error(validated.error);
+  return { title, bytes: validated.bytes };
+}
+
+function readGroupIds(formData: FormData): string[] {
+  return formData
+    .getAll("groupIds")
+    .map(String)
+    .filter((id) => id !== "");
+}
+
+// Teacher-only, like createPage. A student upload would put unvalidated binary
+// in the database and served from our own origin, and would need
+// canStudentDelete extended from rows-with-a-url to rows-with-a-blob — a
+// separate decision, not one to smuggle in here.
+export async function createPdfPage(formData: FormData): Promise<string> {
+  await requireTeacher();
+  const { title, bytes } = await readPdfForm(formData);
+  if (!bytes) throw new Error("A PDF file is required.");
+
+  const slug = await saveOrExplain({
+    slug: null,
+    kind: "pdf",
+    title,
+    pdf: bytes,
+    pdfSize: bytes.byteLength,
+    groupIds: readGroupIds(formData),
+  });
+
+  revalidatePages(slug);
+  return slug;
+}
+
+export async function updatePdfPage(
+  slug: string,
+  formData: FormData,
+): Promise<void> {
+  await requireTeacher();
+  const { title, bytes } = await readPdfForm(formData);
+  const groupIds = readGroupIds(formData);
+
+  if (bytes) {
+    await saveOrExplain({
+      slug,
+      kind: "pdf",
+      title,
+      pdf: bytes,
+      pdfSize: bytes.byteLength,
+      groupIds,
+    });
+  } else {
+    // No new document staged, so this is a rename or a change of audience.
+    // Going through savePage would mean reading the blob back and writing it
+    // again to change a string.
+    await updatePageMeta(slug, { title, groupIds });
+  }
+
+  revalidatePages(slug);
+}
+
 // The admin's own add-a-link. Teacher-only and free to target any group,
 // including everyone — that is the shared shelf and filling it is her job.
 export async function createLink(input: LinkInput): Promise<string> {
@@ -245,6 +323,7 @@ export async function deleteShelfLink(
       id: true,
       kind: true,
       url: true,
+      pdfSize: true,
       addedByStudent: true,
       groups: { select: { groupId: true } },
     },

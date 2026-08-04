@@ -18,19 +18,30 @@ export type SavePageInput = SaveCommon &
   (
     | { kind: "html"; html: string; addedByStudent?: boolean }
     | { kind: "link"; url: string; addedByStudent?: boolean }
+    | { kind: "pdf"; pdf: Uint8Array; pdfSize: number }
   );
 
 export async function savePage(input: SavePageInput): Promise<string> {
   const slug = input.slug ?? (await deriveSlug(input.title));
 
-  // Both columns are written every time, one of them to null. Setting only the
-  // populated one would leave stale html behind if an html page were ever
-  // replaced by a link at the same slug, and readPageKind would then have two
-  // populated columns to choose between.
+  // Every content column is written every time, three of them to null. The
+  // shape is identical across the branches on purpose: that is the invariant
+  // made visible. Setting only the populated one would leave stale html behind
+  // if an html page were replaced by a pdf at the same slug, and readPageKind
+  // would then have two populated columns to choose between.
   const columns =
     input.kind === "html"
-      ? { kind: "html", html: input.html, url: null }
-      : { kind: "link", html: null, url: input.url };
+      ? { kind: "html", html: input.html, url: null, pdf: null, pdfSize: null }
+      : input.kind === "link"
+        ? { kind: "link", html: null, url: input.url, pdf: null, pdfSize: null }
+        : {
+            kind: "pdf",
+            html: null,
+            url: null,
+            // Buffer on the way in, matching how Passkey.publicKey is written.
+            pdf: Buffer.from(input.pdf),
+            pdfSize: input.pdfSize,
+          };
 
   // One interactive transaction, not an upsert followed by a separate group
   // write: a failing group assignment used to leave the page row committed
@@ -43,7 +54,9 @@ export async function savePage(input: SavePageInput): Promise<string> {
         slug,
         title: input.title,
         ...columns,
-        addedByStudent: input.addedByStudent === true,
+        // A pdf row has no addedByStudent case to carry: uploading one is
+        // teacher-only, and the union says so by not offering the field.
+        addedByStudent: input.kind !== "pdf" && input.addedByStudent === true,
       },
       // addedByStudent is deliberately absent here: who added a row is a fact
       // about its creation, and an edit must not rewrite it.
@@ -73,9 +86,10 @@ async function deriveSlug(title: string): Promise<string> {
   );
 }
 
-// `html` is deliberately absent. It holds a whole document, and selecting it to
-// render a grid of thumbnails would ship every page's markup to draw a list of
-// titles.
+// `html` and `pdf` are deliberately absent. One holds a whole document and the
+// other a whole file; selecting either to render a grid of thumbnails would ship
+// every page's contents to draw a list of titles. `pdfSize` is here because it
+// is small, because readPageKind needs it, and because the tile prints it.
 const SHELF_SELECT = {
   id: true,
   slug: true,
@@ -86,6 +100,7 @@ const SHELF_SELECT = {
   updatedAt: true,
   kind: true,
   url: true,
+  pdfSize: true,
   addedByStudent: true,
 } as const;
 
@@ -99,7 +114,25 @@ export function getPageBySlug(slug: string) {
       html: true,
       kind: true,
       url: true,
+      pdfSize: true,
       updatedAt: true,
+    },
+  });
+}
+
+// Its own query, and the only one that selects `pdf`. Same reasoning as
+// SHELF_SELECT's omission: a caller reaching for a list must not be able to
+// pull 3 MB per row by forgetting which helper it called.
+export function getPagePdf(slug: string) {
+  return prisma.page.findUnique({
+    where: { slug },
+    select: {
+      slug: true,
+      title: true,
+      kind: true,
+      url: true,
+      pdf: true,
+      pdfSize: true,
     },
   });
 }
@@ -159,6 +192,7 @@ export async function listPagesForAdmin() {
     updatedAt: page.updatedAt,
     kind: readPageKind(page),
     url: page.url,
+    pdfSize: page.pdfSize,
     addedByStudent: page.addedByStudent,
     groupIds: page.groups.map((g) => g.group.id),
     groupNames: page.groups.map((g) => g.group.name),
@@ -179,6 +213,7 @@ export async function getPageForAdmin(slug: string) {
       html: true,
       kind: true,
       url: true,
+      pdfSize: true,
       groups: { select: { groupId: true } },
     },
   });
@@ -190,8 +225,40 @@ export async function getPageForAdmin(slug: string) {
     html: page.html,
     kind: readPageKind(page),
     url: page.url,
+    pdfSize: page.pdfSize,
     groupIds: page.groups.map((g) => g.groupId),
   };
+}
+
+// Title and audience only, for a page whose content is already stored. Kept out
+// of savePage deliberately: that function writes every content column on every
+// call, one of them to null, and a "leave the bytes alone" case inside it would
+// put a hole in the one place that invariant is enforced. It also saves reading
+// and rewriting 3 MB to change a title.
+export async function updatePageMeta(
+  slug: string,
+  input: { title: string; groupIds: string[] },
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const page = await tx.page.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    // Already gone. A no-op, for the reason deletes use deleteMany.
+    if (!page) return;
+
+    await tx.page.update({
+      where: { id: page.id },
+      data: { title: input.title },
+    });
+
+    // Replace the whole set rather than diffing it, as savePage does: the
+    // caller always sends the complete list.
+    await tx.pageGroup.deleteMany({ where: { pageId: page.id } });
+    for (const groupId of new Set(input.groupIds)) {
+      await tx.pageGroup.create({ data: { pageId: page.id, groupId } });
+    }
+  });
 }
 
 // Re-exported so callers that only need the shelf row's shape do not import

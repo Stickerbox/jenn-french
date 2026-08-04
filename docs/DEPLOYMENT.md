@@ -356,3 +356,9 @@ Worth folding back into it.
     #   client_max_body_size 4m;
     sudo nginx -t && sudo systemctl reload nginx
     ```
+
+    That `4m` is the ceiling both upload caps are chosen to fit under —
+    `MAX_PAGE_BYTES` (2 MB of HTML, `lib/page-html.ts`) and `MAX_PDF_BYTES`
+    (3 MB of PDF, `lib/page-pdf.ts`). Raising either constant means raising
+    this by hand on the server first: when it is too low the failure is a raw
+    nginx 413 that Next never sees, so the app cannot explain it.

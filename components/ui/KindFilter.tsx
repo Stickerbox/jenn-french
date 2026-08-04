@@ -15,12 +15,13 @@ export function KindFilter({
   value: Kind;
   onChange: (value: Kind) => void;
   tone: ChipTone;
-  labels: { group: string; all: string; html: string; link: string };
+  labels: { group: string; all: string; html: string; link: string; pdf: string };
 }) {
   const options: { kind: Kind; label: string }[] = [
     { kind: "all", label: labels.all },
     { kind: "html", label: labels.html },
     { kind: "link", label: labels.link },
+    { kind: "pdf", label: labels.pdf },
   ];
 
   return (

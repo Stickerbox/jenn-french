@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { HtmlPasteBox } from "@/components/ui/HtmlPasteBox";
+import { FileDropZone } from "@/components/ui/FileDropZone";
+import { MAX_PDF_BYTES } from "@/lib/page-pdf";
+import type { PageKind } from "@/lib/page-kind";
 import { cn } from "@/lib/utils";
 import type { PageInput } from "@/app/page-actions";
 
@@ -22,16 +25,32 @@ export function PageEditor({
   initial,
   submitLabel,
   onSubmit,
+  onSubmitPdf,
   onDelete,
 }: {
   groups: PageEditorGroup[];
-  initial: { title: string; html: string; groupIds: string[] };
+  initial: {
+    title: string;
+    // Empty for a pdf row, which has no document to hold. `kind` is what
+    // decides which of the two submit paths this form takes.
+    html: string;
+    groupIds: string[];
+    kind: PageKind;
+    pdfSize: number | null;
+  };
   submitLabel: string;
   onSubmit: (input: PageInput) => Promise<unknown>;
+  // Separate from onSubmit because the payloads differ in kind, not just in
+  // shape: a document is a string and a PDF is bytes in FormData.
+  onSubmitPdf: (formData: FormData) => Promise<unknown>;
   onDelete?: () => Promise<void>;
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(initial.title);
+  // The staged replacement for a pdf row, and null until she chooses one.
+  // Saving without it is a rename or a change of audience, which the action
+  // reads as "leave the bytes".
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   // The html lives here, exactly as it did behind the drop zone — the paste box
   // simply never shows it. Saving without pasting anything re-submits the
   // identical document, so page-actions needs no change.
@@ -41,6 +60,10 @@ export function PageEditor({
   const [deleting, setDeleting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Something to save. A pdf row always has: its bytes are already stored, and
+  // the title and the audience are the usual reason to open this form at all.
+  const hasContent = initial.kind === "pdf" ? true : html.trim() !== "";
 
   function toggleGroup(id: string) {
     setGroupIds((current) =>
@@ -54,7 +77,17 @@ export function PageEditor({
     setSaved(false);
     setError(null);
     try {
-      await onSubmit({ title, html, groupIds });
+      if (initial.kind === "pdf") {
+        const formData = new FormData();
+        formData.set("title", title);
+        for (const id of groupIds) formData.append("groupIds", id);
+        // Absent when she is editing a stored PDF's title or audience without
+        // choosing a new file. The action reads that as "leave the bytes".
+        if (pdfFile) formData.set("pdf", pdfFile);
+        await onSubmitPdf(formData);
+      } else {
+        await onSubmit({ title, html, groupIds });
+      }
       setSaved(true);
       router.refresh();
     } catch (err) {
@@ -122,24 +155,53 @@ export function PageEditor({
         )}
       </fieldset>
 
-      <div className="text-sm font-medium text-[var(--color-ink)]">
-        Replace the page
-        {/* Unlike the create form, pasting here does NOT save: there is a title
-            and an audience on this screen that a paste must not commit behind
-            her. It stages the new document and Save commits everything. */}
-        <HtmlPasteBox
-          tone="admin"
-          labels={{
-            prompt: "Paste the page's HTML here (⌘V) to replace it",
-            accepted: (size) => `New version staged — ${size}. Save to publish it.`,
-            ariaLabel: "HTML to replace this page with",
-          }}
-          onHtml={setHtml}
-        />
-      </div>
+      {initial.kind === "pdf" ? (
+        <div className="text-sm font-medium text-[var(--color-ink)]">
+          Replace the PDF
+          {/* A PDF cannot be pasted, so this is the one staging control that is
+              still a file input. The existing document is described rather than
+              shown: there is nothing to edit inside it. */}
+          <FileDropZone
+            fileName={pdfFile?.name ?? null}
+            fileSize={pdfFile?.size ?? initial.pdfSize}
+            hasExisting
+            accept=".pdf,application/pdf"
+            inputLabel="PDF to replace this one with"
+            emptyHint="Drop a PDF here, or click to choose one"
+            existingHint="A PDF is published. Drop a new one to replace it."
+            onFile={(file) => {
+              setError(null);
+              // The cap is checked again on the server, which is the authority.
+              // This is the courtesy of telling her before a 3 MB upload rather
+              // than after.
+              if (file.size > MAX_PDF_BYTES) {
+                setError("That PDF is larger than 3 MB.");
+                return;
+              }
+              setPdfFile(file);
+            }}
+          />
+        </div>
+      ) : (
+        <div className="text-sm font-medium text-[var(--color-ink)]">
+          Replace the page
+          {/* Unlike the create form, pasting here does NOT save: there is a title
+              and an audience on this screen that a paste must not commit behind
+              her. It stages the new document and Save commits everything. */}
+          <HtmlPasteBox
+            tone="admin"
+            labels={{
+              prompt: "Paste the page's HTML here (⌘V) to replace it",
+              accepted: (size) => `New version staged — ${size}. Save to publish it.`,
+              ariaLabel: "HTML to replace this page with",
+            }}
+            onHtml={setHtml}
+          />
+        </div>
+      )}
 
       <div className="flex items-center justify-center gap-4">
-        <Button type="submit" disabled={saving || deleting || html.trim() === ""}>
+        <Button type="submit" disabled={saving || deleting || !hasContent}>
           {saving ? "Saving..." : submitLabel}
         </Button>
         {onDelete && (

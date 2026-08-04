@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PageTile } from "@/components/ui/PageTile";
 import { HtmlPreview } from "@/components/ui/HtmlPreview";
 import { LinkPreview } from "@/components/ui/LinkPreview";
+import { PdfPreview } from "@/components/ui/PdfPreview";
 import { PinIcon } from "@/components/ui/PinIcon";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { KindFilter } from "@/components/ui/KindFilter";
@@ -18,6 +19,7 @@ import {
 import { sectionPages } from "@/lib/page-sections";
 import { adminSectionLabel } from "@/lib/page-section-labels";
 import { pageAudienceLabel } from "@/lib/page-tile";
+import { pageTarget } from "@/lib/page-target";
 import { SearchField } from "@/components/admin/SearchField";
 import {
   filterPages,
@@ -37,6 +39,7 @@ export type PageSummary = {
   pinnedAt: Date | null;
   kind: PageKind;
   url: string | null;
+  pdfSize: number | null;
   addedByStudent: boolean;
   groupNames: string[];
   sharedWithEveryone: boolean;
@@ -159,6 +162,7 @@ export function PageList({
             all: "All",
             html: "Pages",
             link: "Links",
+            pdf: "PDFs",
           }}
         />
 
@@ -206,98 +210,110 @@ export function PageList({
             </h3>
 
             <ul className={pageGrid}>
-              {section.pages.map((page) => (
-                <li key={page.id}>
-                  {/* The tile opens the page, the way the student's does, and
-                      the way the thumbnail already promises. /p/[slug] is the
-                      page itself, sandboxed exactly as a student gets it — a
-                      page has no group-scoped URL, so this is the link
-                      whatever groups it belongs to. Editing moved to its own
-                      icon: the preview is what she recognises a page by, so
-                      following it should show her the page, not a form. */}
-                  <PageTile
-                    href={page.kind === "link" ? (page.url ?? "#") : `/p/${page.slug}`}
-                    external={page.kind === "link"}
-                    title={page.title}
-                    eyebrow={`${formatLongDate(page.createdAt)} · ${pageAudienceLabel(page)}${
-                      page.addedByStudent ? " · added by student" : ""
-                    }`}
-                    preview={
-                      page.kind === "link" && page.url ? (
-                        <LinkPreview url={page.url} />
-                      ) : (
-                        <HtmlPreview slug={page.slug} version={pageVersion(page.updatedAt)} />
-                      )
-                    }
-                    action={
-                      <div className="flex items-center gap-1">
-                        {/* A link has no document to edit or download, so it
-                            gets neither control rather than two that fail. */}
-                        {page.kind === "html" && (
-                          <>
-                            <Link
-                              href={`/admin/pages/${page.slug}`}
-                              aria-label={`Edit ${page.title}`}
-                              title="Edit"
-                              className={pageActionClass}
-                            >
-                              <PencilIcon />
-                            </Link>
+              {section.pages.map((page) => {
+                const target = pageTarget(page);
+                return (
+                  <li key={page.id}>
+                    {/* The tile opens the page, the way the student's does, and
+                        the way the thumbnail already promises. /p/[slug] is the
+                        page itself, sandboxed exactly as a student gets it — a
+                        page has no group-scoped URL, so this is the link
+                        whatever groups it belongs to. Editing moved to its own
+                        icon: the preview is what she recognises a page by, so
+                        following it should show her the page, not a form. */}
+                    <PageTile
+                      href={target.href}
+                      newTab={target.newTab}
+                      title={page.title}
+                      eyebrow={`${formatLongDate(page.createdAt)} · ${pageAudienceLabel(page)}${
+                        page.addedByStudent ? " · added by student" : ""
+                      }`}
+                      preview={
+                        page.kind === "link" && page.url ? (
+                          <LinkPreview url={page.url} />
+                        ) : page.kind === "pdf" ? (
+                          <PdfPreview size={page.pdfSize} />
+                        ) : (
+                          <HtmlPreview slug={page.slug} version={pageVersion(page.updatedAt)} />
+                        )
+                      }
+                      action={
+                        <div className="flex items-center gap-1">
+                          {/* A link has no document to edit or download, so it
+                              gets neither control rather than two that fail. A
+                              PDF has both: editing replaces the file or changes
+                              the audience, and the download is the same
+                              <a download> pointed at the bytes. */}
+                          {page.kind !== "link" && (
+                            <>
+                              <Link
+                                href={`/admin/pages/${page.slug}`}
+                                aria-label={`Edit ${page.title}`}
+                                title="Edit"
+                                className={pageActionClass}
+                              >
+                                <PencilIcon />
+                              </Link>
 
-                            {/* No server support needed: `download` on a
-                                same-origin response forces a save-as, so the raw
-                                route keeps its exact behaviour and its CSP, and no
-                                new authenticated surface appears. That route is
-                                already public. */}
-                            <a
-                              href={`/p/${page.slug}/raw`}
-                              download={`${page.slug}.html`}
-                              aria-label={`Download ${page.title}`}
-                              title="Download"
-                              className={pageActionClass}
-                            >
-                              <DownloadIcon />
-                            </a>
-                          </>
-                        )}
-
-                        {/* A form, not a link: it mutates. Bound with the
-                            NEGATION of the current state, so the button says
-                            what it will do rather than what is true. */}
-                        <form
-                          action={onTogglePin.bind(
-                            null,
-                            page.slug,
-                            page.pinnedAt === null,
+                              {/* No server support needed: `download` on a
+                                  same-origin response forces a save-as, so the raw
+                                  route keeps its exact behaviour and its CSP, and no
+                                  new authenticated surface appears. That route is
+                                  already public. */}
+                              <a
+                                href={
+                                  page.kind === "pdf"
+                                    ? `/p/${page.slug}/pdf`
+                                    : `/p/${page.slug}/raw`
+                                }
+                                download={`${page.slug}.${page.kind === "pdf" ? "pdf" : "html"}`}
+                                aria-label={`Download ${page.title}`}
+                                title="Download"
+                                className={pageActionClass}
+                              >
+                                <DownloadIcon />
+                              </a>
+                            </>
                           )}
-                        >
-                          <button
-                            type="submit"
-                            disabled={!canPin}
-                            aria-label={
-                              canPin
-                                ? page.pinnedAt
-                                  ? `Unpin ${page.title}`
-                                  : `Pin ${page.title}`
-                                : "Pick a student to pin for"
-                            }
-                            title={
-                              canPin
-                                ? page.pinnedAt
-                                  ? "Unpin"
-                                  : "Pin"
-                                : "Pick a student to pin for"
-                            }
-                            className={cn(pageActionClass, "disabled:opacity-40")}
+
+                          {/* A form, not a link: it mutates. Bound with the
+                              NEGATION of the current state, so the button says
+                              what it will do rather than what is true. */}
+                          <form
+                            action={onTogglePin.bind(
+                              null,
+                              page.slug,
+                              page.pinnedAt === null,
+                            )}
                           >
-                            <PinIcon filled={page.pinnedAt !== null} />
-                          </button>
-                        </form>
-                      </div>
-                    }
-                  />
-                </li>
-              ))}
+                            <button
+                              type="submit"
+                              disabled={!canPin}
+                              aria-label={
+                                canPin
+                                  ? page.pinnedAt
+                                    ? `Unpin ${page.title}`
+                                    : `Pin ${page.title}`
+                                  : "Pick a student to pin for"
+                              }
+                              title={
+                                canPin
+                                  ? page.pinnedAt
+                                    ? "Unpin"
+                                    : "Pin"
+                                  : "Pick a student to pin for"
+                              }
+                              className={cn(pageActionClass, "disabled:opacity-40")}
+                            >
+                              <PinIcon filled={page.pinnedAt !== null} />
+                            </button>
+                          </form>
+                        </div>
+                      }
+                    />
+                  </li>
+                );
+              })}
             </ul>
             </section>
           ))}

@@ -79,13 +79,19 @@ model Page {
   id        String      @id @default(cuid())
   slug      String      @unique
   title     String
-  // "html" | "link". A String and not an enum because Prisma has no enum
-  // support on SQLite; lib/page-kind.ts narrows it.
+  // "html" | "link" | "pdf". A String and not an enum because Prisma has no
+  // enum support on SQLite; lib/page-kind.ts narrows it.
   kind      String      @default("html")
-  // Exactly one of these is set. html holds a whole document, so no shelf query
-  // selects it.
+  // Exactly one of these is set. html holds a whole document and pdf holds a
+  // whole file, so no shelf query selects either.
   html      String?
   url       String?
+  pdf       Bytes?
+  // The size of the pdf, in bytes. Not derived from `pdf` on read, because no
+  // shelf query selects `pdf` — and readPageKind needs a pdf signal it can
+  // actually load, for the same reason it reads `url` and not `html`. It is
+  // also what the tile puts under the glyph, via formatFileSize.
+  pdfSize   Int?
   // True when a student added it rather than Jenn. A boolean rather than an
   // author id for the reason Message.fromTeacher is one: there are exactly two
   // participants and one of them has no row to point at.

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Page" ADD COLUMN "pdf" BLOB;
+ALTER TABLE "Page" ADD COLUMN "pdfSize" INTEGER;

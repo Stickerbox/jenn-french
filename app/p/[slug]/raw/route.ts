@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPageBySlug } from "@/lib/pages";
 import { readPageKind } from "@/lib/page-kind";
 import { pageVersion } from "@/lib/page-version";
+import { withPrintableBootstrap } from "@/lib/printable-bootstrap";
 
 // The iframe sandbox is the primary control; this is the second layer. Every
 // directive here is deliberately restricted to what the document carries
@@ -48,16 +49,25 @@ export async function GET(
 ) {
   const { slug } = await params;
   const page = await getPageBySlug(slug);
-  // A link row has no document to serve, and /p/ means a page we host.
-  if (!page || readPageKind(page) === "link" || page.html === null) {
+  // A link row has no document to serve, and a pdf row's bytes belong to
+  // /p/[slug]/pdf under headers of their own. /p/ means a page we host.
+  if (!page || readPageKind(page) !== "html" || page.html === null) {
     return new NextResponse("Not found", { status: 404 });
   }
+
+  // Gated, and the gate is the point. The shell frames this route WITH the
+  // parameter so a student can print; the admin's <a download> and every
+  // HtmlPreview thumbnail hit it WITHOUT, and get Jenn's bytes exactly as she
+  // uploaded them. Injecting unconditionally would put our script into the file
+  // she downloads to edit, and the next upload would carry it back in.
+  const printable = new URL(request.url).searchParams.get("printable") === "1";
+  const body = printable ? withPrintableBootstrap(page.html) : page.html;
 
   const asked = new URL(request.url).searchParams.get("v");
   const current = pageVersion(page.updatedAt);
   const cacheable = current !== "" && asked === current;
 
-  return new NextResponse(page.html, {
+  return new NextResponse(body, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Content-Security-Policy": CONTENT_SECURITY_POLICY,

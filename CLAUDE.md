@@ -38,7 +38,8 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the chat need the token, teacher included — a teacher session adds only the delete and read-marker controls once unlocked, plus *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding a link or a page is a `+` FAB left of the chat button, present on every tab, and either party may pin a page |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
-| `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe |
+| `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe; a pdf row redirects to `/p/[slug]/pdf` |
+| `/p/[slug]/pdf` | public | an uploaded PDF, in the browser's own viewer |
 | `/f/[token]` | students | that student's files, at an opaque unguessable link |
 | `/admin/pages/[slug]` | teacher | edits one uploaded page |
 | `POST /api/pages` | token | publishes a page from outside the browser |
@@ -129,27 +130,103 @@ Card text uses a deliberately tiny inline markup parser (`lib/inline-markup.ts`)
 not Markdown: `**bold**`, `*italic*`, `` `code` `` and nothing else. `**` is matched
 before `*`, and unclosed markers stay literal.
 
-### Files: pages and links
+### Files: pages, links and PDFs
 
-A `Page` is one of two things, discriminated by `kind`: an HTML document Jenn
-wrote elsewhere, stored whole in the `html` column, or a link to something we do
-not host, stored in `url`. Either way it is joined to any number of groups
-through `PageGroup`, has no date and no relationship to a card. The HTML lives
-in the database rather than on disk so the nightly `VACUUM INTO` backup covers
-it for free.
+A `Page` is one of three things, discriminated by `kind`: an HTML document Jenn
+wrote elsewhere, stored whole in the `html` column; a link to something we do
+not host, stored in `url`; or a PDF she uploaded, stored whole in the `pdf`
+column with its length in `pdfSize`. Exactly one content column is populated,
+and `savePage` writes every one of them on every write — three to `null` — so a
+replacement at the same slug can never leave a stale column behind for
+`readPageKind` to choose between. Either way the row is joined to any number of
+groups through `PageGroup`, has no date and no relationship to a card.
+
+The HTML and the PDF bytes live in the database rather than on disk so the
+nightly `VACUUM INTO` backup covers them for free: it covers a column, and a
+directory not at all. A file on disk would be a second thing to restore in a
+runbook whose restore is one `sqlite3` command, and it would have to survive a
+deploy that rebuilds the app in place. `Bytes` on SQLite is already proven here
+— `Passkey.publicKey` is one — so the idioms are its: `Buffer.from(...)` in,
+`new Uint8Array(...)` out.
+
+Uploading a PDF is **teacher-only**. `createPdfPage` and `updatePdfPage` start
+with `requireTeacher()`; students keep `addShelfLink` and `addShelfPage` and
+nothing more. A student upload would put unvalidated binary in the database
+served from our own origin, and would need `canStudentDelete` extended from
+rows-with-a-url to rows-with-a-blob — a separate decision.
+
+`MAX_PDF_BYTES` is 3 MB **because** nginx's `client_max_body_size` on the server
+is `4m` (`docs/DEPLOYMENT.md` item 11). Raising the cap means an SSH session and
+an nginx reload first; until someone does it the failure is a raw 413 that Next
+never sees and the app cannot explain. `validatePagePdf` checks the size and
+that the bytes begin `%PDF-`, with the same limited ambition as
+`validatePageHtml`'s `includes("<")` — catch the wrong file, do not parse the
+format. There is no PDF sanitiser, for the reason there is no HTML one.
+
+The bytes travel to the server as a `File` in `FormData`, which is a deliberate
+exception to the earlier rule that a page action takes a string and never
+handles a file: base64 costs a third more, so 3 MB of PDF would arrive as 4 MB
+against a 4 MB limit. The HTML path keeps its string argument.
+
+`updatePageMeta` (`lib/pages.ts`) writes a title and an audience and touches no
+content column, so renaming a PDF page does not read and rewrite 3 MB — and,
+more importantly, `savePage` keeps its every-column invariant with no
+"leave the bytes alone" hole in it.
 
 The earlier spec said there was no `kind` column because there was one kind of
 page. That was correct when it was written and is now retired.
 
-`readPageKind` (`lib/page-kind.ts`) resolves an unrecognised `kind` by the `url`
-column rather than defaulting to `"html"`: the row most likely to be broken is
-one with a url and no document, and calling that an HTML page renders an empty
-iframe instead of a working link. Same defensive contract as `readSections` and
-`readOps`.
+`readPageKind` (`lib/page-kind.ts`) resolves an unrecognised `kind` by `pdfSize`
+and then `url`, rather than defaulting to `"html"`: the row most likely to be
+broken is one with content and a wrong kind, and calling that an HTML page
+renders an empty iframe instead of a working link or document. Same defensive
+contract as `readSections` and `readOps`.
 
-`/p/[slug]`, `/p/[slug]/raw` and `POST /api/pages` all refuse a link row — 404
-or 400, never a redirect to the external URL. An open redirect on a public route
-is a phishing primitive.
+That is also why `pdfSize` is a column rather than `pdf.length`. `readPageKind`
+cannot discriminate on a column the shelf refuses to load, and no shelf query
+selects `pdf` any more than it selects `html` — the same reason its fallback
+reads `url`. A nullable integer is a signal a shelf can afford. It pays for
+itself twice: it is what `PdfPreview` puts under the glyph, via
+`formatFileSize`. The argument is **required**, not optional, so the compiler
+names every query that has to select it; a caller that quietly omitted it would
+resolve a broken pdf row as `"html"`, which is the precise failure the function
+exists to prevent.
+
+`/p/[slug]/raw` and `POST /api/pages` refuse everything that is not an html row
+— 404 or 400, never a redirect to the external URL. An open redirect on a public
+route is a phishing primitive. `/p/[slug]/pdf` is their mirror: it refuses
+everything that is not a pdf row. Two routes rather than one handler switching
+on kind, because they want different headers and one handler under two header
+regimes is what a later edit gets wrong.
+
+**A PDF is never framed.** iOS Safari renders only the first page of a PDF in an
+iframe, which would silently truncate every multi-page worksheet on the device
+most of these students use. So `/p/[slug]` **redirects** a pdf row to
+`/p/[slug]/pdf` and it opens as a top-level navigation in the browser's own
+viewer, which brings page navigation, zoom, search, print and download with it —
+nothing to build. That redirect is not the open redirect a link row is refused:
+it is a constant path on our own origin chosen by the row's kind, with no input
+in it, so a bookmarked `/p/[slug]` keeps working. A shelf tile skips the hop and
+points at `/p/[slug]/pdf` directly (`pageTarget`, `lib/page-target.ts`).
+
+The PDF response carries `application/pdf`, `X-Content-Type-Options: nosniff`,
+`no-store`, and a `Content-Disposition: inline` built by
+`contentDispositionInline` (`lib/pdf-filename.ts`) — a security control, not a
+formatter: it carries a title Jenn typed into a response header, where a `"`
+ends the quoted form early and a CR or LF is header injection. It emits both an
+ASCII-allowlisted `filename` and an RFC 5987 `filename*`, and falls back to the
+slug when a title has nothing usable in it.
+
+It carries **no CSP, deliberately.** A CSP on a PDF response constrains the
+browser's own viewer, and what `default-src 'none'` does to PDFium or pdf.js
+cannot be verified from a terminal — a directive that breaks the viewer renders
+a blank frame, indistinguishable from a broken upload. The threat is bounded: a
+PDF may carry JavaScript, but a PDF script engine has no DOM and no access to
+this origin's cookies or storage, and these are the teacher's own uploads. If
+PDFs are ever opened to student upload, revisit that first.
+
+A PDF here is as public as a page: the slug is the only thing in front of it and
+slugs are guessable. Anything identifying belongs in the chat, which is tokened.
 
 A link's tile preview is chosen from its URL alone by `linkBrand`
 (`lib/link-brand.ts`) and drawn from bundled SVG in `components/ui/BrandGlyph.tsx`.
@@ -179,8 +256,9 @@ what contain anything scripted inside it. `/f/[token]` is read-only — `filesTo
 nothing else, so a link forwarded to a parent must not carry the power to write
 to it.
 
-`/p/[slug]` renders nothing but `<iframe sandbox="allow-scripts">` around
-`/p/[slug]/raw`. `allow-scripts` without `allow-same-origin` gives the framed
+`/p/[slug]` renders nothing but
+`<iframe sandbox="allow-scripts allow-modals">` around
+`/p/[slug]/raw?printable=1`, plus the print pill. `allow-scripts` without `allow-same-origin` gives the framed
 document an opaque origin: its JavaScript runs, but it cannot read cookies,
 storage, or the teacher session. **Never add `allow-same-origin`** — with
 `allow-scripts` beside it, the page can remove its own sandbox. The CSP on the
@@ -194,6 +272,39 @@ prevents that. The raw route also answers a direct GET, so the page can be
 loaded outside the iframe at the real origin; that is inert only because the
 CSP travels with the response and the session cookie is httpOnly with no
 `localStorage` in use.
+
+`allow-modals` is the second token, and it is **not** comparable to the
+forbidden one. `allow-same-origin` beside `allow-scripts` lets the page delete
+its own sandbox, which collapses the whole model; `allow-modals` grants `alert`,
+`confirm`, `prompt` and `print` — no origin, no cookies, no storage. It is there
+because `window.print()` is gated behind it: without it the call inside the
+frame is ignored outright. The worst it grants a hostile document is blocking
+the tab with an alert loop, which the `allow-scripts` it already has could do
+with `while (true)`.
+
+Printing has to happen **inside** the frame: the shell cannot reach into an
+opaque origin, and printing the shell prints one clipped page of a six-page
+worksheet. So `/p/[slug]/raw?printable=1` appends a small listener
+(`withPrintableBootstrap`, `lib/printable-bootstrap.ts`) and the pill posts
+`"print-page"` into the frame. Three things about that are load-bearing:
+
+- **The gate.** Only the shell asks for `?printable=1`. The admin's
+  `<a download>` and every `HtmlPreview` thumbnail hit the route without it and
+  get Jenn's bytes exactly as she uploaded them — injecting unconditionally
+  would put our script in the file she downloads to edit, and the next upload
+  would carry it back in.
+- **A message, not a reload.** Re-pointing the iframe at a printable URL would
+  reload the document and destroy every answer a student had typed into the
+  worksheet, at the moment they were trying to keep them.
+- **`event.source !== window.parent`, not `event.origin`.** The frame has an
+  opaque origin and no origin string to compare against; which window is asking
+  is the precise question, and the sandbox forbids popups, so no other window
+  can obtain a handle to post through.
+
+Print fidelity is the browser's, and it can be poor for a page written for a
+screen. The fix belongs upstream, in `@media print` rules in the document Jenn
+writes — a print stylesheet injected here would be a guess about someone else's
+design, which is what this feature has refused to do since it shipped.
 
 There is no HTML sanitiser, deliberately. Sanitising would strip exactly the
 interactivity the feature exists to preserve, and the sandbox already contains
@@ -309,6 +420,19 @@ paste must not commit behind her. A derived title becomes a permanent slug —
 the title stays editable afterwards and the slug never does — which is the
 accepted cost of the one-gesture flow.
 
+A PDF cannot be pasted, so it is the one staging control that is still a file
+input: `FileDropZone` (`components/ui/FileDropZone.tsx`) hands the `File` up
+**unread** and enforces no cap of its own — the caps differ by kind (2 MB of
+HTML, 3 MB of PDF) and the zone does not decide kind, so the caller checks the
+right one beside the right validator, and the server checks it again as the
+authority. In `NewPageForm` **choosing the PDF is the submit**, the same
+one-gesture flow as the paste beside it, with the title derived from the
+filename instead of from `titleFromHtml`. In `PageEditor` it stages a
+replacement and Save commits it; saving with nothing staged is a rename or a
+change of audience, which `updatePdfPage` routes to `updatePageMeta` so the
+bytes are left alone. Which control the editor shows is decided by the row's
+kind: a pdf row gets the drop zone, an html row the paste box.
+
 One group is flagged `isEveryone` — on production it is `all` / "Everyone", the
 row students already bookmark as `/g/all`. Every page assigned to it appears on
 every student's shelf: `listPagesForGroup` fetches both sets and hands them to
@@ -423,7 +547,7 @@ Only the teacher creates or deletes one; both parties read and download. Access
 is `chatRole` (`lib/chat-access.ts`), reused rather than reimplemented, so the
 everyone group is refused before anything else — it has no `chatToken`, so it
 can never have a whiteboard. The Whiteboard tab follows the shared tab-presence
-rule stated under *Files: pages and links* — present for anyone unlocked, empty
+rule stated under *Files: pages, links and PDFs* — present for anyone unlocked, empty
 state and all — because Jenn needs it to create the first board and the student
 needs it to watch one being drawn.
 

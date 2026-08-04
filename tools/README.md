@@ -81,3 +81,18 @@ above. It works on ordinary `https://` pages, and on saved `.html` files if
 "Allow access to file URLs" is turned on in its Details page. Keep it for
 publishing something already on the web; use the script for anything Claude
 wrote in Dia.
+
+
+## Printing a page
+
+Every page at `/p/<slug>` has a PDF pill that opens the browser's own print
+dialog, where *Save as PDF* is a destination. The printout is the browser's
+rendering of the document, so **a page that has to print well needs `@media
+print` rules of its own** — page breaks that fall between exercises, a
+background that does not swallow the ink, a layout that fits the width of a
+sheet. Nothing is injected into the document to arrange that: a print
+stylesheet we supplied would be a guess about the page's design.
+
+When the layout has to be guaranteed rather than negotiated with a browser,
+`html-to-pdf.swift` above renders a local HTML file to a paginated Letter PDF
+via WKWebView, and that PDF can be uploaded to a shelf like any other.
