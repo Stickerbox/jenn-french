@@ -2,12 +2,15 @@
 // and a hostile one can lie. Counting bytes as they arrive is what actually
 // bounds how much a caller can make the process buffer, and it stops reading
 // the moment the cap is passed rather than after the whole body has landed.
-export async function readBoundedBody(
-  request: Request,
+//
+// Takes a body rather than a Request so a Response gets the same treatment: an
+// asset fetched from a CDN is exactly as much of a claim as an upload is.
+export async function readBoundedBytes(
+  body: ReadableStream<Uint8Array> | null,
   maxBytes: number,
-): Promise<string | null> {
-  const reader = request.body?.getReader();
-  if (!reader) return "";
+): Promise<Uint8Array | null> {
+  if (!body) return new Uint8Array(0);
+  const reader = body.getReader();
 
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -24,12 +27,20 @@ export async function readBoundedBody(
     chunks.push(value);
   }
 
-  const body = new Uint8Array(total);
+  const bytes = new Uint8Array(total);
   let offset = 0;
   for (const chunk of chunks) {
-    body.set(chunk, offset);
+    bytes.set(chunk, offset);
     offset += chunk.length;
   }
 
-  return new TextDecoder().decode(body);
+  return bytes;
+}
+
+export async function readBoundedBody(
+  request: Request,
+  maxBytes: number,
+): Promise<string | null> {
+  const bytes = await readBoundedBytes(request.body, maxBytes);
+  return bytes === null ? null : new TextDecoder().decode(bytes);
 }
