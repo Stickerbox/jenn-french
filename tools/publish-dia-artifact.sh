@@ -52,6 +52,186 @@ LIST_ROWS=10
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
+# Shared by describe_artifacts and build_body, passed as the FIRST -e to both so
+# they see the same functions: osascript concatenates multiple -e flags into one
+# script and they share scope. Two copies of these rules would let the picker
+# call a file present and the upload skip it.
+#
+# No single quotes anywhere below — it rides inside a single-quoted shell string.
+# The class ["\x27] is how a quote of that kind is written when one cannot appear
+# literally.
+JXA_ASSETS='
+ObjC.import("Foundation");
+
+function readUtf8(path) {
+  var s = $.NSString.stringWithContentsOfFileEncodingError(path, $.NSUTF8StringEncoding, null);
+  // .js === undefined covers both an unreadable file and one that is not UTF-8.
+  // s.isNil is a *method*; referencing it without calling it is always truthy.
+  return s.js === undefined ? null : s.js;
+}
+
+// One filter for both collectors: a ref carrying a scheme, a protocol-relative
+// one, or a bare fragment addresses nothing on this disk. Distinct refs in
+// document order — the count labels the picker row and the list is what gets
+// uploaded, and both come from this single pass.
+function refSink() {
+  var out = [], seen = {};
+  return {
+    add: function (u) {
+      u = String(u).trim();
+      if (!u) { return; }
+      if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(u)) { return; }
+      if (u.slice(0, 2) === "//" || u.charAt(0) === "#") { return; }
+      if (!seen[u]) { seen[u] = 1; out.push(u); }
+    },
+    list: function () { return out; }
+  };
+}
+
+function collectHtmlRefs(html) {
+  var sink = refSink(), m, b, u;
+  var attr = /(?:src|href)\s*=\s*"([^"]*)"/gi;
+  while ((m = attr.exec(html)) !== null) { sink.add(m[1]); }
+  // url(...) is the case that matters, not an afterthought: these artifacts put
+  // their CSS in an inline <style>, so a background image is referenced this way
+  // and no other. Counting attributes alone returned 0 for such a page, and 0 is
+  // the value meaning self-contained.
+  var block = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+  while ((b = block.exec(html)) !== null) {
+    var css = /url\(\s*(["\x27]?)([^)"\x27]*)\1\s*\)/gi;
+    while ((u = css.exec(b[1])) !== null) { sink.add(u[2]); }
+  }
+  return sink.list();
+}
+
+// A stylesheet names files of its own, relative to IT. Without this a page whose
+// styles.css reaches for a local .woff2 publishes with the wrong typeface and
+// nothing to report — the same failure the Google Fonts case had before the
+// server went two levels deep.
+function collectCssRefs(css) {
+  var sink = refSink(), u, i;
+  var url = /url\(\s*(["\x27]?)([^)"\x27]*)\1\s*\)/gi;
+  while ((u = url.exec(css)) !== null) { sink.add(u[2]); }
+  var imp = /@import\s+(?:url\(\s*)?(["\x27]?)([^)"\x27;]*)\1\s*\)?/gi;
+  while ((i = imp.exec(css)) !== null) { sink.add(i[2]); }
+  return sink.list();
+}
+
+// A query or a fragment addresses the same file, so neither belongs in the name
+// looked for on disk. This is the ONLY rewriting done here: the key uploaded is
+// the ref verbatim, and folding . and .. belongs to the OS below and to
+// lib/asset-path.ts on the server.
+function stripRefSuffix(ref) { return ref.split("#")[0].split("?")[0]; }
+
+function resolvePath(p) {
+  var u = $.NSURL.fileURLWithPath(p).URLByResolvingSymlinksInPath;
+  return u.js === undefined ? null : u.path.js;
+}
+
+// The absolute path a ref names, but only while it stays inside the artifact.
+//
+// Both sides go through the SAME resolver, which is what stops /tmp and
+// /private/tmp splitting them — comparing a resolved path against an unresolved
+// root is the classic bug in this check. Resolving also covers symlinks, which a
+// string test for .. does not: a link inside site/ pointing at ~/.ssh has no ..
+// in it at all, and this script publishes what it reads to a public URL.
+function insideRoot(root, ref) {
+  var r = resolvePath(root);
+  var full = resolvePath(root + "/" + stripRefSuffix(ref));
+  if (r === null || full === null || full === r) { return null; }
+  return full.indexOf(r + "/") === 0 ? full : null;
+}
+
+function isRegularFile(path) {
+  var isDir = Ref();
+  if (!$.NSFileManager.defaultManager.fileExistsAtPathIsDirectory(path, isDir)) {
+    return false;
+  }
+  return !isDir[0];
+}
+
+// Containment and existence are separate questions and both must pass: a ref can
+// resolve inside the artifact and simply not be there.
+function usableAsset(root, ref) {
+  var full = insideRoot(root, ref);
+  return full !== null && isRegularFile(full) ? full : null;
+}
+
+function refDir(ref) {
+  var p = stripRefSuffix(ref);
+  var cut = p.lastIndexOf("/");
+  return cut === -1 ? "" : p.slice(0, cut);
+}
+
+// Concatenation only, matching joinRef in lib/asset-path.ts. The server folds it.
+function joinRef(dir, ref) { return dir === "" ? ref : dir + "/" + ref; }
+
+// A resource guard, NOT a protocol constant: it stops a pathological artifact
+// making this read hundreds of files. MAX_ASSET_COUNT on the server is the limit
+// that actually decides a publish, and duplicating that here would let the two
+// drift into silently dropping files.
+var MAX_COLLECTED = 200;
+
+// Every ref the artifact needs: the document own, plus one level through each
+// stylesheet. Keys are left unfolded on purpose.
+function collectAllRefs(root, html) {
+  var refs = collectHtmlRefs(html);
+  var all = refs.slice(), seen = {};
+  all.forEach(function (r) { seen[r] = 1; });
+
+  refs.forEach(function (r) {
+    if (all.length >= MAX_COLLECTED) { return; }
+    if (!/\.css$/i.test(stripRefSuffix(r))) { return; }
+    var full = usableAsset(root, r);
+    if (full === null) { return; }
+    var css = readUtf8(full);
+    if (css === null) { return; }
+    collectCssRefs(css).forEach(function (n) {
+      var key = joinRef(refDir(r), n);
+      if (!seen[key] && all.length < MAX_COLLECTED) {
+        seen[key] = 1;
+        all.push(key);
+      }
+    });
+  });
+
+  return all;
+}
+
+// .../<uuid>/<name>/site/index.html -> the site directory
+function siteRoot(indexPath) {
+  return indexPath.slice(0, indexPath.lastIndexOf("/"));
+}
+
+// .../<uuid>/<name>/site/index.html -> <name>
+function folderName(path) {
+  var p = path.split("/");
+  return p.length >= 3 ? p[p.length - 3] : path;
+}
+
+// decode() is deliberately partial: it knows the five core entities and every
+// numeric reference, and nothing else. A surviving &name; is left intact for
+// decode_entities to hand to textutil, which owns the full table.
+//
+// &amp; decodes LAST. Doing it first would turn a deliberately double-escaped
+// &amp;lt; into a bare <, losing the escaping the author asked for.
+function decode(s) {
+  return s
+    .replace(/&#x([0-9a-fA-F]+);/g, function (_, h) { return String.fromCodePoint(parseInt(h, 16)); })
+    .replace(/&#(\d+);/g, function (_, d) { return String.fromCodePoint(parseInt(d, 10)); })
+    .replace(/&quot;/g, "\"").replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
+function titleOf(html, path) {
+  var m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  // Collapse whitespace: a title spanning newlines is normal, and a tab inside
+  // one would corrupt the tab-delimited output format.
+  var title = decode(m ? m[1] : "").replace(/\s+/g, " ").trim();
+  return title || folderName(path);
+}
+'
+
 gui_alert() {
   # activate first, or an alert raised from a menu-bar Shortcut can open behind
   # whatever is frontmost and read as the click having done nothing.
@@ -145,75 +325,17 @@ list_artifacts() {
 }
 
 # argv[0] is a file holding one artifact path per line. Emits one
-# "title<TAB>refcount" line per input path, in input order.
+# "title<TAB>total<TAB>missing" line per input path, in input order.
 #
-# Title extraction lives here rather than after selection because the picker
-# needs the title *before* the choice is made, and two extraction paths would
-# drift — a list reading Cr&ecirc;pes beside a page published as Crêpes.
+# Title extraction lives here rather than after selection because the picker needs
+# the title *before* the choice is made, and two extraction paths would drift — a
+# list reading Cr&ecirc;pes beside a page published as Crêpes.
 #
-# decode() below is deliberately partial: it knows the five core entities and
-# every numeric reference, and nothing else. A surviving &name; is left intact
-# for decode_entities to hand to textutil, which owns the full table.
-#
-# refcount counts distinct relative src=/href= values and url(…) references in
-# an inline <style>: how many files the page needs that will not be published.
-# Counting files in the directory instead would flag a self-contained page that
-# happens to sit beside a .DS_Store.
-#
-# No single quotes anywhere in the JS below — it rides inside a single-quoted
-# shell string.
+# total counts every file the page needs, including the ones a stylesheet names.
+# missing counts those that are not on disk or that point outside the artifact.
+# Only the second is a warning now: the rest are published.
 describe_artifacts() {
-  osascript -l JavaScript -e '
-ObjC.import("Foundation");
-
-function readUtf8(path) {
-  var s = $.NSString.stringWithContentsOfFileEncodingError(path, $.NSUTF8StringEncoding, null);
-  // .js === undefined covers both an unreadable file and one that is not UTF-8.
-  // s.isNil is a *method*; referencing it without calling it is always truthy.
-  return s.js === undefined ? null : s.js;
-}
-
-// &amp; decodes LAST. Doing it first would turn a deliberately double-escaped
-// &amp;lt; into a bare <, losing the escaping the author asked for.
-function decode(s) {
-  return s
-    .replace(/&#x([0-9a-fA-F]+);/g, function (_, h) { return String.fromCodePoint(parseInt(h, 16)); })
-    .replace(/&#(\d+);/g, function (_, d) { return String.fromCodePoint(parseInt(d, 10)); })
-    .replace(/&quot;/g, "\"").replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-}
-
-function localRefs(html) {
-  var seen = {}, n = 0, m;
-  function add(u) {
-    u = u.trim();
-    if (!u) { return; }
-    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(u)) { return; }   // https:, data:, mailto:, tel:
-    if (u.slice(0, 2) === "//" || u.charAt(0) === "#") { return; }
-    if (!seen[u]) { seen[u] = 1; n++; }
-  }
-  var attr = /(?:src|href)\s*=\s*"([^"]*)"/gi;
-  while ((m = attr.exec(html)) !== null) { add(m[1]); }
-  // url(…) is the case that matters, not an afterthought. These artifacts are
-  // single-file HTML with inline CSS, so a background image is referenced this
-  // way and no other — counting attributes alone returned 0 for such a page,
-  // and 0 is the value meaning *self-contained, nothing to warn about*.
-  // The quote class is written ["\x27] because a literal quote of that kind
-  // cannot appear in this JS at all: it would end the shell string around it.
-  var block = /<style[^>]*>([\s\S]*?)<\/style>/gi, b;
-  while ((b = block.exec(html)) !== null) {
-    var css = /url\(\s*(["\x27]?)([^)"\x27]*)\1\s*\)/gi, u;
-    while ((u = css.exec(b[1])) !== null) { add(u[2]); }
-  }
-  return n;
-}
-
-// .../<uuid>/<name>/site/index.html -> <name>
-function folderName(path) {
-  var p = path.split("/");
-  return p.length >= 3 ? p[p.length - 3] : path;
-}
-
+  osascript -l JavaScript -e "$JXA_ASSETS" -e '
 function run(argv) {
   var listing = readUtf8(argv[0]);
   // This throws where an unreadable *artifact* degrades to (unreadable) in
@@ -222,13 +344,11 @@ function run(argv) {
   if (listing === null) { throw new Error("cannot read the path list"); }
   return listing.split("\n").filter(function (p) { return p.length > 0; }).map(function (p) {
     var html = readUtf8(p);
-    if (html === null) { return "(unreadable)\t0"; }
-    var m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    // Collapse whitespace: a title spanning newlines is normal, and a tab
-    // inside one would corrupt this output format.
-    var title = decode(m ? m[1] : "").replace(/\s+/g, " ").trim();
-    if (!title) { title = folderName(p); }
-    return title + "\t" + localRefs(html);
+    if (html === null) { return "(unreadable)\t0\t0"; }
+    var root = siteRoot(p);
+    var refs = collectAllRefs(root, html);
+    var missing = refs.filter(function (r) { return usableAsset(root, r) === null; });
+    return titleOf(html, p) + "\t" + refs.length + "\t" + missing.length;
   }).join("\n");
 }' "$1"
 }
@@ -271,7 +391,7 @@ decode_entities() {
 }
 
 # stdin:  "mtime path" lines, as list_artifacts emits them
-# stdout: "mtime<TAB>path<TAB>title<TAB>refcount", titles fully decoded
+# stdout: "mtime<TAB>path<TAB>title<TAB>total<TAB>missing", titles fully decoded
 #
 # Tab-delimited because the paths contain spaces ("Application Support").
 candidate_rows() {
@@ -285,12 +405,13 @@ candidate_rows() {
   [ "$(wc -l < "$paths")" = "$(wc -l < "$desc")" ] \
     || die "describe_artifacts returned the wrong number of rows."
   paste -d'\t' <(cut -d' ' -f1 < "$src") "$paths" "$desc" \
-    | while IFS=$'\t' read -r mtime path title refs; do
-        printf '%s\t%s\t%s\t%s\n' "$mtime" "$path" "$(decode_entities "$title")" "$refs"
+    | while IFS=$'\t' read -r mtime path title total missing; do
+        printf '%s\t%s\t%s\t%s\t%s\n' \
+          "$mtime" "$path" "$(decode_entities "$title")" "$total" "$missing"
       done
 }
 
-# stdin:  "mtime<TAB>path<TAB>title<TAB>refcount"
+# stdin:  "mtime<TAB>path<TAB>title<TAB>total<TAB>missing"
 # stdout: one display label per line, same order
 #
 # chooseFromList returns the chosen *string*, not an index, so two identical
@@ -299,17 +420,25 @@ candidate_rows() {
 # not. Suffixing later duplicates makes the label-to-row map total by
 # construction rather than by luck.
 build_labels() {
-  local mtime path title refs label i j n dup
+  local mtime path title total missing label i j n dup
   local labels=()
-  while IFS=$'\t' read -r mtime path title refs; do
+  while IFS=$'\t' read -r mtime path title total missing; do
     # %-d rather than %e, so a single-digit day gives "Fri 1 Aug" and not the
     # double-spaced "Fri  1 Aug". The - padding modifier is usually a glibc
     # extension; it was verified working in macOS's BSD date.
     label="$title — $(date -r "$mtime" '+%a %-d %b %H:%M')"
-    if [ "${refs:-0}" -gt 1 ]; then
-      label="$label  ⚠ $refs linked files"
-    elif [ "${refs:-0}" = "1" ]; then
-      label="$label  ⚠ 1 linked file"
+    # The ⚠ is reserved for what is still actionable. Linked files used to earn
+    # one because they were about to go missing; they are published now, so a
+    # marker on every row would be one nobody reads — the same lesson the old
+    # find-based count taught. A ref that cannot be resolved still earns it.
+    if [ "${missing:-0}" -gt 1 ]; then
+      label="$label  ⚠ $missing missing files"
+    elif [ "${missing:-0}" = "1" ]; then
+      label="$label  ⚠ 1 missing file"
+    elif [ "${total:-0}" -gt 1 ]; then
+      label="$label  + $total files"
+    elif [ "${total:-0}" = "1" ]; then
+      label="$label  + 1 file"
     fi
     labels[${#labels[@]}]="$label"
   done
@@ -358,17 +487,18 @@ function run(argv) {
 }' "$1" "$2"
 }
 
-# Sets INDEX, TITLE, REFS from the teacher's choice. Exits 0 on cancel.
+# Sets INDEX, TITLE, TOTAL, MISSING from the teacher's choice. Exits 0 on cancel.
 choose_artifact() {
   local rows="$WORK/rows.txt" labels="$WORK/labels.txt" picked i n
-  local paths=() titles=() refslist=() labellist=()
+  local paths=() titles=() totals=() missings=() labellist=()
   list_artifacts | head -"$LIST_ROWS" | candidate_rows > "$rows"
   [ -s "$rows" ] || die "No artifacts found yet."
 
-  while IFS=$'\t' read -r mtime path title refs; do
+  while IFS=$'\t' read -r mtime path title total missing; do
     paths[${#paths[@]}]="$path"
     titles[${#titles[@]}]="$title"
-    refslist[${#refslist[@]}]="$refs"
+    totals[${#totals[@]}]="$total"
+    missings[${#missings[@]}]="$missing"
   done < "$rows"
 
   build_labels < "$rows" > "$labels"
@@ -391,7 +521,8 @@ choose_artifact() {
   n=${#labellist[@]}
   for ((i = 0; i < n; i++)); do
     if [ "${labellist[$i]}" = "$picked" ]; then
-      INDEX="${paths[$i]}"; TITLE="${titles[$i]}"; REFS="${refslist[$i]}"
+      INDEX="${paths[$i]}"; TITLE="${titles[$i]}"
+      TOTAL="${totals[$i]}"; MISSING="${missings[$i]}"
       return 0
     fi
   done
@@ -403,20 +534,23 @@ choose_artifact() {
 # derives the slug.
 INDEX=""
 TITLE=""
-REFS=0
+TOTAL=0
+MISSING=0
 
 if [ -n "${1:-}" ]; then
   # Every artifact, not just the LIST_ROWS the dialog shows: a caller naming an
   # exact title should not fail because the page is three weeks old.
   WANT=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
   HITS=0
-  while IFS=$'\t' read -r mtime path title refs; do
+  while IFS=$'\t' read -r mtime path title total missing; do
     HAY=$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]')
     case "$HAY" in
       *"$WANT"*)
         HITS=$((HITS + 1))
         # Rows arrive newest first, so the first hit is the newest.
-        [ -z "$INDEX" ] && { INDEX="$path"; TITLE="$title"; REFS="$refs"; }
+        [ -z "$INDEX" ] && {
+          INDEX="$path"; TITLE="$title"; TOTAL="$total"; MISSING="$missing"
+        }
         ;;
     esac
     # `< <(…)` rather than a pipe: a while on the right of a pipe runs in a
@@ -425,12 +559,12 @@ if [ -n "${1:-}" ]; then
   [ -n "$INDEX" ] || die "No page whose title contains '$1'. Try --list."
   [ "$HITS" -gt 1 ] && echo "$HITS pages match '$1'; taking the newest."
 elif [ "$WANT_LATEST" = "1" ]; then
-  while IFS=$'\t' read -r mtime path title refs; do
-    INDEX="$path"; TITLE="$title"; REFS="$refs"
+  while IFS=$'\t' read -r mtime path title total missing; do
+    INDEX="$path"; TITLE="$title"; TOTAL="$total"; MISSING="$missing"
   done < <(list_artifacts | head -1 | candidate_rows)
   [ -n "$INDEX" ] || die "No artifacts found yet."
 else
-  choose_artifact          # sets INDEX, TITLE, REFS
+  choose_artifact          # sets INDEX, TITLE, TOTAL, MISSING
 fi
 
 # describe_artifacts reports an unreadable or non-UTF-8 artifact as this rather
@@ -439,19 +573,14 @@ if [ "$TITLE" = "(unreadable)" ]; then
   die "Could not read that artifact as UTF-8 text."
 fi
 
-# An artifact that is not self-contained loses whatever it links to: the site's
-# CSP blocks everything a page loads from elsewhere, so those files go missing
-# silently rather than failing loudly.
+# The sibling files are published now, so only the ones that could not be found
+# are worth saying anything about. A ref pointing outside the artifact folder is
+# counted here too: it is refused deliberately and never read.
 #
-# The count comes from the row, where it was computed from the references
-# index.html actually makes. The old find counted every file in the directory,
-# so a stray .DS_Store flagged a page that was perfectly self-contained — and a
-# marker that appears on every row is one nobody reads.
-#
-# The dialog already showed this on the chosen row, so only the flag-driven
-# paths need telling.
-if [ "${REFS:-0}" != "0" ]; then
-  warn "This page links to $REFS file(s) that will not be published, so they will be missing. Continuing anyway."
+# The dialog already showed this on the chosen row, so only the flag-driven paths
+# need telling.
+if [ "${MISSING:-0}" != "0" ]; then
+  warn "This page links to $MISSING file(s) that are not on disk, so they will be missing. Continuing anyway."
 fi
 
 # --token first: an explicit value beats anything ambient, including the
