@@ -70,7 +70,7 @@ CI runs them in that order. Run at least `lint`, `typecheck` and `test` before e
 
 This plan was written against a tree where student sign-in and PDF pages are built and the chat inbox is not. Confirm that. If a check disagrees, **stop and report which one** rather than adapting silently — several tasks below would land in the wrong place.
 
-- [ ] **Step 1: Confirm student sign-in is built**
+- [x] **Step 1: Confirm student sign-in is built**
 
 ```bash
 grep -n "passwordHash\|claimedAt" prisma/schema.prisma
@@ -80,7 +80,7 @@ grep -n "claimedAt\|Reset sign-in\|New invite link" components/admin/GroupList.t
 
 Expected: `email`, `passwordHash` and `claimedAt` on `Group`; `lib/student-gate.ts` exists; `GroupList` knows about the claimed state.
 
-- [ ] **Step 2: Confirm PDF pages are built**
+- [x] **Step 2: Confirm PDF pages are built**
 
 ```bash
 grep -n "pdf\b\|pdfSize" prisma/schema.prisma
@@ -91,7 +91,7 @@ grep -n "\"pdf\"" lib/page-kind.ts
 
 Expected: all present. Note whether the drop zone is `components/ui/FileDropZone.tsx` or still `components/admin/HtmlDropZone.tsx`, and note the exact shape `validatePagePdf` returns — Task 7 mirrors it.
 
-- [ ] **Step 3: Confirm the chat inbox is NOT built**
+- [x] **Step 3: Confirm the chat inbox is NOT built**
 
 ```bash
 ls app/api/chat/stream 2>/dev/null || echo "absent, as expected"
@@ -100,7 +100,7 @@ grep -rn "listConversations\|TeacherInbox" --include="*.ts" --include="*.tsx" . 
 
 Expected: no `/api/chat/stream`, no `listConversations`, no `TeacherInbox`. If they exist, the inbox landed first: Task 16 still applies to the tile's *action slot*, but re-read `GroupSummary` — the inbox reshapes the same type's `unread` field.
 
-- [ ] **Step 4: Find the page-creating form**
+- [x] **Step 4: Find the page-creating form**
 
 ```bash
 ls components/admin/NewPageForm.tsx 2>/dev/null
@@ -110,7 +110,7 @@ grep -rn "onSubmitPdf\|createPdfPage" --include="*.tsx" components/
 
 Write down which component stages a PDF and which one submits it. Task 13 needs both and cannot name them from here.
 
-- [ ] **Step 5: Confirm the whiteboard files are as this plan expects**
+- [x] **Step 5: Confirm the whiteboard files are as this plan expects**
 
 ```bash
 grep -n "function save()\|dropTrailingEmptyPages(foldOps(ops))\|discard" components/whiteboard/BoardEditor.tsx
@@ -121,7 +121,7 @@ grep -n "LiveBanner" app/g/\[slug\]/page.tsx
 
 Expected: `BoardEditor` has a `save()` containing `dropTrailingEmptyPages(foldOps(ops))` and an *Annuler* button that POSTs `/discard`; `BoardTab` already gates its live view on `!isTeacher`; `LiveBanner` holds that string; the page renders `<LiveBanner …>` behind an `unlocked` check.
 
-- [ ] **Step 6: Confirm the tree is green before you change it**
+- [x] **Step 6: Confirm the tree is green before you change it**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test
@@ -144,7 +144,7 @@ The predicate the leave guard arms on. It must be the *same* question `save()` a
 **Interfaces:**
 - Produces: `boardHasContent(ops: Op[]): boolean`. Tasks 2 and 4 consume it.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/lib/whiteboard-ops.test.ts`. Add `boardHasContent` to the existing import from `@/lib/whiteboard-ops`.
 
@@ -196,12 +196,12 @@ describe("boardHasContent", () => {
 
 Check the top of the file for the existing import style and whether `PALETTE` and `Op` are already imported; add only what is missing.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/whiteboard-ops.test.ts`
 Expected: FAIL — `boardHasContent is not a function`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Append to `lib/whiteboard-ops.ts`, directly after `dropTrailingEmptyPages`:
 
@@ -221,12 +221,12 @@ export function boardHasContent(ops: Op[]): boolean {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/lib/whiteboard-ops.test.ts`
 Expected: PASS, including the pre-existing cases in that file.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/whiteboard-ops.ts tests/lib/whiteboard-ops.test.ts
@@ -249,7 +249,7 @@ EOF
 **Interfaces:**
 - Produces: `shouldGuardNavigation(click: NavigationClick): boolean` and `navigationTarget(href: string, origin: string): NavigationTarget`. Task 4 consumes both.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/leave-guard.test.ts`:
 
@@ -364,12 +364,12 @@ describe("navigationTarget", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/leave-guard.test.ts`
 Expected: FAIL — `Failed to resolve import "@/lib/leave-guard"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/leave-guard.ts`:
 
@@ -455,18 +455,18 @@ export function navigationTarget(
 
 Note the `mailto:` case: `new URL("mailto:…")` parses, and its `origin` is the string `"null"`, which never equals a real origin — so it falls to `external` through the comparison rather than through the `catch`. Return `href` rather than `url.href` in both external branches so nothing is silently normalised.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/lib/leave-guard.test.ts`
 Expected: PASS, 14 tests.
 
-- [ ] **Step 5: Typecheck and lint**
+- [x] **Step 5: Typecheck and lint**
 
 ```bash
 npm run typecheck && npm run lint
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/leave-guard.ts tests/lib/leave-guard.test.ts
@@ -491,7 +491,7 @@ EOF
 
 **Copy is French**, matching every other string in `components/whiteboard/` — *Annuler*, *Terminé*, *Le tableau est vide.* — even though only the teacher ever sees it. A dialog in English inside a French toolbar reads as a different product.
 
-- [ ] **Step 1: Write the component**
+- [x] **Step 1: Write the component**
 
 Create `components/whiteboard/LeaveBoardDialog.tsx`:
 
@@ -599,7 +599,7 @@ export function LeaveBoardDialog({
 }
 ```
 
-- [ ] **Step 2: Verify it compiles and lints**
+- [x] **Step 2: Verify it compiles and lints**
 
 ```bash
 npm run typecheck && npm run lint
@@ -607,7 +607,7 @@ npm run typecheck && npm run lint
 
 Expected: both pass. If lint complains about an unescaped entity, you have a literal `'` in JSX text — see convention 3.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add components/whiteboard/LeaveBoardDialog.tsx
@@ -632,7 +632,7 @@ The biggest task in the plan. Five changes to one file: split `save()`, add the 
 - Consumes: `boardHasContent` (Task 1), `shouldGuardNavigation` and `navigationTarget` (Task 2), `LeaveBoardDialog` (Task 3).
 - Produces nothing new. `onSaved` and `onCancel` keep their existing meanings and `BoardTab` needs no change.
 
-- [ ] **Step 1: Extend the imports**
+- [x] **Step 1: Extend the imports**
 
 Add `useRouter`, the two guard rules, `boardHasContent`, and the dialog. `useEffect`, `useRef` and `useState` are already imported; `dropTrailingEmptyPages` and `foldOps` already come from `@/lib/whiteboard-ops` — add `boardHasContent` to that same import list.
 
@@ -645,7 +645,7 @@ import {
 import { LeaveBoardDialog } from "@/components/whiteboard/LeaveBoardDialog";
 ```
 
-- [ ] **Step 2: Add the state, the router, and the dirty flag**
+- [x] **Step 2: Add the state, the router, and the dirty flag**
 
 Directly after the existing `const [liveError, setLiveError] = useState(false);`:
 
@@ -669,7 +669,7 @@ Then, next to the existing `const scene = foldOps(ops);`:
   const dirty = boardHasContent(ops);
 ```
 
-- [ ] **Step 3: Split `save()` into `persist()` and its two callers**
+- [x] **Step 3: Split `save()` into `persist()` and its two callers**
 
 Replace the existing `async function save()` in full with the following. `discard()` is factored out because three places now post it — *Annuler*, the dialog, and the beacon builds its own URL for the same route.
 
@@ -732,7 +732,7 @@ Replace the existing `async function save()` in full with the following. `discar
 
 **Careful with the apostrophe.** `&apos;` is an HTML entity and belongs **only in JSX text**, where convention 3 requires it. Inside a TypeScript string literal it is not decoded — `setError("l&apos;enregistrement")` puts those six characters on her screen. Both strings above are string literals and take a real `'`; the strings in Task 3's dialog are JSX text and take `&apos;`. The existing line in this file already has it right, so the safest move is to leave that string exactly as you found it.
 
-- [ ] **Step 4: Point *Annuler* at `discard()`**
+- [x] **Step 4: Point *Annuler* at `discard()`**
 
 The existing button inlines the fetch. Replace its handler so there is one caller of that URL shape in the component:
 
@@ -749,7 +749,7 @@ The existing button inlines the fetch. Replace its handler so there is one calle
           </button>
 ```
 
-- [ ] **Step 5: Add the click guard**
+- [x] **Step 5: Add the click guard**
 
 Add after the existing keyboard `useEffect` (the Backspace/Delete one):
 
@@ -809,7 +809,7 @@ Add after the existing keyboard `useEffect` (the Backspace/Delete one):
   }, [dirty]);
 ```
 
-- [ ] **Step 6: Add the two window listeners**
+- [x] **Step 6: Add the two window listeners**
 
 Immediately after the effect from Step 5:
 
@@ -872,7 +872,7 @@ Immediately after the effect from Step 5:
   }, [slug]);
 ```
 
-- [ ] **Step 7: Render the dialog**
+- [x] **Step 7: Render the dialog**
 
 As the last child of the component's outermost `<div className="mx-auto w-full max-w-[1100px]">`, after the page-controls row:
 
@@ -891,7 +891,7 @@ As the last child of the component's outermost `<div className="mx-auto w-full m
       )}
 ```
 
-- [ ] **Step 8: Verify**
+- [x] **Step 8: Verify**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -915,7 +915,7 @@ npm run dev
 6. Draw again, then reload the tab. **Expected:** the browser's own "Leave site?" prompt. Confirm it. Then open the student again and press *Nouveau tableau*: **no** *Diffusion en direct indisponible*. That is the 409 regression, and this step is the only thing that proves it fixed.
 7. Press *Nouveau tableau* and immediately click *Les fichiers* without drawing. **Expected:** no dialog — nothing to lose.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add components/whiteboard/BoardEditor.tsx
@@ -942,7 +942,7 @@ EOF
 - Produces: `teacherPageLabel(name: string): string | null`. Task 6 consumes it.
 - `greeting` is untouched. One of this task's tests asserts that.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/lib/student-greeting.test.ts`, and add `teacherPageLabel` to the existing import from `@/lib/student-greeting`:
 
@@ -979,12 +979,12 @@ describe("teacherPageLabel", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/student-greeting.test.ts`
 Expected: FAIL — `teacherPageLabel is not a function`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Append to `lib/student-greeting.ts`:
 
@@ -1010,12 +1010,12 @@ export function teacherPageLabel(name: string): string | null {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/lib/student-greeting.test.ts`
 Expected: PASS, including the pre-existing `greeting` cases.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/student-greeting.ts tests/lib/student-greeting.test.ts
@@ -1050,7 +1050,7 @@ grep -n "<main" app/g/\[slug\]/page.tsx
 
 Use whatever name the file already gives the teacher boolean — it was `viewerIsTeacher`; the snippets below assume that and you should substitute if it differs.
 
-- [ ] **Step 1: Branch the header line by audience**
+- [x] **Step 1: Branch the header line by audience**
 
 Add `teacherPageLabel` to the existing `@/lib/student-greeting` import, then replace the single `greeting(...)` call site with:
 
@@ -1067,7 +1067,7 @@ Add `teacherPageLabel` to the existing `@/lib/student-greeting` import, then rep
 
 Then render `headerLine` wherever the greeting was rendered. If the existing variable is already called something else, rename the assignment rather than introducing a second variable — two names for one line is how they drift apart.
 
-- [ ] **Step 2: Suppress `LiveBanner` for the teacher**
+- [x] **Step 2: Suppress `LiveBanner` for the teacher**
 
 ```tsx
       {unlocked && !viewerIsTeacher && tab !== "board" && <LiveBanner slug={slug} />}
@@ -1086,7 +1086,7 @@ And extend the comment that already sits above that line with the reason:
           !isTeacher; only the banner was missed. */}
 ```
 
-- [ ] **Step 3: Add the back-to-admin link**
+- [x] **Step 3: Add the back-to-admin link**
 
 Add `relative` to the `<main>` className — it is currently `min-h-screen px-4 py-12` — and insert this as its first child, above the `<header>`:
 
@@ -1107,7 +1107,7 @@ Add `relative` to the `<main>` className — it is currently `min-h-screen px-4 
 
 `Link` is already imported in this file. **This link needs no guard wiring** — Task 4's capture-phase listener sees it because it is an anchor, which is the property that decision was made for.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1125,7 +1125,7 @@ npm run dev
 4. Signed in with the token, start a board, then open the same student in a second tab and switch that tab to *Les fichiers*: **no** *Jenn dessine en ce moment*. Open the student's own link in a private window with `?k=` and the banner **is** there — that is the audience it was written for.
 5. With a stroke on the board, click *← Back to admin*: Task 4's dialog appears.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/g/\[slug\]/page.tsx
@@ -1152,7 +1152,7 @@ EOF
 
 **Read `lib/page-pdf.ts` first.** This module is its mirror and should return the same *shape* — if `validatePagePdf` returns `{ ok: false; error: string }` rather than a reason code, use that shape here instead of the one below and adjust the test. One convention per neighbourhood matters more than which convention.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/page-thumb.test.ts`:
 
@@ -1218,12 +1218,12 @@ describe("validatePageThumb", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/page-thumb.test.ts`
 Expected: FAIL — `Failed to resolve import "@/lib/page-thumb"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/page-thumb.ts`:
 
@@ -1271,12 +1271,12 @@ export function validatePageThumb(bytes: Uint8Array): ThumbCheck {
 
 Reason codes rather than sentences, following `lib/student-credentials.ts`: the rule lives here and the copy lives where the language is known. Nothing user-facing comes out of this one anyway — see Task 10, where a rejected thumbnail is dropped silently.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/lib/page-thumb.test.ts`
 Expected: PASS, 8 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/page-thumb.ts tests/lib/page-thumb.test.ts
@@ -1296,7 +1296,7 @@ EOF
 - Modify: `prisma/schema.prisma`
 - Create: `prisma/migrations/<timestamp>_add_pdf_thumbnails/migration.sql` (generated)
 
-- [ ] **Step 1: Add the two columns**
+- [x] **Step 1: Add the two columns**
 
 In `model Page`, directly after the existing `pdf` and `pdfSize`:
 
@@ -1320,7 +1320,7 @@ In `model Page`, directly after the existing `pdf` and `pdfSize`:
   pdfThumbAt DateTime?
 ```
 
-- [ ] **Step 2: Generate and apply**
+- [x] **Step 2: Generate and apply**
 
 ```bash
 npx prisma migrate dev --name add_pdf_thumbnails
@@ -1328,7 +1328,7 @@ npx prisma migrate dev --name add_pdf_thumbnails
 
 Expected: a new migration directory containing an `ALTER TABLE "Page" ADD COLUMN` for each. **No backfill and no table rebuild** — both columns are nullable with no default, so Prisma should emit two plain `ADD COLUMN` statements. If it emits a `RedefineTables` block, read it before accepting: a rebuild of `Page` must carry `pdf` and `pdfSize` across, and the 2026-08-01 migration is the cautionary example of a rebuild that needed a hand-written backfill above it.
 
-- [ ] **Step 3: Regenerate the client and check the tree**
+- [x] **Step 3: Regenerate the client and check the tree**
 
 ```bash
 npx prisma generate && npm run typecheck && npm test
@@ -1336,7 +1336,7 @@ npx prisma generate && npm run typecheck && npm test
 
 Expected: pass. Existing pdf rows now read `null` on both columns, which is exactly the state the glyph fallback renders.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add prisma/schema.prisma prisma/migrations
@@ -1359,7 +1359,7 @@ EOF
 - Produces: `SavePageInput`'s pdf member gains `thumb: Uint8Array | null`; `SHELF_SELECT` gains `pdfThumbAt`; `listPagesForAdmin` returns `pdfThumbAt`; new `getPageThumb(slug)`. Tasks 10, 11 and 14 consume these.
 - **Breaking:** every caller constructing a pdf `SavePageInput` must now pass `thumb`. `tsc` will name them; Task 10 fixes them.
 
-- [ ] **Step 1: Extend `SavePageInput`**
+- [x] **Step 1: Extend `SavePageInput`**
 
 The pdf member gains one field:
 
@@ -1375,7 +1375,7 @@ The pdf member gains one field:
       }
 ```
 
-- [ ] **Step 2: Extend the `columns` branch**
+- [x] **Step 2: Extend the `columns` branch**
 
 Add both new columns to **all three** branches — the pdf one populated, the html and link ones nulled:
 
@@ -1396,7 +1396,7 @@ Add both new columns to **all three** branches — the pdf one populated, the ht
 
 Extend the comment above `columns` — it currently says "Both columns are written every time" — to say all of them, and keep the existing reasoning.
 
-- [ ] **Step 3: `SHELF_SELECT` gains the signal and NOT the blob**
+- [x] **Step 3: `SHELF_SELECT` gains the signal and NOT the blob**
 
 ```ts
 const SHELF_SELECT = {
@@ -1409,7 +1409,7 @@ const SHELF_SELECT = {
 } as const;
 ```
 
-- [ ] **Step 4: `listPagesForAdmin` passes it through**
+- [x] **Step 4: `listPagesForAdmin` passes it through**
 
 Add to the returned object, beside `kind` and `url`:
 
@@ -1419,7 +1419,7 @@ Add to the returned object, beside `kind` and `url`:
 
 `listPagesForGroup` needs no change — it spreads `SHELF_SELECT`'s result.
 
-- [ ] **Step 5: Add `getPageThumb`**
+- [x] **Step 5: Add `getPageThumb`**
 
 Beside the existing `getPagePdf`:
 
@@ -1442,7 +1442,7 @@ export function getPageThumb(slug: string) {
 
 `kind`, `url` and `pdfSize` are there because `readPageKind` requires all three — see its comment about `pdfSize` being a required argument precisely so a caller cannot silently omit the pdf signal.
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 ```bash
 npm run typecheck
@@ -1450,7 +1450,7 @@ npm run typecheck
 
 Expected: **FAIL**, naming the callers in `app/page-actions.ts` that build a pdf `SavePageInput` without `thumb`. That is the breaking change doing its job; Task 10 fixes it. Do not add `thumb: null` here to make it pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/pages.ts
@@ -1473,7 +1473,7 @@ EOF
 - Consumes: `validatePageThumb` (Task 7), the widened `SavePageInput` (Task 9).
 - No signature change: both actions already take a `FormData`.
 
-- [ ] **Step 1: Add a shared reader**
+- [x] **Step 1: Add a shared reader**
 
 Add near the other helpers in the file:
 
@@ -1496,7 +1496,7 @@ async function readThumb(formData: FormData): Promise<Uint8Array | null> {
 
 Import it: `import { validatePageThumb } from "@/lib/page-thumb";`
 
-- [ ] **Step 2: Use it in `createPdfPage`**
+- [x] **Step 2: Use it in `createPdfPage`**
 
 Where the action currently builds its `savePage` call, pass the thumbnail:
 
@@ -1507,7 +1507,7 @@ Where the action currently builds its `savePage` call, pass the thumbnail:
 
 Keep the existing `requireTeacher()`, the existing `validatePagePdf` handling, and the existing `revalidatePath` calls exactly as they are.
 
-- [ ] **Step 3: Use it in `updatePdfPage`**
+- [x] **Step 3: Use it in `updatePdfPage`**
 
 `updatePdfPage` has two paths and they must stay different:
 
@@ -1529,7 +1529,7 @@ Keep the existing `requireTeacher()`, the existing `validatePagePdf` handling, a
 
 Match the existing control flow in the file rather than the exact shape above; the load-bearing part is that the no-file path never reaches `readThumb` and never reaches `savePage`.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1537,7 +1537,7 @@ npm run typecheck && npm run lint && npm test
 
 Expected: pass — Task 9's deliberate failure is now resolved.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/page-actions.ts
@@ -1562,7 +1562,7 @@ EOF
 
 **Read `app/p/[slug]/pdf/route.ts` first** and mirror its structure, its param signature and its 404 style.
 
-- [ ] **Step 1: Write the route**
+- [x] **Step 1: Write the route**
 
 Create `app/p/[slug]/thumb/route.ts`:
 
@@ -1621,13 +1621,13 @@ export async function GET(
 
 The `new Uint8Array(page.pdfThumb)` wrapper is the `Bytes`-on-the-way-out idiom the PDF spec established; Prisma hands back a `Buffer` and `BodyInit` wants a view.
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 npm run typecheck && npm run lint
 ```
 
-- [ ] **Step 3: Check the 404 paths by hand**
+- [x] **Step 3: Check the 404 paths by hand**
 
 ```bash
 npm run dev
@@ -1641,7 +1641,7 @@ curl -si http://localhost:3000/p/<an-existing-pdf-slug>/thumb | head -1
 
 Expected: `404` for the first two, and `404` for the third as well — every PDF predates this feature, and nothing has written a thumbnail yet. Task 13 is what makes this route return `200`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add app/p/\[slug\]/thumb/route.ts
@@ -1667,7 +1667,7 @@ The one new dependency in this plan, and the one part of it that cannot be settl
 - Produces: `THUMB_WIDTH`, `renderPdfThumbnail(file: File): Promise<Blob | null>`. Task 13 consumes it.
 - No test. It needs a DOM canvas and a web worker, so it is not a `lib/` module — see the comment in Step 2.
 
-- [ ] **Step 1: Install**
+- [x] **Step 1: Install**
 
 ```bash
 npm install pdfjs-dist
@@ -1682,7 +1682,7 @@ node -e "console.log(require('./node_modules/pdfjs-dist/package.json').version)"
 
 Recent majors bundle types; do not add `@types/pdfjs-dist` unless the above finds none.
 
-- [ ] **Step 2: Write the renderer**
+- [x] **Step 2: Write the renderer**
 
 Create `components/admin/pdf-thumbnail.ts`:
 
@@ -1790,7 +1790,7 @@ Three version-dependent details to resolve against the copy you installed, rathe
 2. **The worker path.** `pdfjs-dist/build/pdf.worker.min.mjs` is correct for 4.x and 5.x. If the file is not there, `ls node_modules/pdfjs-dist/build/` and use what is.
 3. **The entry point.** If `await import("pdfjs-dist")` fails to resolve or the build complains about Node built-ins, use `pdfjs-dist/legacy/build/pdf.mjs`.
 
-- [ ] **Step 3: Verify the build survives the new dependency**
+- [x] **Step 3: Verify the build survives the new dependency**
 
 ```bash
 npm run typecheck && npm run lint && npm run build
@@ -1800,7 +1800,7 @@ npm run typecheck && npm run lint && npm run build
 
 Known failure mode: a complaint about the optional `canvas` package, which pdf.js references for its Node path. It is unreachable from a `"use client"` module, and the fix is to tell the bundler so in `next.config.ts` — check the pdf.js release notes for the current incantation rather than copying an old one from a blog. **Do not** install `canvas`; it is the native dependency this whole design refuses.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add package.json package-lock.json components/admin/pdf-thumbnail.ts next.config.ts
@@ -1828,7 +1828,7 @@ Two changes to the admin's page form(s): a PDF selection must never submit, and 
 - Consumes: `renderPdfThumbnail` (Task 12).
 - Produces: a `thumb` field in the `FormData` posted to `onSubmitPdf`. Task 10 already reads it.
 
-- [ ] **Step 1: Audit the current submit path**
+- [x] **Step 1: Audit the current submit path**
 
 ```bash
 grep -n "onFile\|requestSubmit\|onChange\|<form\|onSubmit\|onSubmitPdf" components/admin/PageEditor.tsx components/admin/NewPageForm.tsx
@@ -1837,7 +1837,7 @@ grep -rn "onFile=" components/
 
 You are looking for anything that calls a server action, closes the sheet, or calls `requestSubmit()` from a file-selection handler. Write down what you find before changing it — the fix is different depending on whether the auto-submit is in the drop zone, in the form, or in the sheet that wraps it.
 
-- [ ] **Step 2: Add the staging state**
+- [x] **Step 2: Add the staging state**
 
 Alongside the existing `pdfFile` state:
 
@@ -1850,7 +1850,7 @@ Alongside the existing `pdfFile` state:
   const thumbJob = useRef<Promise<Blob | null> | null>(null);
 ```
 
-- [ ] **Step 3: Kick the render off when the file is staged**
+- [x] **Step 3: Kick the render off when the file is staged**
 
 Inside `handleFile`'s pdf branch, after the existing `setPdfFile(file)`:
 
@@ -1873,7 +1873,7 @@ Inside `handleFile`'s pdf branch, after the existing `setPdfFile(file)`:
 
 Import it: `import { renderPdfThumbnail } from "@/components/admin/pdf-thumbnail";`
 
-- [ ] **Step 4: Send it, in the submit handler's pdf branch**
+- [x] **Step 4: Send it, in the submit handler's pdf branch**
 
 ```tsx
       if (kind === "pdf") {
@@ -1905,7 +1905,7 @@ Where the existing code resets state after a successful create, add:
       thumbJob.current = null;
 ```
 
-- [ ] **Step 5: Show that it is working**
+- [x] **Step 5: Show that it is working**
 
 Next to the drop zone, under the staged filename:
 
@@ -1919,7 +1919,7 @@ Next to the drop zone, under the staged filename:
 
 English — this is admin copy. **It must not gate the Save button.** The existing `hasContent` rule stays exactly as it is: a render still in flight is not a reason she cannot save, because submit awaits the job anyway.
 
-- [ ] **Step 6: Make selection stop submitting**
+- [x] **Step 6: Make selection stop submitting**
 
 Whatever Step 1 found, the target behaviour is:
 
@@ -1930,7 +1930,7 @@ Whatever Step 1 found, the target behaviour is:
 
 If the drop zone's `onFile` prop is wired to an action, unwire it: the zone's job is to hand a `File` upward, which is what its own comment says — *"Enforcing a size cap here would mean knowing which cap applies, and that is a question about the file's kind, which the caller resolves."* The same argument applies to submitting.
 
-- [ ] **Step 7: Verify**
+- [x] **Step 7: Verify**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1953,7 +1953,7 @@ npm run dev
 9. Drop a `.txt` renamed to `.pdf`. Expected: the existing `validatePagePdf` error, and no page created.
 10. Drop a password-protected PDF. Expected: it saves, with the glyph. The render failed and the upload did not.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add components/admin/
@@ -1978,7 +1978,7 @@ EOF
 - Produces: `PdfPreview` gains `thumbVersion: number | null`.
 - **Breaking:** both call sites must pass it. Required rather than optional, for the reason `readPageKind`'s `pdfSize` argument is required: an omitted signal compiles fine and silently renders the wrong thing forever.
 
-- [ ] **Step 1: Add the branch**
+- [x] **Step 1: Add the branch**
 
 `components/ui/PdfPreview.tsx` — keep the existing glyph branch exactly as it is and add the image branch above it:
 
@@ -2037,7 +2037,7 @@ export function PdfPreview({
 
 The file-size caption belongs only to the glyph branch. There is no room for both, the picture is the better cue, and the size is still shown in the admin editor's drop zone where it is a fact about an upload rather than decoration.
 
-- [ ] **Step 2: Pass the version from both lists**
+- [x] **Step 2: Pass the version from both lists**
 
 In `components/student/FilesTab.tsx` and `components/admin/PageList.tsx`, wherever `<PdfPreview …>` is rendered:
 
@@ -2051,7 +2051,7 @@ In `components/student/FilesTab.tsx` and `components/admin/PageList.tsx`, wherev
 
 `new Date(...)` around it rather than `.getTime()` directly: `pdfThumbAt` crosses the RSC boundary as a `Date` today, and this survives it arriving as a string if a caller ever serialises it.
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -2059,7 +2059,7 @@ npm run typecheck && npm run lint && npm test
 
 Expected: `typecheck` names any `PdfPreview` call site you missed — including `app/f/[token]/page.tsx` if it renders one of these lists. That file needs no other change: it renders the same components and picks the picture up for free.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add components/ui/PdfPreview.tsx components/student/FilesTab.tsx components/admin/PageList.tsx
@@ -2084,7 +2084,7 @@ EOF
 **Interfaces:**
 - Produces: `tileActionClass`. Task 16 consumes it.
 
-- [ ] **Step 1: Add it to `card-styles.ts`**
+- [x] **Step 1: Add it to `card-styles.ts`**
 
 Append:
 
@@ -2099,11 +2099,11 @@ export const tileActionClass =
 
 Copy the value from `PageList`'s existing `pageActionClass` rather than from here, in case it has drifted since this plan was written.
 
-- [ ] **Step 2: Use it in `PageList`**
+- [x] **Step 2: Use it in `PageList`**
 
 Delete the local `const pageActionClass = …` declaration, add `tileActionClass` to the existing `@/components/card-styles` import, and rename its three or four uses. Do not touch the hand-written `PencilIcon` and `DownloadIcon` in that file — they work, and churning them is not what this task is for.
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -2112,7 +2112,7 @@ grep -rn "pageActionClass" components/
 
 Expected: the tree passes and the grep finds nothing.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add components/card-styles.ts components/admin/PageList.tsx
@@ -2139,7 +2139,7 @@ EOF
 
 **Icons come from `lucide-react`**, which is already a dependency and is already used by `components/whiteboard/BoardToolbar.tsx` and `components/admin/FormatPopover.tsx`. `PageList`'s hand-written SVGs are left alone: they exist and re-drawing icons that are already in the bundle is duplication, not consistency.
 
-- [ ] **Step 1: Add the imports and the copy state**
+- [x] **Step 1: Add the imports and the copy state**
 
 ```tsx
 import { Check, KeyRound, Link2, Trash2 } from "lucide-react";
@@ -2159,7 +2159,7 @@ Beside the existing confirm state:
   } | null>(null);
 ```
 
-- [ ] **Step 2: Add the copy handler**
+- [x] **Step 2: Add the copy handler**
 
 ```tsx
   async function handleCopyInvite(group: GroupSummary) {
@@ -2190,7 +2190,7 @@ Beside the existing confirm state:
   }
 ```
 
-- [ ] **Step 3: Replace the tile's `action` slot**
+- [x] **Step 3: Replace the tile's `action` slot**
 
 Inside the `visible.map`, before the `<Tile>`:
 
@@ -2280,7 +2280,7 @@ Then the slot itself. `claimed` decides which of the first two icons appears; `c
 
 Substitute the state setters' real names — `setConfirmingRegen` was the pre-sign-in name and the reset control may have renamed it.
 
-- [ ] **Step 4: Delete the printed invite URL**
+- [x] **Step 4: Delete the printed invite URL**
 
 Find and remove the `<code>` block that renders `/g/{group.slug}?k={group.chatToken}`, together with the text button beneath it that opened the reset confirm. The icons replace both.
 
@@ -2293,7 +2293,7 @@ Find and remove the `<code>` block that renders `/g/{group.slug}?k={group.chatTo
 
 The spec that wrote that sentence also asks the confirm to hand her the fresh link afterwards. It now does, without a second surface: the reset already calls `router.refresh()`, the tile flips to unclaimed, and the copy icon appears in place.
 
-- [ ] **Step 5: Add the clipboard fallback**
+- [x] **Step 5: Add the clipboard fallback**
 
 Below the confirm blocks for the same row:
 
@@ -2314,7 +2314,7 @@ Below the confirm blocks for the same row:
               )}
 ```
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -2335,7 +2335,7 @@ npm run dev
 7. Hover each icon and confirm a tooltip. Tab to each and confirm a screen reader would hear the student's name, not just "Delete".
 8. Click a tile's title. It still opens `/g/<slug>?k=…` — the icons sit in `Tile`'s `action` slot, which is `relative z-10` precisely so it does not eat the stretched link.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add components/admin/GroupList.tsx
@@ -2360,7 +2360,7 @@ EOF
 - Modify: `CLAUDE.md`
 - Modify: `docs/DEPLOYMENT.md`
 
-- [ ] **Step 1: The routes table**
+- [x] **Step 1: The routes table**
 
 Add a row, in the block with the other `/p/` routes:
 
@@ -2370,7 +2370,7 @@ Add a row, in the block with the other `/p/` routes:
 
 Update the `/g/[slug]` row's notes: a teacher session now also adds the *Back to admin* link and the header line naming the student, and the live-board banner is suppressed for her.
 
-- [ ] **Step 2: *Files: pages and links* — the thumbnail paragraph**
+- [x] **Step 2: *Files: pages and links* — the thumbnail paragraph**
 
 Add after the existing PDF material:
 
@@ -2383,7 +2383,7 @@ Add after the existing PDF material:
 - That `savePage` writes both columns on every call, and why a *stale* preview is worse than a missing one.
 - That PDFs uploaded before this change have no preview and get one by being re-uploaded. There is deliberately no backfill.
 
-- [ ] **Step 3: *Whiteboards* — the leave guard**
+- [x] **Step 3: *Whiteboards* — the leave guard**
 
 Add:
 
@@ -2393,20 +2393,20 @@ Add:
 - `pagehide` sends a `sendBeacon` discard, gated on `!event.persisted`, **not** gated on the board being dirty — because `liveBoards.open()` returns false when one is already open and `/open` turns that into a 409, so an abandoned board breaks the *next* board's live view for the life of the process. And `pagehide` rather than `beforeunload` because `beforeunload` fires before she has answered the prompt.
 - Browser Back is an **accepted, unclosable gap**, in the same register as the existing note that a sandboxed frame may navigate itself.
 
-- [ ] **Step 4: The Students tab and the greeting**
+- [x] **Step 4: The Students tab and the greeting**
 
 - The Students tab: three icons — copy invite (unclaimed only), reset sign-in / new invite link (both states, label switching), delete. The invite URL is copied absolute from `window.location.origin` rather than printed.
 - `lib/student-greeting.ts` has two exports: `greeting` takes the first name for the student in French, `teacherPageLabel` takes the full name for Jenn in English, and the caller suppresses both on the everyone group.
 
-- [ ] **Step 5: Conventions**
+- [x] **Step 5: Conventions**
 
 Add `tileActionClass` to the sentence about `components/card-styles.ts`.
 
-- [ ] **Step 6: `docs/DEPLOYMENT.md`**
+- [x] **Step 6: `docs/DEPLOYMENT.md`**
 
 Item 11 currently ties `client_max_body_size 4m` to `MAX_PDF_BYTES`. Add `MAX_THUMB_BYTES` beside it: a PDF submission now carries up to 3 MB of document **plus** up to 128 KB of preview, and raising either constant is as much an nginx question as raising the other. That sentence is what stops the next person discovering it through a raw 413 that Next never sees.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add CLAUDE.md docs/DEPLOYMENT.md
@@ -2422,7 +2422,7 @@ EOF
 
 ## Task 18: Full verification
 
-- [ ] **Step 1: Run CI's sequence, in CI's order**
+- [x] **Step 1: Run CI's sequence, in CI's order**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test && npm run build
@@ -2430,7 +2430,7 @@ npx prisma generate && npm run lint && npm run typecheck && npm test && npm run 
 
 Expected: all five pass. `npm run build` last because it is the one that catches a bundled worker that typechecks and will not build.
 
-- [ ] **Step 2: Confirm nothing leaked into a student's bundle**
+- [x] **Step 2: Confirm nothing leaked into a student's bundle**
 
 ```bash
 grep -rn "pdfjs" --include="*.ts" --include="*.tsx" components/ app/ lib/ | grep -v node_modules
@@ -2438,7 +2438,7 @@ grep -rn "pdfjs" --include="*.ts" --include="*.tsx" components/ app/ lib/ | grep
 
 Expected: exactly one hit, the dynamic `import()` inside `components/admin/pdf-thumbnail.ts`. A static `import … from "pdfjs-dist"` anywhere, or any import of that module from outside `components/admin/`, means a PDF renderer is being shipped somewhere it should not be.
 
-- [ ] **Step 3: Confirm no authorisation rule moved**
+- [x] **Step 3: Confirm no authorisation rule moved**
 
 ```bash
 git diff --stat main -- lib/chat-access.ts lib/shelf-access.ts lib/student-gate.ts lib/student-tokens.ts middleware.ts lib/session.ts
@@ -2446,7 +2446,7 @@ git diff --stat main -- lib/chat-access.ts lib/shelf-access.ts lib/student-gate.
 
 Expected: empty. This change adds no access rule and modifies none; a diff here means something went wrong.
 
-- [ ] **Step 4: Confirm `readPageKind` was not "improved"**
+- [x] **Step 4: Confirm `readPageKind` was not "improved"**
 
 ```bash
 git diff main -- lib/page-kind.ts
@@ -2455,6 +2455,14 @@ git diff main -- lib/page-kind.ts
 Expected: empty. `pdfThumbAt` is deliberately **not** a discriminator: a row with a thumbnail and no document is a broken row, and resolving it as `"pdf"` would render an `<img>` with nothing behind it.
 
 - [ ] **Step 5: The manual pass**
+
+> **Left open deliberately.** Every manual check in this plan (Task 4 step 9,
+> Task 6 step 5, Task 11 step 3, Task 13 step 8, Task 16 step 7, and the sweep
+> below) needs a teacher session, and signing in is a WebAuthn passkey ceremony
+> that cannot be driven from a terminal. Task 11 step 3 was completed — the
+> three 404 paths need no login and were confirmed against a dev server. The
+> rest are for a human at a browser. Everything automated — lint, typecheck,
+> 671 tests, build — passes.
 
 The per-task manual checks are the detailed ones. This is the sweep across them, on one `npm run dev`:
 
@@ -2481,11 +2489,11 @@ The per-task manual checks are the detailed ones. This is the sweep across them,
 | 19 | Key icon on a claimed student, confirm | flips to unclaimed; the link icon appears and carries the **new** token |
 | 20 | Trash icon | delete confirm unchanged; the everyone row still cannot be deleted |
 
-- [ ] **Step 6: Update the plan file**
+- [x] **Step 6: Update the plan file**
 
 Tick every checkbox in this document that you completed, so the file records what was actually done.
 
-- [ ] **Step 7: Final commit**
+- [x] **Step 7: Final commit**
 
 ```bash
 git add docs/superpowers/plans/2026-08-04-teacher-ergonomics.md
