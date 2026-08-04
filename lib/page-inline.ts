@@ -8,6 +8,7 @@ import {
   type Replacement,
 } from "@/lib/page-refs";
 import { isAllowedAssetUrl, SKIP_REASONS, type RefKind } from "@/lib/asset-policy";
+import { fetchAsset } from "@/lib/asset-fetch";
 import type { AssetFetcher, FetchedAsset } from "@/lib/asset-fetch";
 
 export type SkippedRef = { url: string; reason: string };
@@ -175,4 +176,11 @@ function dataUri(asset: FetchedAsset): string {
   const media =
     asset.contentType.split(";")[0].trim() || "application/octet-stream";
   return `data:${media};base64,${Buffer.from(asset.bytes).toString("base64")}`;
+}
+
+// The injected form above is the tested one; this is the one-line binding the
+// three write paths share, so none of them has to know which fetcher or which
+// budget is the right one.
+export function inlinePage(html: string): Promise<InlineResult> {
+  return inlinePageAssets(html, fetchAsset, inlineBudget(html));
 }

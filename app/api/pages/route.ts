@@ -5,6 +5,7 @@ import { savePage } from "@/lib/pages";
 import { readPageKind } from "@/lib/page-kind";
 import { parsePagePayload } from "@/lib/page-payload";
 import { MAX_PAGE_BYTES } from "@/lib/page-html";
+import { inlinePage } from "@/lib/page-inline";
 import { readBoundedBody } from "@/lib/bounded-body";
 
 // Hash both sides first so the comparison is over two equal-length buffers:
@@ -121,8 +122,24 @@ async function publish(request: Request): Promise<NextResponse> {
     }
   }
 
-  const saved = await savePage({ slug, kind: "html", title, html, groupIds });
+  // Between validation and the save, so what lands in the database is the
+  // self-contained document. /p/[slug]/raw still serves page.html byte for byte,
+  // which is what keeps the download-and-re-edit round trip honest.
+  const inlined = await inlinePage(html);
+
+  const saved = await savePage({
+    slug,
+    kind: "html",
+    title,
+    html: inlined.html,
+    groupIds,
+  });
 
   const origin = process.env.ORIGIN ?? new URL(request.url).origin;
-  return NextResponse.json({ url: `${origin}/p/${saved}` }, { status: 201 });
+  // `skipped` is always present, empty included: a caller that has to test for
+  // the key's existence will eventually forget to.
+  return NextResponse.json(
+    { url: `${origin}/p/${saved}`, skipped: inlined.skipped },
+    { status: 201 },
+  );
 }
