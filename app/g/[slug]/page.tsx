@@ -17,6 +17,8 @@ import { CardHeading } from "@/components/student/CardHeading";
 import { ChatFab } from "@/components/chat/ChatFab";
 import { StreamProvider } from "@/components/StreamProvider";
 import { getCurrentTeacher } from "@/lib/session";
+import { studentGate } from "@/lib/student-gate";
+import { StudentAuthPanel } from "@/components/student/StudentAuthPanel";
 import { listWhiteboards } from "@/lib/whiteboards";
 import { boardLabels } from "@/lib/whiteboard-names";
 import { BoardTab } from "@/components/whiteboard/BoardTab";
@@ -49,25 +51,45 @@ export default async function GroupPage({
   const { slug } = await params;
   const { date, tab: tab_ } = await searchParams;
 
-  const group = await prisma.group.findUnique({ where: { slug } });
+  // An explicit select rather than the whole row, because one of these columns
+  // is a password hash and this file renders into a client tree. It is read for
+  // exactly one boolean, below, and never referenced again.
+  const group = await prisma.group.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      name: true,
+      isEveryone: true,
+      chatToken: true,
+      passwordHash: true,
+    },
+  });
   if (!group) notFound();
 
-  // The card is public; everything else needs the token. An untokened visitor
-  // sees exactly what this page rendered before chat existed.
+  // The card is public; everything else needs the token AND an account. An
+  // untokened visitor sees exactly what this page rendered before chat existed.
   const presented = readToken(
     undefined,
     (await cookies()).get(cookieNameFor(slug))?.value,
   );
-  const unlocked =
-    !group.isEveryone &&
-    group.chatToken !== null &&
-    presented === group.chatToken;
 
   // Jenn opens a student's page from the admin. chatRole already treats her
   // session as the teacher regardless of the token, so the only thing left is
   // giving her the two controls that used to live on /admin/[slug].
   const teacher = await getCurrentTeacher();
   const viewerIsTeacher = Boolean(teacher);
+
+  // One rule, in one place, with a test that enumerates every state — see
+  // lib/student-gate.ts. `unlocked` is derived from it rather than computed
+  // beside it, so the panel and the tabs cannot disagree about who is signed in.
+  const gate = studentGate({
+    isTeacher: viewerIsTeacher,
+    isEveryone: group.isEveryone,
+    chatToken: group.chatToken,
+    presented,
+    claimed: group.passwordHash !== null,
+  });
+  const unlocked = gate === "signed-in";
 
   // The everyone group has no chat but does show its own files, so its shelf
   // is public — that is the "someday" case the spec left room for.
@@ -194,6 +216,35 @@ export default async function GroupPage({
             board: unlocked,
           }}
         />
+      )}
+
+      {(gate === "signup" || gate === "login" || gate === "signed-in") && (
+        <StudentAuthPanel slug={slug} mode={gate} />
+      )}
+
+      {/* Teacher-facing, and therefore English and static — no client component
+          needed. Rendered here rather than inside StudentAuthPanel because both
+          notices name the STUDENT, and the student's name is deliberately
+          absent from the public page. Keeping it on a teacher-only branch is
+          what stops a public visitor's HTML from ever containing it. */}
+      {gate === "unclaimed" && (
+        <div className="mx-auto mb-8 w-full max-w-[560px] rounded-2xl border border-[var(--card-line)] bg-[var(--card-paper-back)] p-5 text-sm text-[var(--card-ink)]">
+          <p className="mb-2">
+            {group.name} hasn&apos;t signed up yet. Share this link once — it
+            lets them create their account:
+          </p>
+          <code className="break-all text-xs">
+            /g/{slug}?k={group.chatToken}
+          </code>
+        </div>
+      )}
+
+      {gate === "teacher-stale" && (
+        <div className="mx-auto mb-8 w-full max-w-[560px] rounded-2xl border border-[var(--card-line)] bg-[var(--card-paper-back)] p-5 text-sm text-[var(--card-ink)]">
+          Your link for {group.name} is out of date — {group.name} has signed up
+          since, which changes it. Open this student from the admin Students tab
+          to unlock the chat and boards.
+        </div>
       )}
 
       {unlocked ? (
