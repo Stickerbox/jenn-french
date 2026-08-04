@@ -427,11 +427,11 @@ else
   choose_artifact          # sets INDEX, TITLE, REFS
 fi
 
-# Keep NAME alive for now. Two blocks further down still read it — the extras
-# warning and the old title extraction — and this script runs under `set -u`, so
-# removing it here would abort with "NAME: unbound variable" before Task 11
-# deletes its last use.
-NAME=$(basename "$(dirname "$(dirname "$INDEX")")")
+# describe_artifacts reports an unreadable or non-UTF-8 artifact as this rather
+# than throwing, so the rest of the list stays selectable. Refuse it here.
+if [ "$TITLE" = "(unreadable)" ]; then
+  die "Could not read that artifact as UTF-8 text."
+fi
 
 # An artifact that is not self-contained loses whatever it links to: the site's
 # CSP blocks everything a page loads from elsewhere, so those files go missing
@@ -468,54 +468,8 @@ fi
 #
 # The title matters more than it looks: the server derives the page slug from it
 # when the payload sends no slug, and a slug never moves again once created. A
-# mangled title bakes in a mangled bookmark.
-TITLE=$(osascript -l JavaScript -e '
-ObjC.import("Foundation");
-// &amp; decodes LAST. Doing it first would turn a deliberately double-escaped
-// &amp;lt; into a bare <, losing the escaping the author asked for.
-function decode(s) {
-  return s
-    .replace(/&#x([0-9a-fA-F]+);/g, function (_, h) { return String.fromCodePoint(parseInt(h, 16)); })
-    .replace(/&#(\d+);/g, function (_, d) { return String.fromCodePoint(parseInt(d, 10)); })
-    .replace(/&quot;/g, "\"").replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-}
-function run(argv) {
-  var s = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null);
-  // A nil return covers both an unreadable file and one that is not UTF-8.
-  // Checking .js === undefined is the working test; s.isNil is a *method*, so
-  // referencing it without calling it is always truthy.
-  if (s.js === undefined) { return "__PUBLISH_UNREADABLE__"; }
-  var m = s.js.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  return decode(m ? m[1] : argv[1]).trim();
-}' "$INDEX" "$NAME")
-
-if [ "$TITLE" = "__PUBLISH_UNREADABLE__" ]; then
-  die "Could not read '$INDEX' as UTF-8 text."
-fi
-
-# decode() above knows the five core entities and every numeric reference, which
-# is all a UTF-8 artifact ever contains. A surviving &name; means something like
-# &eacute;, and textutil is the only stock tool that knows the full table.
-#
-# -inputencoding UTF-8 is not optional. The string is already UTF-8 by this
-# point, and without the flag textutil reads those bytes as Latin-1 and turns
-# Crêpes into CrÃªpes.
-#
-# Known and accepted: textutil parses its input as HTML, so a title containing
-# literal tag-like text would have it stripped. That needs a title holding both
-# an exotic entity and something shaped like a tag, and the damage is cosmetic.
-if printf '%s' "$TITLE" | grep -q '&[a-zA-Z][a-zA-Z0-9]*;'; then
-  ENTDIR=$(mktemp -d)
-  printf '%s' "$TITLE" > "$ENTDIR/title.html"
-  # Written as `if DECODED=$(...)` rather than `DECODED=$(...) && ...` because
-  # under `set -e` the && form makes it ambiguous whether a failure aborts.
-  # A failure here is not fatal — the partially decoded title still publishes.
-  if DECODED=$(textutil -convert txt -inputencoding UTF-8 -stdout "$ENTDIR/title.html" 2>/dev/null); then
-    TITLE="$DECODED"
-  fi
-  rm -rf "$ENTDIR"
-fi
+# mangled title bakes in a mangled bookmark. It is extracted exactly once, in
+# describe_artifacts, so the string the picker showed is the string sent here.
 
 # Only the file *path* crosses the process boundary, so 2 MB of arbitrary HTML
 # never meets shell word-splitting or quoting.
