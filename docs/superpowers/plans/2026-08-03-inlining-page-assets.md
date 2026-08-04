@@ -82,7 +82,7 @@ component. That is what makes `Buffer` legitimate in them.
 - Create: `lib/asset-policy.ts`
 - Test: `tests/lib/asset-policy.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/asset-policy.test.ts`:
 
@@ -215,12 +215,12 @@ describe("assetKindForUrl", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/asset-policy.test.ts`
 Expected: FAIL — `Failed to resolve import "@/lib/asset-policy"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/asset-policy.ts`:
 
@@ -329,13 +329,13 @@ export function contentTypeMatches(
 }
 ```
 
-- [ ] **Step 4: Run the test**
+- [x] **Step 4: Run the test**
 
 Run: `npx vitest run tests/lib/asset-policy.test.ts`
 Expected: PASS. This module imports nothing but `lib/page-html.ts`, so it stands
 on its own — nothing here waits on a later task.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/asset-policy.ts tests/lib/asset-policy.test.ts
@@ -362,7 +362,7 @@ markup parser and not Markdown for the same reason: the shapes are narrow and
 known, and a dependency is not free. Nothing validates markup — an unrecognised
 shape is left alone, which means it stays blocked rather than becoming broken.
 
-- [ ] **Step 1: Write the failing test for document refs**
+- [x] **Step 1: Write the failing test for document refs**
 
 Create `tests/lib/page-refs.test.ts`:
 
@@ -506,12 +506,12 @@ not in document order. `lib/page-inline.ts` sorts them itself and
 order they arrive in. The test pins what the matcher actually does so a later
 reader is not misled.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/page-refs.test.ts`
 Expected: FAIL — `Failed to resolve import "@/lib/page-refs"`.
 
-- [ ] **Step 3: Write the types, the attribute helpers and the document pass**
+- [x] **Step 3: Write the types, the attribute helpers and the document pass**
 
 Create `lib/page-refs.ts`:
 
@@ -729,13 +729,13 @@ export function findExternalRefs(html: string): ExternalRef[] {
 }
 ```
 
-- [ ] **Step 4: Run the document tests**
+- [x] **Step 4: Run the document tests**
 
 Run: `npx vitest run tests/lib/page-refs.test.ts -t findExternalRefs`
 Expected: FAIL — `findCssRefs is not a function`. Only the two style-block cases
 fail; every other case in that describe passes. Step 5 completes it.
 
-- [ ] **Step 5: Add the CSS pass and the replacement helpers**
+- [x] **Step 5: Add the CSS pass and the replacement helpers**
 
 Append to `lib/page-refs.ts`:
 
@@ -829,7 +829,7 @@ export function applyReplacements(
 }
 ```
 
-- [ ] **Step 6: Add the CSS and helper tests**
+- [x] **Step 6: Add the CSS and helper tests**
 
 Append to `tests/lib/page-refs.test.ts`:
 
@@ -926,12 +926,12 @@ describe("applyReplacements", () => {
 });
 ```
 
-- [ ] **Step 7: Run both lib test files**
+- [x] **Step 7: Run both lib test files**
 
 Run: `npx vitest run tests/lib/page-refs.test.ts tests/lib/asset-policy.test.ts`
 Expected: PASS, both files.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add lib/page-refs.ts tests/lib/page-refs.test.ts
@@ -956,7 +956,7 @@ counting bytes as they arrive is what actually bounds how much a caller can make
 the process buffer" — applies word for word to a response from a third-party
 host. That is why this is a refactor and not a second bounded read.
 
-- [ ] **Step 1: Extract the byte-level read**
+- [x] **Step 1: Extract the byte-level read**
 
 Replace the whole of `lib/bounded-body.ts` with:
 
@@ -1009,14 +1009,14 @@ export async function readBoundedBody(
 }
 ```
 
-- [ ] **Step 2: Verify nothing that used it changed shape**
+- [x] **Step 2: Verify nothing that used it changed shape**
 
 Run: `npx tsc --noEmit`
 Expected: no errors. `readBoundedBody` keeps its signature and its
 missing-body-means-empty-string behaviour, so `app/api/pages/route.ts:70` is
 untouched.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add lib/bounded-body.ts
@@ -1044,7 +1044,7 @@ it:** the allowlist is consulted *before* `fetch`; `redirect: "error"` is presen
 there is a timeout; the body read is bounded; the content type is checked before
 the bytes are used.
 
-- [ ] **Step 1: Write the implementation**
+- [x] **Step 1: Write the implementation**
 
 Create `lib/asset-fetch.ts`:
 
@@ -1114,12 +1114,12 @@ export const fetchAsset: AssetFetcher = async (url, kind) => {
 };
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npx tsc --noEmit`
 Expected: no errors.
 
-- [ ] **Step 3: Confirm the allowlist holds, without a browser**
+- [x] **Step 3: Confirm the allowlist holds, without a browser**
 
 Run:
 
@@ -1136,7 +1136,7 @@ for (const u of [
 
 Expected: `true`, then `false`, then `false`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add lib/asset-fetch.ts
@@ -1157,7 +1157,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Create: `lib/page-inline.ts`
 - Test: `tests/lib/page-inline.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/page-inline.test.ts`:
 
@@ -1387,12 +1387,12 @@ describe("inlineBudget", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/lib/page-inline.test.ts`
 Expected: FAIL — `Failed to resolve import "@/lib/page-inline"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/page-inline.ts`:
 
@@ -1577,7 +1577,7 @@ function dataUri(asset: FetchedAsset): string {
 }
 ```
 
-- [ ] **Step 4: Run the test**
+- [x] **Step 4: Run the test**
 
 Run: `npx vitest run tests/lib/page-inline.test.ts`
 Expected: PASS, 15 tests.
@@ -1585,12 +1585,12 @@ Expected: PASS, 15 tests.
 If the `@import` case fails on the exact base64, note that `Rk9OVA==` is
 `btoa("FONT")` — check the fake's body string rather than changing the assertion.
 
-- [ ] **Step 5: Run the whole suite and typecheck**
+- [x] **Step 5: Run the whole suite and typecheck**
 
 Run: `npm test && npx tsc --noEmit && npm run lint`
 Expected: all pass. Nothing outside `lib/` has changed yet.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/page-inline.ts tests/lib/page-inline.test.ts
@@ -1612,7 +1612,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Modify: `lib/page-inline.ts` (add the bound convenience wrapper)
 - Modify: `app/api/pages/route.ts:1-8` (imports), `:122-125` (the save and the reply)
 
-- [ ] **Step 1: Add the wrapper the three call sites share**
+- [x] **Step 1: Add the wrapper the three call sites share**
 
 Append to `lib/page-inline.ts`:
 
@@ -1637,7 +1637,7 @@ import type { AssetFetcher, FetchedAsset } from "@/lib/asset-fetch";
 backfill in Task 10 relies on that too, since Node's type stripper removes
 annotations without working out which imports were types.
 
-- [ ] **Step 2: Wire the route**
+- [x] **Step 2: Wire the route**
 
 In `app/api/pages/route.ts`, add to the imports:
 
@@ -1679,12 +1679,12 @@ with:
   );
 ```
 
-- [ ] **Step 3: Typecheck and lint**
+- [x] **Step 3: Typecheck and lint**
 
 Run: `npx tsc --noEmit && npm run lint`
 Expected: both pass.
 
-- [ ] **Step 4: Prove it end to end against the dev server**
+- [x] **Step 4: Prove it end to end against the dev server**
 
 This is the first point where the whole path can be exercised without a browser.
 
@@ -1721,7 +1721,7 @@ If `grep -c artifactcdn` returns non-zero, the fetch failed rather than the
 rewrite — re-run the `node --experimental-strip-types` check from Task 4 Step 3
 and confirm the box has outbound HTTPS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/page-inline.ts app/api/pages/route.ts
@@ -1743,7 +1743,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Modify: `components/admin/PagesTabClient.tsx:31`
 - Modify: `components/admin/PageEditor.tsx:27`, `:31-48`, `:94-96`, `:211-215`
 
-- [ ] **Step 1: Return the report from both actions**
+- [x] **Step 1: Return the report from both actions**
 
 In `app/page-actions.ts`, add to the imports:
 
@@ -1802,7 +1802,7 @@ export async function updatePage(
 
 `createLink` and `addShelfLink` are untouched: a link row has no `html`.
 
-- [ ] **Step 2: Widen the prop type through the one component in between**
+- [x] **Step 2: Widen the prop type through the one component in between**
 
 In `components/admin/PagesTabClient.tsx`, change line 31 from:
 
@@ -1818,7 +1818,7 @@ to:
 
 and add `PageSaveResult` to the existing `@/app/page-actions` type import.
 
-- [ ] **Step 3: Render the notice in PageEditor**
+- [x] **Step 3: Render the notice in PageEditor**
 
 In `components/admin/PageEditor.tsx`:
 
@@ -1886,12 +1886,12 @@ Then render it, after the existing `{error && …}` block (line 215):
 The key combines url and reason: the same URL can legitimately appear twice with
 different reasons, and a duplicate key would drop one of the two lines.
 
-- [ ] **Step 4: Typecheck, lint, test**
+- [x] **Step 4: Typecheck, lint, test**
 
 Run: `npx tsc --noEmit && npm run lint && npm test`
 Expected: all pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/page-actions.ts components/admin/PagesTabClient.tsx components/admin/PageEditor.tsx
@@ -1919,7 +1919,7 @@ out. This task only adds the line; if that spec's `gui_alert` and `die` changes
 have since landed, route this line through the same TTY test so the alert path
 carries it too.
 
-- [ ] **Step 1: Print what could not be inlined**
+- [x] **Step 1: Print what could not be inlined**
 
 In `tools/publish-dia-artifact.sh`, immediately after:
 
@@ -1952,7 +1952,7 @@ fi
 `|| []` matters: this same script publishes to whatever `$JENN_SITE` names, which
 may be a deployment that predates the field.
 
-- [ ] **Step 2: Update what the README says it warns about**
+- [x] **Step 2: Update what the README says it warns about**
 
 In `tools/README.md`, replace the "Extra files" bullet (lines 67-70):
 
@@ -1977,7 +1977,7 @@ with:
   unknown source, a fetch that failed, or a page that would go over 2 MB.
 ```
 
-- [ ] **Step 3: Check the script by hand against the dev server**
+- [x] **Step 3: Check the script by hand against the dev server**
 
 With `npm run dev` running and a Dia artifact present:
 
@@ -2005,7 +2005,7 @@ DIA_ARTIFACTS=/tmp/claude/artifacts ./tools/publish-dia-artifact.sh --local
 Expected: one `⚠` line naming `https://evil.example/x.js`, and no line about the
 Google stylesheet — it and its fonts were folded in.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tools/publish-dia-artifact.sh tools/README.md
@@ -2024,7 +2024,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 **Files:**
 - Modify: `tools/publish-extension/background.js:79-91`
 
-- [ ] **Step 1: Put the count in the notification and the detail in the console**
+- [x] **Step 1: Put the count in the notification and the detail in the console**
 
 Replace lines 85-91 of `tools/publish-extension/background.js`:
 
@@ -2071,13 +2071,13 @@ with:
 and is not redeployed with the site, so it will outlive at least one version that
 does not send the field.
 
-- [ ] **Step 2: Lint**
+- [x] **Step 2: Lint**
 
 Run: `npm run lint`
 Expected: pass. `eslint.config.mjs` ignores only `.next/**`, so `eslint .` already
 covers `tools/` and this file is linted today.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tools/publish-extension/background.js
@@ -2096,7 +2096,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 **Files:**
 - Create: `scripts/backfill-page-assets.mjs`
 
-- [ ] **Step 1: Write the script**
+- [x] **Step 1: Write the script**
 
 Create `scripts/backfill-page-assets.mjs`:
 
@@ -2157,7 +2157,7 @@ console.log(
 await prisma.$disconnect();
 ```
 
-- [ ] **Step 2: Dry-run it against a copy, not the live file**
+- [x] **Step 2: Dry-run it against a copy, not the live file**
 
 The database is a file, so a copy is the whole safety net:
 
@@ -2170,13 +2170,13 @@ DATABASE_URL="file:/tmp/claude/dev.db.before" \
 Expected: a count line, and one indented line per asset it could not include.
 Nothing throws.
 
-- [ ] **Step 3: Confirm it is idempotent**
+- [x] **Step 3: Confirm it is idempotent**
 
 Run the exact same command again.
 Expected: `0 rewritten`, and the same skipped lines as before — those are refs
 that stay in the document by design.
 
-- [ ] **Step 4: Run it for real on dev, then check one page**
+- [x] **Step 4: Run it for real on dev, then check one page**
 
 ```bash
 node --experimental-strip-types scripts/backfill-page-assets.mjs
@@ -2186,7 +2186,7 @@ curl -sS http://localhost:3000/p/<a-slug-it-rewrote>/raw | grep -c 'https://'
 Expected: whatever refs it reported as skipped, and nothing else. A count of `0`
 means the page is now entirely self-contained.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/backfill-page-assets.mjs
@@ -2214,7 +2214,7 @@ The invariant sentence stays true and must stay in place — no directive admits
 `https:`. What changes is that a document is now *made* self-contained instead of
 being required to arrive that way.
 
-- [ ] **Step 1: Replace the CDN sentence**
+- [x] **Step 1: Replace the CDN sentence**
 
 In `CLAUDE.md`, replace lines 183-184, which currently read:
 
@@ -2231,7 +2231,7 @@ render time; a self-contained document is the only kind that works, and
 publishing makes one. One residual is accepted and
 ```
 
-- [ ] **Step 2: Add the paragraph describing the inliner**
+- [x] **Step 2: Add the paragraph describing the inliner**
 
 Immediately after the paragraph that ends "…the session cookie is httpOnly with
 no `localStorage` in use." (around line 191), and before "There is no HTML
@@ -2275,7 +2275,7 @@ is ever uploaded. `scripts/backfill-page-assets.mjs` runs the same inliner over
 pages published before this existed.
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add CLAUDE.md
@@ -2293,7 +2293,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 
 **Files:** none
 
-- [ ] **Step 1: Run what CI runs, in CI's order**
+- [x] **Step 1: Run what CI runs, in CI's order**
 
 Run:
 
@@ -2304,7 +2304,7 @@ npx prisma generate && npm run lint && npx tsc --noEmit && npm test && npm run b
 Expected: all five pass. `.github/workflows/ci.yml` runs exactly this sequence;
 running it locally is what "done" means in this repo.
 
-- [ ] **Step 2: Confirm the CSP was not touched**
+- [x] **Step 2: Confirm the CSP was not touched**
 
 Run: `git diff main --stat -- app/p/`
 Expected: **no output.** Nothing under `app/p/` should have changed. If the raw
@@ -2312,7 +2312,7 @@ route or the iframe page appears in that diff, the implementation took the
 approach the spec rejected — stop and re-read
 `docs/superpowers/specs/2026-08-03-inlining-page-assets-design.md`.
 
-- [ ] **Step 3: Commit anything the build touched**
+- [x] **Step 3: Commit anything the build touched**
 
 ```bash
 git status --short
