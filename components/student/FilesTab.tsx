@@ -196,9 +196,13 @@ export function FilesTab({
                         // A worksheet's version count wins over the pin
                         // marker: versionCount starts at 1 (the blank is not a
                         // row), so this never fires for a page nobody has
-                        // saved a version of.
+                        // saved a version of. Gated on groupSlug the same way
+                        // dialogDue is above: /f/[token] passes null because
+                        // it is read-only, and the count badge implies a
+                        // chooser this tile does not open there — a badge
+                        // with no explanation is worse than none.
                         badge={
-                          versionCount(page.versions) > 1 ? (
+                          groupSlug && versionCount(page.versions) > 1 ? (
                             <span className="rounded-full bg-[var(--card-bleu)] px-2 py-0.5 text-xs font-semibold text-white">
                               {versionCount(page.versions)}
                             </span>

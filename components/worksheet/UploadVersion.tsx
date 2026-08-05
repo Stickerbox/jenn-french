@@ -29,13 +29,21 @@ export function UploadVersion({
   const [message, setMessage] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
 
+  // validatePagePdf and the route both answer in English, written for
+  // whoever reads a stack trace, not for a student — Jenn keeps the specific
+  // reason (she reads English), and a student gets this one sentence instead
+  // of "That PDF is larger than 3 MB." leaking through untranslated. The same
+  // split ShelfFab's stagePdf/submitPdf already make for the shelf's own PDF
+  // upload.
+  const studentUploadError = "Ce PDF n'a pas pu être téléversé.";
+
   async function handleFile(file: File) {
     setFileName(file.name);
 
     const checked = validatePagePdf(new Uint8Array(await file.arrayBuffer()));
     if (!checked.ok) {
       setState("error");
-      setMessage(checked.error);
+      setMessage(audience === "teacher" ? checked.error : studentUploadError);
       return;
     }
 
@@ -51,8 +59,9 @@ export function UploadVersion({
     });
 
     if (!response.ok) {
+      const reason = await response.text();
       setState("error");
-      setMessage(await response.text());
+      setMessage(audience === "teacher" ? reason : studentUploadError);
       return;
     }
 

@@ -81,8 +81,17 @@ export function SaveVersionButton({
     });
 
     if (!response.ok) {
+      // The route's own text is English ("That page is too large.", "Bad
+      // request") and written for whoever is debugging it, not for a
+      // student — the same split the branch above already makes, and the
+      // one this branch was missing. Jenn reads English, so her side keeps
+      // the specific reason; a student gets the one sentence above instead
+      // of a leaked server string.
+      const reason = await response.text();
       setState("error");
-      setMessage(await response.text());
+      setMessage(
+        audience === "teacher" ? reason : "L'enregistrement a échoué. Essaie encore.",
+      );
       return;
     }
 
