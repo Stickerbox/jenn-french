@@ -10,6 +10,7 @@ import { PinIcon } from "@/components/ui/PinIcon";
 import { PencilIcon } from "@/components/ui/PencilIcon";
 import { KindFilter } from "@/components/ui/KindFilter";
 import { SearchField } from "@/components/admin/SearchField";
+import { VersionChooser } from "@/components/worksheet/VersionChooser";
 import {
   pageGrid,
   pageSectionHeading,
@@ -21,6 +22,7 @@ import { filterPages } from "@/lib/admin-search";
 import { filterPagesByKind, type KindFilter as Kind } from "@/lib/page-filters";
 import type { PageKind } from "@/lib/page-kind";
 import { pageTarget } from "@/lib/page-target";
+import { versionCount } from "@/lib/page-versions";
 import { formatLongDate } from "@/lib/format";
 import { pageVersion } from "@/lib/page-version";
 import { cn } from "@/lib/utils";
@@ -38,6 +40,8 @@ export type ShelfPage = {
   // The preview's existence signal and its cache version; see PdfPreview.
   thumbAt: Date | null;
   addedByStudent: boolean;
+  worksheet: boolean;
+  versions: { fromTeacher: boolean; updatedAt: Date }[];
 };
 
 export function FilesTab({
@@ -46,6 +50,8 @@ export function FilesTab({
   canWrite,
   canDeleteAny = false,
   canEdit = false,
+  groupSlug,
+  studentName = "",
   onTogglePin,
   onDeleteLink,
 }: {
@@ -70,13 +76,26 @@ export function FilesTab({
   // NO NEW AUTHORITY IS GRANTED BY THIS. updatePage, updatePdfPage and
   // deletePage are all already requireTeacher(); this draws a control where
   // that authority already reached, so that the two screens agree about which
-  // tiles are editable.
+  // tiles are editable. Reused below to pick the chooser's audience: it is
+  // already exactly "is the viewer the teacher, on a shelf that has one".
   canEdit?: boolean;
+  // Null on /f/[token], which is read-only, and on the everyone group's public
+  // shelf at /g/all — pageTarget only builds a worksheet route when it is
+  // given a shelf to belong to, and neither of those is one: a version belongs
+  // to (page, student), and /f/[token] has no write path while /g/all has no
+  // student. Passing null there is what keeps a worksheet tile falling back to
+  // the public page instead of linking a visible tile at a 404.
+  groupSlug: string | null;
+  // The student whose shelf this is, for the chooser's teacher-facing labels
+  // ("Marie Dupont's answers"). Unused, and left empty, wherever groupSlug is
+  // null.
+  studentName?: string;
   onTogglePin?: (slug: string, pinned: boolean) => Promise<void>;
   onDeleteLink?: (slug: string) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind>("all");
+  const [chooserPage, setChooserPage] = useState<ShelfPage | null>(null);
 
   const visible = filterPagesByKind(filterPages(pages, query), kind);
   // Sections form over the filtered set — a heading above nothing would be a
@@ -125,12 +144,23 @@ export function FilesTab({
 
               <ul className={pageGrid}>
                 {section.pages.map((page) => {
-                  const target = pageTarget(page);
+                  const target = pageTarget(page, groupSlug);
                   // One expression for both previews; see PageList, which
                   // computes the same thing for the same reason.
                   const thumbVersion = page.thumbAt
                     ? new Date(page.thumbAt).getTime()
                     : null;
+                  // A worksheet tile opens the chooser instead of navigating
+                  // once there is more than the blank to pick from, or
+                  // whenever it is a pdf worksheet — a pdf opens in the
+                  // browser's own viewer, which has nowhere to put a save
+                  // control, so the chooser is its only surface even at one
+                  // version. `groupSlug` gates it the same way it gates
+                  // pageTarget's own worksheet branch: no shelf, no chooser.
+                  const dialogDue =
+                    Boolean(groupSlug) &&
+                    page.worksheet &&
+                    (versionCount(page.versions) > 1 || page.kind === "pdf");
                   return (
                     <li key={page.id}>
                       <PageTile
@@ -138,6 +168,14 @@ export function FilesTab({
                         newTab={target.newTab}
                         title={page.title}
                         eyebrow={formatLongDate(page.createdAt)}
+                        onClick={
+                          dialogDue
+                            ? (event) => {
+                                event.preventDefault();
+                                setChooserPage(page);
+                              }
+                            : undefined
+                        }
                         preview={
                           page.kind === "link" && page.url ? (
                             <LinkPreview url={page.url} />
@@ -155,10 +193,16 @@ export function FilesTab({
                             />
                           )
                         }
-                        // Kept for a read-only visitor: without it a page sitting
-                        // above a newer one looks like a sorting bug.
+                        // A worksheet's version count wins over the pin
+                        // marker: versionCount starts at 1 (the blank is not a
+                        // row), so this never fires for a page nobody has
+                        // saved a version of.
                         badge={
-                          page.pinnedAt && !canWrite ? (
+                          versionCount(page.versions) > 1 ? (
+                            <span className="rounded-full bg-[var(--card-bleu)] px-2 py-0.5 text-xs font-semibold text-white">
+                              {versionCount(page.versions)}
+                            </span>
+                          ) : page.pinnedAt && !canWrite ? (
                             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--card-paper)] text-[var(--card-bleu)] shadow-[var(--card-shadow)]">
                               <PinIcon filled />
                             </span>
@@ -247,6 +291,24 @@ export function FilesTab({
             </section>
           ))}
         </div>
+      )}
+
+      {chooserPage && groupSlug && (
+        <VersionChooser
+          groupSlug={groupSlug}
+          page={{
+            slug: chooserPage.slug,
+            title: chooserPage.title,
+            // worksheetOpenable already refuses "link", so a worksheet page
+            // reaching here is html or pdf; the fallback matches
+            // readPageKind's own default rather than inventing a third case.
+            kind: chooserPage.kind === "pdf" ? "pdf" : "html",
+          }}
+          versions={chooserPage.versions}
+          audience={canEdit ? "teacher" : "student"}
+          studentName={studentName}
+          onClose={() => setChooserPage(null)}
+        />
       )}
     </div>
   );

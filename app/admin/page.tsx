@@ -58,7 +58,7 @@ export default async function AdminPage({
   // costs to be in a single place.
   const groups = await prisma.group.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, name: true, isEveryone: true },
+    select: { id: true, name: true, slug: true, isEveryone: true },
   });
 
   return (
@@ -171,7 +171,7 @@ async function PagesTab({
   groups,
   edit,
 }: {
-  groups: { id: string; name: string; isEveryone: boolean }[];
+  groups: { id: string; name: string; slug: string; isEveryone: boolean }[];
   // The slug whose editor is open, from ?edit=. Read here and handed down
   // rather than held in client state: see the pencil's comment in PageList.
   edit: string | null;
@@ -201,7 +201,12 @@ async function PagesTab({
       <ThumbBackfill pages={missingThumbs} />
       <PagesTabClient
         pages={pages}
-        groups={groups.map((g) => ({ id: g.id, name: g.name }))}
+        groups={groups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          slug: g.slug,
+          isEveryone: g.isEveryone,
+        }))}
         everyoneName={everyoneName}
         today={new Date()}
         onTogglePin={setShelfPin}

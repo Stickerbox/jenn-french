@@ -45,6 +45,10 @@ export type PageSummary = {
   // The preview's existence signal and its cache version; see PdfPreview.
   thumbAt: Date | null;
   addedByStudent: boolean;
+  // Decides pageTarget's destination below. No `versions` field beside it:
+  // "All" is not a shelf, and the student chip already scopes the list
+  // without owning a shelf's rows to list them from.
+  worksheet: boolean;
   groupNames: string[];
   sharedWithEveryone: boolean;
 };
@@ -97,6 +101,7 @@ export function PageList({
   pages,
   everyoneName,
   group,
+  groupSlug,
   onGroup,
   canPin,
   onTogglePin,
@@ -112,6 +117,12 @@ export function PageList({
   // filter, which shelf a pin lands on, and a new page's default audience — so
   // it cannot live in here any more.
   group: string | null;
+  // The chip's group, as a slug rather than the name `group` carries — what
+  // pageTarget needs to build a worksheet route. Null under "All", where there
+  // is no shelf, and null for the everyone chip too: /g/all is public and has
+  // no student for a version to belong to, the same reason the everyone
+  // group's own shelf never sends one.
+  groupSlug: string | null;
   onGroup: (group: string | null) => void;
   // False when no student chip is active. "All" is not a shelf, so there is no
   // pin to toggle.
@@ -220,7 +231,7 @@ export function PageList({
 
             <ul className={pageGrid}>
               {section.pages.map((page) => {
-                const target = pageTarget(page);
+                const target = pageTarget(page, groupSlug);
                 // One expression for both previews, because one pair of columns
                 // now serves both kinds. Null means nothing has been captured
                 // yet, and each preview has its own working fallback for that —

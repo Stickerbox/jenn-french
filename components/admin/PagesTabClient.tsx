@@ -23,7 +23,7 @@ export function PagesTabClient({
   edit,
 }: {
   pages: AdminPage[];
-  groups: { id: string; name: string }[];
+  groups: { id: string; name: string; slug: string; isEveryone: boolean }[];
   everyoneName: string | null;
   today: Date;
   // Curried on groupId, so the client picks the shelf and the server still
@@ -38,6 +38,13 @@ export function PagesTabClient({
 }) {
   const { chip, setChip } = useAdminChip();
   const activeGroupId = defaultGroupId(chip, groups);
+  const activeGroup = groups.find((group) => group.id === activeGroupId) ?? null;
+  // The same rule pageTarget's caller applies on /g/[slug]: the everyone
+  // group's shelf is public and has no student for a version to belong to, so
+  // a worksheet tile filtered under its chip must fall back to the public
+  // page rather than link a tile at a route chatRole refuses.
+  const activeGroupSlug =
+    activeGroup && !activeGroup.isEveryone ? activeGroup.slug : null;
 
   // Which pin applies depends on the chip. With "All" selected nothing is
   // pinned, because "All" is not a shelf — so the Pinned section does not
@@ -55,6 +62,7 @@ export function PagesTabClient({
         pages={withPins}
         everyoneName={everyoneName}
         group={chip}
+        groupSlug={activeGroupSlug}
         onGroup={setChip}
         canPin={activeGroupId !== null}
         onTogglePin={

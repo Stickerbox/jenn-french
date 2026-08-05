@@ -201,6 +201,15 @@ export default async function GroupPage({
           canWrite={unlocked}
           canDeleteAny={viewerIsTeacher}
           canEdit={viewerIsTeacher}
+          // Null on the everyone group: its shelf at /g/all is rendered
+          // publicly and pageTarget has no isEveryone clause of its own — a
+          // worksheet flagged for everyone would otherwise draw a visible
+          // tile linking to /g/all/w/<slug>, which resolveWorksheet refuses
+          // because chatRole refuses the everyone group before anything
+          // else. This is where that gets closed: no shelf, no worksheet
+          // route, so the tile falls back to the public page.
+          groupSlug={group.isEveryone ? null : slug}
+          studentName={group.name}
           onTogglePin={setShelfPin.bind(null, group.id)}
           onDeleteLink={deleteShelfLink.bind(null, group.id)}
         />

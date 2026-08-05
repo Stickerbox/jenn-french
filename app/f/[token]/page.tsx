@@ -44,8 +44,11 @@ export default async function StudentFilesPage({
       </header>
 
       {/* Read-only. filesToken addresses this shelf and nothing else; a link
-          shared with a parent must not carry the power to add or pin. */}
-      <FilesTab pages={pages} today={today} canWrite={false} />
+          shared with a parent must not carry the power to add, pin, or open a
+          version chooser and save into it — groupSlug null is what keeps a
+          worksheet tile here pointed at the public page rather than a route
+          that writes. */}
+      <FilesTab pages={pages} today={today} canWrite={false} groupSlug={null} />
 
       <p className="mt-8 text-center">
         <Link

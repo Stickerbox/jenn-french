@@ -12,6 +12,7 @@ export function PageTile({
   badge,
   action,
   className,
+  onClick,
 }: {
   href: string;
   // Opens in a new tab. Two cases: an off-site link, and a PDF of ours — a
@@ -36,6 +37,12 @@ export function PageTile({
   badge?: ReactNode;
   action?: ReactNode;
   className?: string;
+  // A worksheet with more than one version, or any pdf worksheet, has a
+  // chooser to open instead of a document to open straight into. `href` stays
+  // the real destination regardless — a middle-click or a copied link still
+  // goes somewhere sensible — and the caller's handler calls preventDefault()
+  // when the dialog is due.
+  onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <div className={cn(pageTileFrame, className)}>
@@ -60,6 +67,7 @@ export function PageTile({
             href={href}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={onClick}
             className="block truncate font-[family-name:var(--card-font-serif)] text-[15px] text-[var(--card-ink)] after:absolute after:inset-0"
           >
             {title}
@@ -67,6 +75,7 @@ export function PageTile({
         ) : (
           <Link
             href={href}
+            onClick={onClick}
             className="block truncate font-[family-name:var(--card-font-serif)] text-[15px] text-[var(--card-ink)] after:absolute after:inset-0"
           >
             {title}
