@@ -923,26 +923,34 @@ measures its own serialised string against it before posting, so an
 over-large save fails with a sentence in the shell rather than a raw 413
 nginx returns and Next never sees.
 
-The shelf tile carries a count badge once more than one version exists.
-Opening it goes straight to the shell for an html worksheet holding only the
-blank, but a pdf worksheet always opens the chooser
-(`components/worksheet/VersionChooser.tsx`), even at one version: a PDF opens
-top-level in the browser's own viewer, with nowhere in it to put a Save
-control, so the chooser is the only surface that can hold the upload button.
-**The chooser's rows are anchors, not buttons**, the same reason the admin's
-pencil had to stay one: the whiteboard's leave-guard is a capture-phase
-`click` listener on `document` that inspects anchors, so a row is protected by
-it without knowing it exists, and a `router.push` handler would slip past it.
+The shelf tile carries a count badge once more than one version exists. That
+badge lives only in `FilesTab` (the student shelf), gated on `groupSlug &&
+versionCount(page.versions) > 1` — `/f/[token]` supplies no `groupSlug`, so
+its badge is off for that reason alone. Opening a tile goes straight to the
+shell for an html worksheet holding only the blank, but a pdf worksheet
+always opens the chooser (`components/worksheet/VersionChooser.tsx`), even at
+one version: a PDF opens top-level in the browser's own viewer, with nowhere
+in it to put a Save control, so the chooser is the only surface that can hold
+the upload button. **The chooser's rows are anchors, not buttons**, the same
+reason the admin's pencil had to stay one: the whiteboard's leave-guard is a
+capture-phase `click` listener on `document` that inspects anchors, so a row
+is protected by it without knowing it exists, and a `router.push` handler
+would slip past it.
 
-`pageTarget` needs a group slug to build the worksheet route, because a
-version belongs to (page, student) and there is no student in a bare page
-row. It is supplied only by an actual shelf, so **the badge and the worksheet
-target do not appear on the admin Pages tab under "All" or on
-`/f/[token]`** — both pass no group slug and keep today's targets. That is
-correct, not missing: "All" is not a shelf and has no student whose versions
-could be listed, the same rule the pin control already follows; `/f/[token]`
-is read-only, and a student's answers are not the files link forwarded to a
-parent.
+**The badge and the worksheet target are two different mechanisms, and their
+absence in the admin has two different causes — do not read them as one
+rule.** `pageTarget` needs a group slug to build the worksheet route, because
+a version belongs to (page, student) and there is no student in a bare page
+row: the admin Pages tab supplies one when a student chip is active, so a
+worksheet tile there correctly routes to that student's shelf, and supplies
+none under "All", where it keeps today's target — "All" is not a shelf, the
+same rule the pin control already follows. The badge is unrelated: `PageList`'s
+row type (`PageSummary`) carries no `versions` field at all, and `PageList`
+never passes a `badge` prop to `PageTile`, so **the admin Pages tab never
+renders a badge under any selection**, student chip or not — not because of
+groupSlug, but because the badge was never wired there. Anyone later adding
+`versions` to `PageSummary` to fix that must not assume the group-slug rule
+above already covers it; it doesn't.
 
 ### Lesson chat
 
