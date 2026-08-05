@@ -311,7 +311,7 @@ export async function getPageForAdmin(slug: string) {
 // and rewriting 3 MB to change a title.
 export async function updatePageMeta(
   slug: string,
-  input: { title: string; groupIds: string[] },
+  input: { title: string; groupIds: string[]; worksheet: boolean },
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const page = await tx.page.findUnique({
@@ -323,7 +323,13 @@ export async function updatePageMeta(
 
     await tx.page.update({
       where: { id: page.id },
-      data: { title: input.title },
+      // `worksheet` is here and not in savePage, which is the same split
+      // `title` already makes: it is metadata, so re-flagging must not read and
+      // rewrite 3 MB of PDF, and savePage's every-content-column invariant
+      // keeps no "leave this alone" hole in it. The consequence worth knowing:
+      // a republish at the same slug KEEPS the flag, the way addedByStudent
+      // survives an edit.
+      data: { title: input.title, worksheet: input.worksheet },
     });
 
     // Replace the whole set rather than diffing it, as savePage does: the

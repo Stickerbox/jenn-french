@@ -108,6 +108,7 @@ export function PageEditOverlay({
             groupIds: loaded.page.groupIds,
             kind: loaded.page.kind,
             pdfSize: loaded.page.pdfSize,
+            worksheet: loaded.page.worksheet,
           }}
           submitLabel="Save"
           onSubmit={updatePage.bind(null, loaded.page.slug)}

@@ -60,6 +60,7 @@ export type PageInput = {
   title: string;
   html: string;
   groupIds: string[];
+  worksheet: boolean;
 };
 
 // Creating one does not. The title comes from the document, so the form is a
@@ -179,6 +180,15 @@ export async function updatePage(
     groupIds: input.groupIds,
   });
 
+  // savePage does not write `worksheet` — see updatePageMeta. An html edit
+  // therefore needs both calls: the document through savePage, the metadata
+  // through the function that owns it.
+  await updatePageMeta(slug, {
+    title: input.title,
+    groupIds: input.groupIds,
+    worksheet: input.worksheet,
+  });
+
   revalidatePages(slug);
   return { slug, skipped: inlined.skipped };
 }
@@ -226,6 +236,10 @@ function readGroupIds(formData: FormData): string[] {
     .filter((id) => id !== "");
 }
 
+function readWorksheet(formData: FormData): boolean {
+  return formData.get("worksheet") === "on";
+}
+
 // Teacher-only, like createPage — because this is the ADMIN's upload, which
 // takes an audience and can put a PDF on any shelf or on several. A student
 // uploading to their own shelf goes through addShelfPdf below, which is
@@ -257,6 +271,7 @@ export async function updatePdfPage(
   await requireTeacher();
   const { title, bytes } = await readPdfForm(formData);
   const groupIds = readGroupIds(formData);
+  const worksheet = readWorksheet(formData);
 
   if (bytes) {
     await saveOrExplain({
@@ -272,11 +287,14 @@ export async function updatePdfPage(
       thumb: await readThumb(formData),
       groupIds,
     });
+    // savePage does not write `worksheet` — see updatePageMeta. A replaced pdf
+    // still needs this second call so the tick lands on the new row too.
+    await updatePageMeta(slug, { title, groupIds, worksheet });
   } else {
     // No new document staged, so this is a rename or a change of audience.
     // Going through savePage would mean reading the blob back and writing it
     // again to change a string.
-    await updatePageMeta(slug, { title, groupIds });
+    await updatePageMeta(slug, { title, groupIds, worksheet });
   }
 
   revalidatePages(slug);

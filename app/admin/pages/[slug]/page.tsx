@@ -57,6 +57,7 @@ export default async function AdminPageEditor({
             groupIds: page.groupIds,
             kind: page.kind,
             pdfSize: page.pdfSize,
+            worksheet: page.worksheet,
           }}
           submitLabel="Save page"
           onSubmit={updatePage.bind(null, page.slug)}

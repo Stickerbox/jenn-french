@@ -40,6 +40,7 @@ export function PageEditor({
     groupIds: string[];
     kind: PageKind;
     pdfSize: number | null;
+    worksheet: boolean;
   };
   submitLabel: string;
   onSubmit: (input: PageInput) => Promise<PageSaveResult>;
@@ -65,6 +66,7 @@ export function PageEditor({
   // identical document, so page-actions needs no change.
   const [html, setHtml] = useState(initial.html);
   const [groupIds, setGroupIds] = useState<string[]>(initial.groupIds);
+  const [worksheet, setWorksheet] = useState(initial.worksheet);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -94,6 +96,7 @@ export function PageEditor({
         const formData = new FormData();
         formData.set("title", title);
         for (const id of groupIds) formData.append("groupIds", id);
+        formData.append("worksheet", worksheet ? "on" : "");
         // Absent when she is editing a stored PDF's title or audience without
         // choosing a new file. The action reads that as "leave the bytes".
         if (pdfFile) formData.set("pdf", pdfFile);
@@ -107,7 +110,7 @@ export function PageEditor({
         if (pdfFile && rendered) formData.set("thumb", rendered, "thumb.jpg");
         await onSubmitPdf(formData);
       } else {
-        const result = await onSubmit({ title, html, groupIds });
+        const result = await onSubmit({ title, html, groupIds, worksheet });
         setSkipped(result.skipped);
 
         // The html branch only. A pdf save must never touch these columns —
@@ -190,6 +193,30 @@ export function PageEditor({
           </div>
         )}
       </fieldset>
+
+      {/* Link rows never reach this form — loadPageForEdit and the standalone
+          route both refuse a link — but the check stays explicit here too:
+          pageTarget checks worksheet before kind, so a link row with the flag
+          set would route to the worksheet page instead of its external URL. */}
+      {initial.kind !== "link" && (
+        <label className="flex items-start gap-2 text-sm text-[var(--card-ink)]">
+          <input
+            type="checkbox"
+            checked={worksheet}
+            onChange={(event) => setWorksheet(event.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            Students can save their answers
+            {/* The one sentence of explanation the control needs: the flag changes
+                where the tile goes, which is not guessable from the label. */}
+            <span className="block text-[var(--color-ink-muted)]">
+              Opens on the student&rsquo;s own page, with a Save button and up to
+              three versions.
+            </span>
+          </span>
+        </label>
+      )}
 
       {initial.kind === "pdf" ? (
         <div className="text-sm font-medium text-[var(--color-ink)]">
