@@ -1,3 +1,6 @@
+import { MAX_SNAPSHOT_BYTES } from "@/lib/page-snapshot";
+import { snapshotDocument } from "@/lib/snapshot-dom";
+
 export const PRINT_MESSAGE = "print-page";
 export const CAPTURE_MESSAGE = "capture-page";
 
@@ -278,4 +281,67 @@ const CAPTURE_BOOTSTRAP = `<script>
 // Appended, for the reason withPrintableBootstrap is.
 export function withCaptureBootstrap(html: string): string {
   return `${html}\n${CAPTURE_BOOTSTRAP}\n`;
+}
+
+export const SNAPSHOT_MESSAGE = "snapshot-page";
+
+// The third injection, and the same gate rule as the other two: only the
+// worksheet shell asks for ?snapshot=1, and none of the three implies another.
+//
+// The walk lives in lib/snapshot-dom.ts and is inlined here by its own source —
+// the technique Playwright uses for page.evaluate. That is not cleverness for
+// its own sake: it is ~80 lines of DOM traversal whose failure mode is a
+// student's homework saved silently wrong, and a string in this file can only
+// be tested for what it CONTAINS. As a module it is tested for what it DOES,
+// against real DOM fixtures, including a test that runs this very toString()
+// output. The alternative — a hand-maintained second copy in here — is two
+// implementations of one rule, which is the drift this codebase keeps
+// designing against.
+//
+// It replies ALWAYS, which inverts the contract of the capture bootstrap above
+// it. That one answers null on every failure because a missing preview leaves a
+// working iframe in place; a silent save loses a student's homework.
+const SNAPSHOT_BOOTSTRAP = `<script>
+(function () {
+  var MESSAGE = ${JSON.stringify(SNAPSHOT_MESSAGE)};
+  var MAX_BYTES = ${MAX_SNAPSHOT_BYTES};
+  var snapshotDocument = ${snapshotDocument.toString()};
+
+  function reply(payload) {
+    try {
+      window.parent.postMessage(payload, "*");
+    } catch (e) {}
+  }
+
+  addEventListener("message", function (event) {
+    // event.source, not event.origin — this document has an opaque origin and
+    // no origin string to compare against. Which window is asking is the
+    // precise question, and the sandbox forbids popups, so no other window can
+    // obtain a handle to post through.
+    if (event.source !== window.parent) return;
+    if (event.data !== MESSAGE) return;
+
+    try {
+      var html = snapshotDocument(document.documentElement);
+      // Measured here rather than server-side alone, so an over-large save is a
+      // sentence in the shell instead of a raw 413 nginx returns and Next never
+      // sees.
+      if (new TextEncoder().encode(html).length > MAX_BYTES) {
+        reply({ type: MESSAGE, ok: false, reason: "too-large" });
+        return;
+      }
+      reply({ type: MESSAGE, ok: true, html: html });
+    } catch (e) {
+      // Nothing may throw out of here. A thrown error inside the frame is
+      // invisible to the parent, and here that would cost a student their work
+      // with no explanation.
+      reply({ type: MESSAGE, ok: false, reason: "failed" });
+    }
+  });
+})();
+</script>`;
+
+// Appended, for the reason withPrintableBootstrap is.
+export function withSnapshotBootstrap(html: string): string {
+  return `${html}\n${SNAPSHOT_BOOTSTRAP}\n`;
 }

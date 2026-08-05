@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { MAX_SNAPSHOT_BYTES } from "@/lib/page-snapshot";
 import {
   CAPTURE_MESSAGE,
   PRINT_MESSAGE,
+  SNAPSHOT_MESSAGE,
   withCaptureBootstrap,
   withPrintableBootstrap,
+  withSnapshotBootstrap,
 } from "@/lib/printable-bootstrap";
 
 const DOC = "<!doctype html><html><body><p>Bonjour</p></body></html>";
@@ -98,11 +101,51 @@ describe("withCaptureBootstrap", () => {
   });
 });
 
-describe("the two bootstraps are independent", () => {
-  // Neither gate implies the other. The admin's <a download> hits the raw route
-  // with no parameter at all and has to get Jenn's bytes back; a student's
-  // print must not carry a capture listener, and a capture must not carry a
-  // print one.
+describe("withSnapshotBootstrap", () => {
+  it("leaves the teacher's document byte-identical and appends after it", () => {
+    expect(withSnapshotBootstrap(DOC).startsWith(DOC)).toBe(true);
+  });
+
+  it("authenticates the sender by window, not by origin", () => {
+    expect(withSnapshotBootstrap(DOC)).toContain("event.source !== window.parent");
+  });
+
+  it("listens for exactly the message the shell sends", () => {
+    expect(withSnapshotBootstrap(DOC)).toContain(JSON.stringify(SNAPSHOT_MESSAGE));
+  });
+
+  it("carries the walk itself, not a call to a module it cannot reach", () => {
+    // The frame has no module system and no import map. If this ever stops
+    // being the function's own source, the save fails in the browser only.
+    expect(withSnapshotBootstrap(DOC)).toContain("querySelectorAll(\"script\")");
+  });
+
+  it("refuses an over-large snapshot before posting it", () => {
+    // So the failure is a sentence rather than a raw 413 that Next never sees.
+    expect(withSnapshotBootstrap(DOC)).toContain(String(MAX_SNAPSHOT_BYTES));
+    expect(withSnapshotBootstrap(DOC)).toContain("too-large");
+  });
+
+  it("always replies, so a failure is never silence", () => {
+    // This INVERTS captureHtmlThumbnail's contract beside it, and the inversion
+    // is the point: a missing preview leaves a working iframe, a silent save
+    // loses a student's homework.
+    expect(withSnapshotBootstrap(DOC)).toContain("ok: false");
+  });
+
+  it("works on a document with no body tag to splice into", () => {
+    const result = withSnapshotBootstrap("<p>fragment</p>");
+    expect(result).toContain("<p>fragment</p>");
+    expect(result).toContain(JSON.stringify(SNAPSHOT_MESSAGE));
+  });
+});
+
+describe("the three bootstraps are mutually exclusive", () => {
+  // No gate implies another. The admin's <a download> hits the raw route with
+  // no parameter at all and has to get Jenn's bytes back; a print must not
+  // carry a capture or snapshot listener, and a snapshot must not carry a print
+  // one — they are separate listeners on one message channel, and a document
+  // holding two would answer a message it was never sent.
   it("does not inject the capture listener when asked to print", () => {
     expect(withPrintableBootstrap(DOC)).not.toContain(
       JSON.stringify(CAPTURE_MESSAGE),
@@ -117,7 +160,19 @@ describe("the two bootstraps are independent", () => {
     expect(withCaptureBootstrap(DOC)).not.toContain("window.print()");
   });
 
-  it("uses two different messages", () => {
-    expect(CAPTURE_MESSAGE).not.toBe(PRINT_MESSAGE);
+  it("keeps the snapshot listener out of the other two", () => {
+    expect(withPrintableBootstrap(DOC)).not.toContain(JSON.stringify(SNAPSHOT_MESSAGE));
+    expect(withCaptureBootstrap(DOC)).not.toContain(JSON.stringify(SNAPSHOT_MESSAGE));
+  });
+
+  it("keeps the other two out of the snapshot bootstrap", () => {
+    expect(withSnapshotBootstrap(DOC)).not.toContain(JSON.stringify(PRINT_MESSAGE));
+    expect(withSnapshotBootstrap(DOC)).not.toContain(JSON.stringify(CAPTURE_MESSAGE));
+    expect(withSnapshotBootstrap(DOC)).not.toContain("window.print()");
+    expect(withSnapshotBootstrap(DOC)).not.toContain("foreignObject");
+  });
+
+  it("uses three different messages", () => {
+    expect(new Set([PRINT_MESSAGE, CAPTURE_MESSAGE, SNAPSHOT_MESSAGE]).size).toBe(3);
   });
 });
