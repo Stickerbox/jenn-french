@@ -245,15 +245,15 @@ confirm existing PDF tiles still show their pictures.
 
 ### Task 5: `Group.email` becomes unique
 
-- [ ] **Confirm Task 1 came back clean for production first.**
-- [ ] Add `@unique` to `Group.email`.
-- [ ] Replace the comment. The current one argues *against* uniqueness on the
+- [x] **Confirm Task 1 came back clean for production first.**
+- [x] Add `@unique` to `Group.email`.
+- [x] Replace the comment. The current one argues *against* uniqueness on the
       grounds that sign-in is scoped to the slug. Say instead that `/signin`
       takes an address and nothing else, so the address has to name one student,
       and that the shared-inbox case is now served by Jenn sending each student
       their own invite.
-- [ ] `npx prisma migrate dev --name unique_group_email`
-- [ ] Read the SQL. It should be one unique index and nothing else.
+- [x] `npx prisma migrate dev --name unique_group_email`
+- [x] Read the SQL. It should be one unique index and nothing else.
 
 **Verify:** `npx prisma generate && npm run typecheck`. Then, by hand: claim two
 students with the same address and confirm the second fails — Task 21 turns
@@ -376,49 +376,49 @@ In order, and stop at the first that succeeds:
 
 ### Task 9: `setPageThumb`
 
-- [ ] In `lib/pages.ts`, add `setPageThumbnail(slug, jpeg: Uint8Array)`: writes
+- [x] In `lib/pages.ts`, add `setPageThumbnail(slug, jpeg: Uint8Array)`: writes
       `thumb` and `thumbAt` and **nothing else**. Its own function beside
       `updatePageMeta` for the reason `updatePageMeta` exists — `savePage`
       writes every content column on every call, and a "leave the content alone"
       case inside it would put a hole in the one place that invariant is
       enforced.
-- [ ] Use `updateMany` on the slug, so a page deleted between the save and the
+- [x] Use `updateMany` on the slug, so a page deleted between the save and the
       capture is a no-op rather than a `P2025`.
-- [ ] In `app/page-actions.ts`, add `setPageThumb(slug, formData)`:
+- [x] In `app/page-actions.ts`, add `setPageThumb(slug, formData)`:
       `requireTeacher()`, read the `thumb` field, validate with the existing
       `readThumb` helper, and return silently when it is null.
-- [ ] Teacher-only, deliberately: HTML publishing is teacher-only again after
+- [x] Teacher-only, deliberately: HTML publishing is teacher-only again after
       Phase 4, and a PDF's thumbnail still arrives inside its own upload under
       `requireShelfRole`. One authority per path, neither widened. Say so in a
       comment.
-- [ ] A rejected thumbnail is **not** an error. It is dropped silently, exactly
+- [x] A rejected thumbnail is **not** an error. It is dropped silently, exactly
       as `readThumb` already documents: the document is the thing being saved
       and the fallback is a working preview.
-- [ ] `revalidatePages(slug)`.
+- [x] `revalidatePages(slug)`.
 
 **Verify:** `npm run typecheck`.
 
 ### Task 10: Capture after a document is saved
 
-- [ ] In `components/admin/NewPageForm.tsx`, after `onSubmit` resolves and the
+- [x] In `components/admin/NewPageForm.tsx`, after `onSubmit` resolves and the
       result's slug is known, call `captureHtmlThumbnail(slug, …)` and then
       `setPageThumb`. Do it **after** the save, never before — the capture
       frames the stored page.
-- [ ] Do not block the sheet on it, and never let it turn a successful publish
+- [x] Do not block the sheet on it, and never let it turn a successful publish
       into an error. Fire it, and let `onDone()` / the skipped-assets branch
       behave exactly as they do now.
-- [ ] `PageSaveResult` already carries the slug, so nothing new has to be
+- [x] `PageSaveResult` already carries the slug, so nothing new has to be
       threaded through.
-- [ ] Pass `null` as the version. The form does not hold `updatedAt`, and an
+- [x] Pass `null` as the version. The form does not hold `updatedAt`, and an
       un-versioned raw response is `no-store` — exactly right for a one-shot
       read of a page written a moment ago. Note why in a comment, so nobody
       "fixes" it by threading through a token that would be stale by
       construction. `ThumbBackfill` (Task 12) reads from the server and passes a
       real one.
-- [ ] Do the same in `components/admin/PageEditor.tsx`, on the html branch only.
+- [x] Do the same in `components/admin/PageEditor.tsx`, on the html branch only.
       A pdf branch save must not touch `thumb` — its picture comes from
       `renderPdfThumbnail` inside its own submission.
-- [ ] `router.refresh()` after the thumbnail lands, so the tile swaps from the
+- [x] `router.refresh()` after the thumbnail lands, so the tile swaps from the
       live frame to the image without a manual reload.
 
 **Verify:** by hand — publish a page, watch the tile change from a live frame to
@@ -426,23 +426,23 @@ a still image within a few seconds.
 
 ### Task 11: Render the stored preview
 
-- [ ] `components/ui/HtmlPreview.tsx` gains
+- [x] `components/ui/HtmlPreview.tsx` gains
       `thumbVersion: number | null` — **required**, not optional, for the reason
       `version` is required there and `pdfSize` is required in `readPageKind`: a
       caller that forgot it would silently fall back to the slow path, and "a
       shelf that is merely slow" is invisible in review.
-- [ ] Non-null renders `<img src={`/p/${slug}/thumb?v=${thumbVersion}`}>` with
+- [x] Non-null renders `<img src={`/p/${slug}/thumb?v=${thumbVersion}`}>` with
       the same `object-cover object-top`, `alt=""`, `aria-hidden` and
       `loading="lazy"` that `PdfPreview` uses. Null keeps today's iframe
       verbatim — the 500%/0.2 pair, `sandbox=""`, `inert`, all of it.
-- [ ] Comment that `?v=` is not decoration: the thumb route answers `immutable`
+- [x] Comment that `?v=` is not decoration: the thumb route answers `immutable`
       for a year, and this parameter is the only thing that can replace a
       replaced document's picture.
-- [ ] Pass `thumbVersion` from both lists. `PageList` and `FilesTab` already
+- [x] Pass `thumbVersion` from both lists. `PageList` and `FilesTab` already
       compute exactly this expression for `PdfPreview`
       (`page.thumbAt ? new Date(page.thumbAt).getTime() : null`) — lift it to a
       single `const` per row and hand it to whichever preview the kind selects.
-- [ ] `ShelfPage` and `PageSummary` need no new field: `pdfThumbAt` became
+- [x] `ShelfPage` and `PageSummary` need no new field: `pdfThumbAt` became
       `thumbAt` in Task 4 and already flows through `SHELF_SELECT`.
 
 **Verify:** `npm run typecheck`, then confirm a page with a stored JPEG shows
@@ -450,22 +450,22 @@ the image and one without still shows the live frame.
 
 ### Task 12: `ThumbBackfill`
 
-- [ ] Create `components/admin/ThumbBackfill.tsx`, a client component that
+- [x] Create `components/admin/ThumbBackfill.tsx`, a client component that
       renders nothing.
-- [ ] Props: the list of `{ slug, version }` for pages where `kind === "html"`
+- [x] Props: the list of `{ slug, version }` for pages where `kind === "html"`
       and `thumbAt === null`. Compute it on the server in `app/admin/page.tsx`
       from the list already fetched — no new query.
-- [ ] It captures **one at a time**, awaiting each before starting the next, and
+- [x] It captures **one at a time**, awaiting each before starting the next, and
       stops after a small cap per visit (5 is a reasonable start). Serial and
       capped for the same reason a shelf frame has no `allow-scripts`: the
       objection was ever only to a dozen documents running scripts at once.
-- [ ] A `null` result is skipped silently and retried on a later visit. Do not
+- [x] A `null` result is skipped silently and retried on a later visit. Do not
       record failures, do not retry within a visit, do not surface anything to
       Jenn — this is an optimisation over a working fallback.
-- [ ] `router.refresh()` once at the end, not once per page.
-- [ ] Mount it on the Pages tab only, and only for the teacher — which
+- [x] `router.refresh()` once at the end, not once per page.
+- [x] Mount it on the Pages tab only, and only for the teacher — which
       `/admin` already guarantees.
-- [ ] Comment that this is what covers pages published through
+- [x] Comment that this is what covers pages published through
       `POST /api/pages`, where there is no browser to capture in, and that it is
       why there is no backfill script: one would need the server-side renderer
       this design refuses.
@@ -484,14 +484,14 @@ fact, and "extend it to handle blobs" is the tempting wrong move.
 
 ### Task 13: Move the PDF renderer out of `admin/`
 
-- [ ] `git mv components/admin/pdf-thumbnail.ts components/pdf-thumbnail.ts`.
-- [ ] Update the two importers: `NewPageForm.tsx`, `PageEditor.tsx`.
-- [ ] Rewrite the paragraph claiming it "runs once, in the admin, in Jenn's
+- [x] `git mv components/admin/pdf-thumbnail.ts components/pdf-thumbnail.ts`.
+- [x] Update the two importers: `NewPageForm.tsx`, `PageEditor.tsx`.
+- [x] Rewrite the paragraph claiming it "runs once, in the admin, in Jenn's
       browser, at upload time". It is now also a student's browser. Keep every
       other comment — the dynamic `import()` is still the load-bearing line, and
       it now matters *more*: without it a PDF renderer would ship in a chunk the
       router could serve to a student who never uploads anything.
-- [ ] Add a sentence recording the accepted cost: a student staging a PDF
+- [x] Add a sentence recording the accepted cost: a student staging a PDF
       fetches pdf.js once, at that moment, and the ten-second timeout degrades
       to the glyph on a slow connection.
 
@@ -500,30 +500,30 @@ with its preview intact.
 
 ### Task 14: `addShelfPdf`
 
-- [ ] In `app/page-actions.ts`, add
+- [x] In `app/page-actions.ts`, add
       `addShelfPdf(groupId: string, formData: FormData): Promise<void>`.
-- [ ] `const role = await requireShelfRole(groupId)` — the same guard as
+- [x] `const role = await requireShelfRole(groupId)` — the same guard as
       `addShelfLink` and `addShelfPage`, so the everyone group and an untokened
       visitor are refused by a rule that already exists and is already tested.
       **Do not write a new check.**
-- [ ] Reuse `readPdfForm` and `readThumb` verbatim. Throw
+- [x] Reuse `readPdfForm` and `readThumb` verbatim. Throw
       `"A PDF file is required."` when there are no bytes, as `createPdfPage`
       does.
-- [ ] `saveOrExplain({ slug: null, kind: "pdf", title, pdf, pdfSize, thumb,
+- [x] `saveOrExplain({ slug: null, kind: "pdf", title, pdf, pdfSize, thumb,
       groupIds: [groupId] })`, then `revalidatePages(slug)`.
-- [ ] **`SavePageInput`'s pdf branch has no `addedByStudent` field**, and its
+- [x] **`SavePageInput`'s pdf branch has no `addedByStudent` field**, and its
       comment says so: *"uploading one is teacher-only, and the union says so by
       not offering the field."* That is now false. Add the optional field to the
       pdf branch, pass `addedByStudent: role === "student"`, and update
       `savePage`'s `create` — the current expression is
       `input.kind !== "pdf" && input.addedByStudent === true`, which must become
       simply `input.addedByStudent === true`. Rewrite both comments.
-- [ ] **Do not touch `canStudentDelete`.** It keys off `addedByStudent`, not
+- [x] **Do not touch `canStudentDelete`.** It keys off `addedByStudent`, not
       `kind`, so a student's own PDF assigned to their shelf alone is already
       deletable by them, and `deleteShelfLink` already re-checks it server-side.
       Add a comment in `addShelfPdf` recording that this is why the action is
       safe, because the old CLAUDE.md text says otherwise until Task 25.
-- [ ] Note in a comment that the 3 MB cap is nginx's `4m` minus room, and that
+- [x] Note in a comment that the 3 MB cap is nginx's `4m` minus room, and that
       the bytes come as a `File` in `FormData` because base64 would cost a third
       more.
 
@@ -532,38 +532,38 @@ token can upload and that an untokened visitor and `/g/all` are both refused.
 
 ### Task 15: `ShelfFab` grows a role and a PDF sheet
 
-- [ ] Add `role: "student" | "teacher"` and `onAddPdf: (formData: FormData) =>
+- [x] Add `role: "student" | "teacher"` and `onAddPdf: (formData: FormData) =>
       Promise<void>` to `ShelfFab`. `onAddPage` becomes optional — a student no
       longer has it.
-- [ ] The menu is chosen by role:
+- [x] The menu is chosen by role:
       - `"student"`: *Ajouter un lien*, *Ajouter un PDF*.
       - `"teacher"`: *Add a link*, *Add a page*, *Add a PDF*.
       Jenn's is English and the student's is French, following the split this
       codebase keeps everywhere.
-- [ ] Keep the FAB itself, its `bottom-6 right-24` position and every comment
+- [x] Keep the FAB itself, its `bottom-6 right-24` position and every comment
       about why it sits left of the chat button.
-- [ ] The PDF sheet uses `FileDropZone` and follows `NewPageForm`'s **staged**
+- [x] The PDF sheet uses `FileDropZone` and follows `NewPageForm`'s **staged**
       flow, not a choose-is-submit flow: choosing stages the file and derives a
       title from the filename, and a Save button commits. Start
       `renderPdfThumbnail` on stage, hold it in a ref, and `await` it at submit
       — copy the reasoning from `NewPageForm`, which records why a ref beats a
       boolean here.
-- [ ] Check `MAX_PDF_BYTES` client-side before upload, as both admin forms do,
+- [x] Check `MAX_PDF_BYTES` client-side before upload, as both admin forms do,
       and show the student a French sentence rather than a leaked English one —
       the existing `submitLink` catch block is the pattern.
-- [ ] There is no audience picker. The action is curried on `group.id`, so the
+- [x] There is no audience picker. The action is curried on `group.id`, so the
       shelf is the page she is on.
 
 **Verify:** `npm run typecheck` and `npm run lint`.
 
 ### Task 16: Wire the student page
 
-- [ ] In `app/g/[slug]/page.tsx`, pass `role={viewerIsTeacher ? "teacher" :
+- [x] In `app/g/[slug]/page.tsx`, pass `role={viewerIsTeacher ? "teacher" :
       "student"}` and `onAddPdf={addShelfPdf.bind(null, group.id)}` to both
       `ShelfFab` instances — the one inside `TeacherInbox` and the one inside
       `StreamProvider`.
-- [ ] Pass `onAddPage` only in the teacher branch.
-- [ ] **Do not change the `unlocked` guard.** The FAB is still gated on
+- [x] Pass `onAddPage` only in the teacher branch.
+- [x] **Do not change the `unlocked` guard.** The FAB is still gated on
       `unlocked`, not on the session: the shelf controls belong to the page body,
       which the token gates, and only the chat ever moved. The existing comment
       says this; leave it.
@@ -580,13 +580,13 @@ Independent of Phases 3 and 4.
 
 ### Task 17: `loadPageForEdit`
 
-- [ ] In `app/page-actions.ts`, add `loadPageForEdit(slug: string)`:
+- [x] In `app/page-actions.ts`, add `loadPageForEdit(slug: string)`:
       `requireTeacher()`, then return `getPageForAdmin(slug)` plus the group
       list the editor needs.
-- [ ] Fetched on open rather than shipped with the list, following
+- [x] Fetched on open rather than shipped with the list, following
       `loadConversation`: the payload contains a whole document, and a shelf
       renders many tiles.
-- [ ] Return `null` for a missing row and for a link row — `/admin/pages/[slug]`
+- [x] Return `null` for a missing row and for a link row — `/admin/pages/[slug]`
       already 404s on a link, and the overlay must agree rather than render an
       upload form over a row that can never accept one.
 
@@ -594,20 +594,20 @@ Independent of Phases 3 and 4.
 
 ### Task 18: `PageEditOverlay`
 
-- [ ] Create `components/admin/PageEditOverlay.tsx`, a client component.
-- [ ] Props: `slug: string | null` and `onClose: () => void`. A null slug
+- [x] Create `components/admin/PageEditOverlay.tsx`, a client component.
+- [x] Props: `slug: string | null` and `onClose: () => void`. A null slug
       renders nothing.
-- [ ] On a slug change, call `loadPageForEdit`, then render `AddSheet` wrapping
+- [x] On a slug change, call `loadPageForEdit`, then render `AddSheet` wrapping
       the existing **unmodified** `PageEditor` with the same
       `initial` shape `/admin/pages/[slug]` already builds.
-- [ ] Show a small loading line while the action is in flight. Close and report
+- [x] Show a small loading line while the action is in flight. Close and report
       nothing if it returns null — a stale link to a deleted page must not leave
       an empty dialog open.
-- [ ] Bind `onSubmit`, `onSubmitPdf` and `onDelete` to the same teacher-only
+- [x] Bind `onSubmit`, `onSubmitPdf` and `onDelete` to the same teacher-only
       actions the standalone route uses. `onDelete` should close the overlay and
       refresh rather than `router.push("/admin?tab=pages")` — the list is
       already behind it.
-- [ ] Do not restyle `PageEditor`. It uses the admin's `--color-*` palette and
+- [x] Do not restyle `PageEditor`. It uses the admin's `--color-*` palette and
       will sit on a `--card-*` page when opened from a student's shelf. That is
       a known, accepted awkwardness on a teacher-only surface; leave a comment
       so it is not "fixed" into a second copy of the editor.
@@ -616,15 +616,15 @@ Independent of Phases 3 and 4.
 
 ### Task 19: The overlay on `/admin`
 
-- [ ] `app/admin/page.tsx` reads `?edit=` from `searchParams` and passes it
+- [x] `app/admin/page.tsx` reads `?edit=` from `searchParams` and passes it
       down; the overlay closes by navigating back to the same URL without it.
-- [ ] In `components/admin/PageList.tsx`, change the pencil from
+- [x] In `components/admin/PageList.tsx`, change the pencil from
       `<Link href={`/admin/pages/${page.slug}`}>` to `<Link href={`?edit=${page.slug}`}>`.
       **It stays an anchor** — see Task 20 for why that matters, and keep them
       the same on both screens so the reason survives.
-- [ ] Leave `/admin/pages/[slug]` completely untouched. It keeps working for a
+- [x] Leave `/admin/pages/[slug]` completely untouched. It keeps working for a
       bookmark and is where the dia script's URL resolves to.
-- [ ] Comment on the pencil why the overlay is a search param: Back closes it,
+- [x] Comment on the pencil why the overlay is a search param: Back closes it,
       it has a URL the dia script can open, and the list keeps its scroll
       position, its search text and — the one that matters — the active student
       chip, which drives which pin applies and a new page's default audience.
@@ -635,24 +635,24 @@ and confirm the overlay closes rather than leaving the page.
 
 ### Task 20: The pencil on a student's shelf
 
-- [ ] `FilesTab` gains `canEdit?: boolean`, passed as `viewerIsTeacher` from
+- [x] `FilesTab` gains `canEdit?: boolean`, passed as `viewerIsTeacher` from
       `app/g/[slug]/page.tsx` — `false` on `/f/[token]`, which is read-only.
-- [ ] When true, render a pencil beside the pin and the × under the same rule
+- [x] When true, render a pencil beside the pin and the × under the same rule
       `PageList` applies: html and pdf rows get it, a **link row does not**. The
       two screens then agree about which tiles are editable, which is worth more
       than either rule alone. Renaming a link stays impossible on both sides.
-- [ ] The pencil is a `<Link href={`?tab=files&edit=${page.slug}`}>`.
-- [ ] **It must be an anchor, and this is not a style preference.** The
+- [x] The pencil is a `<Link href={`?tab=files&edit=${page.slug}`}>`.
+- [x] **It must be an anchor, and this is not a style preference.** The
       whiteboard's leave-guard is a capture-phase `click` listener on `document`
       that inspects anchors, written that way so *"a future link is protected
       without knowing the guard exists."* A button calling `router.push` would
       slip past it, and opening this overlay during a live board would destroy
       the op log with no prompt. Put that sentence in the comment.
-- [ ] Mount `PageEditOverlay` on the student page, teacher-only, reading
+- [x] Mount `PageEditOverlay` on the student page, teacher-only, reading
       `?edit=` from the page's `searchParams`.
-- [ ] Reuse the pencil icon. It currently lives inside `PageList.tsx`; lift it
+- [x] Reuse the pencil icon. It currently lives inside `PageList.tsx`; lift it
       to a shared module rather than copying the path data.
-- [ ] No new authority: `updatePage`, `updatePdfPage` and `deletePage` are
+- [x] No new authority: `updatePage`, `updatePdfPage` and `deletePage` are
       already `requireTeacher()`. Say so in a comment — only a control is drawn
       where the authority already reached.
 
@@ -672,12 +672,12 @@ per-page form, not a worse one.
 
 ### Task 21: `signInByEmail`, and the claim collision
 
-- [ ] In `app/student-auth-actions.ts`, add
+- [x] In `app/student-auth-actions.ts`, add
       `signInByEmail(email: string, password: string): Promise<{ ok: true; slug:
       string } | { error: string }>`. Not `AuthResult` — the caller needs the
       slug to redirect, and widening `AuthResult` itself would let every
       existing caller ignore a field it now has.
-- [ ] Order of operations, and it is the specification:
+- [x] Order of operations, and it is the specification:
       1. `isLockedFor(`email:${normalised}`)` → `TOO_MANY_TRIES`. **Before any
          hashing** — hashing is expensive on purpose, so an unthrottled endpoint
          that hashes attacker input is a CPU-exhaustion vector against a two-core
@@ -694,19 +694,19 @@ per-page form, not a worse one.
          `SIGN_IN_FAILED`.
       6. `setStudentCookie(group.slug, group.chatToken)`, `clearAttempts`,
          `revalidatePath(`/g/${group.slug}`)`, return the slug.
-- [ ] **One message for every failure**, reusing the existing `SIGN_IN_FAILED`.
+- [x] **One message for every failure**, reusing the existing `SIGN_IN_FAILED`.
       Wrong address, wrong password, unclaimed student and the everyone group
       must be indistinguishable — including in timing.
-- [ ] Log the slug on success only, never the email. The existing
+- [x] Log the slug on success only, never the email. The existing
       `console.info("[student-auth] claimed …")` comment gives the rule: the
       address is PII and never goes into a log.
-- [ ] Leave `signInStudent` in place. `/g/marie` keeps its own form and the
+- [x] Leave `signInStudent` in place. `/g/marie` keeps its own form and the
       invite flow is unchanged.
-- [ ] Separately, in `claimStudent`: the unique index from Task 5 means a second
+- [x] Separately, in `claimStudent`: the unique index from Task 5 means a second
       student claiming with an address already in use now hits a Prisma `P2002`.
       Catch it and return a specific, actionable sentence — add it to
       `lib/student-auth-labels.ts` beside its neighbours.
-- [ ] Comment why that one message is specific in an area whose whole design is
+- [x] Comment why that one message is specific in an area whose whole design is
       uniform failures: the uniform ones are about *sign-in*, where naming the
       wrong half is enumeration. A claim is already authorised by a single-use
       invite for a named student, so there is nothing left to enumerate.
@@ -718,17 +718,17 @@ first.
 
 ### Task 22: `/signin`
 
-- [ ] Create `app/signin/page.tsx`. French, for students.
-- [ ] Two fields, one submit, one error line. Reuse `Input`, the card palette
+- [x] Create `app/signin/page.tsx`. French, for students.
+- [x] Two fields, one submit, one error line. Reuse `Input`, the card palette
       and `lib/student-auth-labels.ts` — do **not** write new copy where a label
       exists.
-- [ ] On success, `router.push(`/g/${slug}`)`.
-- [ ] `export const metadata = { robots: { index: false, follow: false } }`,
+- [x] On success, `router.push(`/g/${slug}`)`.
+- [x] `export const metadata = { robots: { index: false, follow: false } }`,
       matching every other student surface.
-- [ ] Do not touch `/login`. It keeps the passkey ceremony and stays
+- [x] Do not touch `/login`. It keeps the passkey ceremony and stays
       unadvertised — one page for both would show every student a *Sign in with
       passkey* button that is not for them.
-- [ ] Add a quiet line pointing a stuck student at Jenn. There is no password
+- [x] Add a quiet line pointing a stuck student at Jenn. There is no password
       reset and nothing here sends email; the cure is her pressing Reset
       sign-in.
 
@@ -737,13 +737,13 @@ confirm the landing page is `/g/<the right student>`.
 
 ### Task 23: The landing page's Login button
 
-- [ ] In `app/page.tsx`, add a `Login` link to `/signin`, top right.
-- [ ] Small and in the corner, not a call to action: it is the first thing on
+- [x] In `app/page.tsx`, add a `Login` link to `/signin`, top right.
+- [x] Small and in the corner, not a call to action: it is the first thing on
       that page that is not about Jenn, and it must not compete with *Word of
       the day*.
-- [ ] Match the existing pill styling — `SERIF`, `--card-line`, `--card-bleu` —
+- [x] Match the existing pill styling — `SERIF`, `--card-line`, `--card-bleu` —
       rather than importing an admin button.
-- [ ] The page currently has no navigation at all; position the link without
+- [x] The page currently has no navigation at all; position the link without
       shifting the centred column at any width. `/g/[slug]`'s absolutely
       positioned *← Back to admin* is the precedent.
 
@@ -761,37 +761,37 @@ landed. `tools/dia-fixtures.sh` builds a disposable artifact tree; use it with
 
 **Half A — the filter.**
 
-- [ ] Drop any artifact whose title matches `^The .+ Brief$`, case-insensitively,
+- [x] Drop any artifact whose title matches `^The .+ Brief$`, case-insensitively,
       **inside `candidate_rows`**. Every selection path — the picker, `--list`,
       `--latest` and the title search — reads through that one function, which
       is what makes the four agree by construction. Do not add a second filter
       anywhere.
-- [ ] Anchored at both ends, so *The Brief History of Québec* and *Brief Notes*
+- [x] Anchored at both ends, so *The Brief History of Québec* and *Brief Notes*
       survive. On the **title**, not the folder name — the folder is usually
       `template_output`.
-- [ ] Apply it after `decode_entities`, so a title arriving as
+- [x] Apply it after `decode_entities`, so a title arriving as
       `The Morning &amp; Evening Brief` is tested in its decoded form.
-- [ ] Comment the deliberate consequence: `publish-dia-artifact.sh "The Morning
+- [x] Comment the deliberate consequence: `publish-dia-artifact.sh "The Morning
       Brief"` now reports *No page whose title contains …*. That is correct for
       a rule saying these are never published, and the message names the search
       that found nothing.
 
 **Half B — the output.**
 
-- [ ] Gate every success-path `echo` and the `gui_alert` call on `[ -t 1 ]`.
+- [x] Gate every success-path `echo` and the `gui_alert` call on `[ -t 1 ]`.
       The script already draws this distinction at `die()` and already justifies
       it: environment detection is rejected for *selection*, because a slug is
       permanent, and is fine for *presentation*, which changes only visibility.
-- [ ] **Change no wording.** In a terminal the output is byte-identical to
+- [x] **Change no wording.** In a terminal the output is byte-identical to
       today's, including the skipped-asset report and the clipboard line.
-- [ ] Under Shortcuts: nothing at all. No stdout, no alert. `die` still exits
+- [x] Under Shortcuts: nothing at all. No stdout, no alert. `die` still exits
       non-zero; it just draws nothing.
-- [ ] `pbcopy` still runs in both cases. Only the sentence announcing it was
+- [x] `pbcopy` still runs in both cases. Only the sentence announcing it was
       noise.
-- [ ] Change the final `open` to `"$SITE/admin?tab=pages&edit=$SLUG"`. The
+- [x] Change the final `open` to `"$SITE/admin?tab=pages&edit=$SLUG"`. The
       script publishes with no groups assigned, so the next step is always
       picking an audience, and this lands there with the list behind it.
-- [ ] Update the file's header comment block to describe the new behaviour, and
+- [x] Update the file's header comment block to describe the new behaviour, and
       record the accepted trade: a silent failure is indistinguishable from a
       mis-clicked Shortcut, accepted because the flow ends with a browser
       opening — so a failed publish is a click that did nothing — and because
@@ -816,31 +816,31 @@ landed. `tools/dia-fixtures.sh` builds a disposable artifact tree; use it with
 Two paragraphs currently argue for the opposite of what the code now does. A
 reviewer must not find the old argument.
 
-- [ ] **PDF upload is no longer teacher-only.** Rewrite *"Uploading a PDF is
+- [x] **PDF upload is no longer teacher-only.** Rewrite *"Uploading a PDF is
       teacher-only … would need `canStudentDelete` extended from rows-with-a-url
       to rows-with-a-blob — a separate decision."* Say that this was that
       decision; that `canStudentDelete` was independently rewritten to key off
       `addedByStudent` rather than `kind`, which is what made it cheap; and that
       `addShelfPdf` shares `requireShelfRole` with its two siblings.
-- [ ] **`Group.email` is unique**, in both CLAUDE.md and the schema comment.
+- [x] **`Group.email` is unique**, in both CLAUDE.md and the schema comment.
       Record why the old argument was right when written — sign-in was scoped to
       the slug — and what changed.
-- [ ] **The student's menu lost the HTML paste box** and Jenn's gained a PDF.
+- [x] **The student's menu lost the HTML paste box** and Jenn's gained a PDF.
       Update the `/g/[slug]` row of the routes table and the *Files* section.
-- [ ] **`pdfThumb`/`pdfThumbAt` are now `thumb`/`thumbAt`** and serve both kinds.
+- [x] **`pdfThumb`/`pdfThumbAt` are now `thumb`/`thumbAt`** and serve both kinds.
       The existing paragraph about the two columns and the year-long cache is
       still correct in substance; generalise it off PDFs and keep both
       arguments.
-- [ ] **Add the HTML capture**: the `?capture=1` gate beside `?printable=1`, why
+- [x] **Add the HTML capture**: the `?capture=1` gate beside `?printable=1`, why
       the capture frames the real route under the real CSP rather than the HTML
       in memory, the total contract, and why `ThumbBackfill` exists instead of a
       script.
-- [ ] **Add the edit overlay**: `?edit=`, why it is a search param, and why the
+- [x] **Add the edit overlay**: `?edit=`, why it is a search param, and why the
       pencil must stay an anchor for the leave-guard.
-- [ ] **Add `/signin`** to the routes table, and why it is a second door rather
+- [x] **Add `/signin`** to the routes table, and why it is a second door rather
       than a change to `/login`.
-- [ ] **`components/pdf-thumbnail.ts` moved** and is no longer admin-only.
-- [ ] Match the file's voice: record the decision and the failure that motivated
+- [x] **`components/pdf-thumbnail.ts` moved** and is no longer admin-only.
+- [x] Match the file's voice: record the decision and the failure that motivated
       it. Do not restate the code.
 
 ### Task 26: Full verification
