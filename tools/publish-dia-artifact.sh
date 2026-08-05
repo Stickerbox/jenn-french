@@ -448,15 +448,27 @@ candidate_rows() {
         # Applied AFTER decode_entities, so "The Morning &amp; Evening Brief" is
         # tested in the form a human would read.
         #
-        # Anchored at both ends, so "The Brief History of Quebec" and "Brief
-        # Notes" survive. On the TITLE and not the folder name, which is usually
+        # The real titles are "The Monday Brief - June 22" — a weekday, then a
+        # date — so this anchors at the START and at a word boundary after
+        # "Brief", NOT at the end of the string. Anchoring at both ends was the
+        # first attempt and matched none of them.
+        #
+        # "The Brief History of Quebec" survives, because the `.+` requires at
+        # least one word between "The" and "Brief" and that title has none.
+        # "Brief Notes" survives, because it does not start with "The". Both are
+        # checked by the fixtures.
+        #
+        # [^[:alnum:]] rather than \b: this runs through BSD grep on macOS,
+        # where \b is not portable.
+        #
+        # On the TITLE and not the folder name, which is usually
         # template_output.
         #
         # The deliberate consequence: publish-dia-artifact.sh "The Morning
         # Brief" now reports "No page whose title contains ...". That is correct
         # for a rule saying these are never published, and it is discoverable —
         # the message names the search that found nothing.
-        if printf '%s' "$title" | grep -qiE '^The .+ Brief$'; then
+        if printf '%s' "$title" | grep -qiE '^The .+ Brief([^[:alnum:]]|$)'; then
           continue
         fi
         printf '%s\t%s\t%s\t%s\t%s\n' \

@@ -524,9 +524,14 @@ an audience is always the next step.
 Artifacts titled *The X Brief* are never offered. Dia regenerates one on a
 schedule and it is not teaching material, so `candidate_rows` drops it — that
 one function is what the picker, `--list`, `--latest` and the title search all
-read through, which makes the four agree by construction. Anchored at both ends,
-so *The Brief History of Québec* and *Brief Notes* survive, and applied after
-`decode_entities`. The deliberate consequence: searching for one reports *No
+read through, which makes the four agree by construction. The real titles are
+*The Monday Brief - June 22*, so the pattern anchors at the start and at a word
+boundary after *Brief* — **not** at the end of the string, which was the first
+attempt and matched none of them. *The Brief History of Québec* survives because
+the rule needs a word between *The* and *Brief*, and *Brief Notes* because it
+does not start with *The*. Applied after `decode_entities`, and the filter runs
+**before** the ten-row trim: trimming first spent the picker's slots on rows
+that were then dropped, and Dia writes one of these most days. The deliberate consequence: searching for one reports *No
 page whose title contains …*, which is correct for a rule saying these are never
 published.
 
