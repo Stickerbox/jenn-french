@@ -7,3 +7,8 @@ node_modules
 /prisma/dev.db
 next-env.d.ts
 *.tsbuildinfo
+# Scratch space for agent workflows: isolated worktrees, and the ledger and
+# review packages that track a plan's execution. Both are working state, not
+# source — the git history is the record once a branch lands.
+.claude/worktrees/
+.superpowers/
