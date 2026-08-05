@@ -11,7 +11,7 @@ import type { PageKind } from "@/lib/page-kind";
 import { cn } from "@/lib/utils";
 import type { PageInput, PageSaveResult } from "@/app/page-actions";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
-import { renderPdfThumbnail } from "@/components/admin/pdf-thumbnail";
+import { renderPdfThumbnail } from "@/components/pdf-thumbnail";
 import { captureAndStoreThumbnail } from "@/components/html-thumbnail";
 
 export type PageEditorGroup = { id: string; name: string };

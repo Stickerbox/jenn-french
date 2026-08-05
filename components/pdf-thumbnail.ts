@@ -9,6 +9,13 @@
 // The "use client" directive is not strictly required for a plain module, and is
 // here to make the boundary explicit: importing this from a server component
 // should fail loudly rather than drag a PDF renderer into the server bundle.
+//
+// It moved out of components/admin/ when a student gained the ability to upload
+// a PDF to their own shelf. It is no longer Jenn's browser only, and the
+// accepted cost is stated plainly: A STUDENT STAGING A PDF FETCHES pdf.js ONCE,
+// at that moment, on their phone. The dynamic import below is what keeps that
+// to the students who actually upload something, and the ten-second timeout is
+// what keeps a slow connection to a glyph rather than to a stuck form.
 
 // The same width BoardEditor renders a board thumbnail at, and about the rendered
 // width of a tile in the 1152px four-column grid — so nothing upscales. The
@@ -40,14 +47,15 @@ export async function renderPdfThumbnail(file: File): Promise<Blob | null> {
 }
 
 async function render(file: File): Promise<Blob | null> {
-  // Dynamic, and this is the load-bearing line of the whole feature. A static
-  // import would put a PDF renderer into a chunk the router could ship anywhere;
-  // like this it is fetched by Jenn, on the admin screen, the first time she
-  // stages a PDF, and no student request ever touches it.
+  // Dynamic, and this is the load-bearing line of the whole feature — MORE so
+  // now than when it was written. A static import would put a PDF renderer into
+  // a chunk the router could serve to a student who never uploads anything;
+  // like this it is fetched only by whoever actually stages a PDF, at the
+  // moment they stage it.
   //
-  // It is also what makes this change consistent with the 2026-08-03 spec's
-  // refusal of pdf.js — that refusal was about a shelf mounting a dozen
-  // renderers at once, which is not what happens here.
+  // It is also what makes this consistent with the 2026-08-03 spec's refusal of
+  // pdf.js — that refusal was about a shelf mounting a dozen renderers at once,
+  // which is still not what happens here. One renderer, on demand, once.
   const pdfjs = await import("pdfjs-dist");
 
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(

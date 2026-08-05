@@ -27,6 +27,11 @@ export type SavePageInput = SaveCommon &
         // omitted it would leave the PREVIOUS document's picture on the new
         // document, which is the one failure mode worse than having none.
         thumb: Uint8Array | null;
+        // Present on all three branches now. This one said uploading a PDF was
+        // teacher-only and the union said so by not offering the field; that
+        // stopped being true when addShelfPdf joined addShelfLink and
+        // addShelfPage under the same requireShelfRole guard.
+        addedByStudent?: boolean;
       }
   );
 
@@ -86,9 +91,11 @@ export async function savePage(input: SavePageInput): Promise<string> {
         slug,
         title: input.title,
         ...columns,
-        // A pdf row has no addedByStudent case to carry: uploading one is
-        // teacher-only, and the union says so by not offering the field.
-        addedByStudent: input.kind !== "pdf" && input.addedByStudent === true,
+        // All three kinds carry it. A pdf row used to be excluded here because
+        // uploading one was teacher-only; a student can now put one on their
+        // own shelf, and this is the flag canStudentDelete keys off to let them
+        // take it back down again.
+        addedByStudent: input.addedByStudent === true,
       },
       // addedByStudent is deliberately absent here: who added a row is a fact
       // about its creation, and an edit must not rewrite it.

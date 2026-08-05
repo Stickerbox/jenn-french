@@ -225,10 +225,11 @@ function readGroupIds(formData: FormData): string[] {
     .filter((id) => id !== "");
 }
 
-// Teacher-only, like createPage. A student upload would put unvalidated binary
-// in the database and served from our own origin, and would need
-// canStudentDelete extended from rows-with-a-url to rows-with-a-blob — a
-// separate decision, not one to smuggle in here.
+// Teacher-only, like createPage — because this is the ADMIN's upload, which
+// takes an audience and can put a PDF on any shelf or on several. A student
+// uploading to their own shelf goes through addShelfPdf below, which is
+// authorised by requireShelfRole and curried on one group. Two entry points
+// because they answer to different authorities, not because the bytes differ.
 export async function createPdfPage(formData: FormData): Promise<string> {
   await requireTeacher();
   const { title, bytes } = await readPdfForm(formData);
@@ -365,6 +366,57 @@ export async function setPageThumb(
   if (!thumb) return;
 
   await setPageThumbnail(slug, thumb);
+  revalidatePages(slug);
+}
+
+// The student page's add-a-PDF, for either party. The third sibling of
+// addShelfLink and addShelfPage, authorised by the same requireShelfRole — so
+// the everyone group and an untokened visitor are refused by a rule that
+// already exists and is already tested, rather than by a second one written
+// here.
+//
+// WHY THIS IS SAFE TO OPEN TO STUDENTS, since the CLAUDE.md text said the
+// opposite until this change. The refusal named one specific piece of work:
+// canStudentDelete keyed off `kind`, so a student could only ever delete a row
+// with a URL, and a student's own PDF would have been undeletable by them. That
+// predicate was independently rewritten to key off `addedByStudent` — the kind
+// used to stand in for it and stopped being able to — so a student's own PDF,
+// assigned to their shelf alone, is ALREADY deletable by them, and
+// deleteShelfLink already re-checks it server-side regardless of which controls
+// a tile rendered. canStudentDelete needs no change, and changing it would be
+// the wrong move.
+//
+// The other half of the refusal — unvalidated binary in the database, served
+// from our own origin — is answered exactly as it is for Jenn: validatePagePdf
+// checks the 3 MB cap and the %PDF- prefix, and /p/[slug]/pdf serves it under
+// nosniff with a Content-Disposition built by contentDispositionInline. What
+// changes is who can reach it, and the honest statement of that is that a
+// student can now put 3 MB of bytes on a public slug.
+//
+// The bytes arrive as a File in FormData rather than base64 because base64
+// costs a third more, and 3 MB of PDF would arrive as 4 MB against nginx's 4m.
+export async function addShelfPdf(
+  groupId: string,
+  formData: FormData,
+): Promise<void> {
+  const role = await requireShelfRole(groupId);
+
+  const { title, bytes } = await readPdfForm(formData);
+  if (!bytes) throw new Error("A PDF file is required.");
+
+  const slug = await saveOrExplain({
+    slug: null,
+    kind: "pdf",
+    title,
+    pdf: bytes,
+    pdfSize: bytes.byteLength,
+    thumb: await readThumb(formData),
+    // The shelf she is on, and no audience picker: the action is curried on the
+    // group id, so there is nothing for the caller to choose or to get wrong.
+    groupIds: [groupId],
+    addedByStudent: role === "student",
+  });
+
   revalidatePages(slug);
 }
 

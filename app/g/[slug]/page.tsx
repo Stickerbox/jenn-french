@@ -31,6 +31,7 @@ import { TeacherInbox } from "@/components/chat/TeacherInbox";
 import {
   addShelfLink,
   addShelfPage,
+  addShelfPdf,
   setShelfPin,
   deleteShelfLink,
 } from "@/app/page-actions";
@@ -325,8 +326,10 @@ export default async function GroupPage({
               to the page body, which the token gates. Only the chat moved. */}
           {unlocked && (
             <ShelfFab
+              role="teacher"
               onAddLink={addShelfLink.bind(null, group.id)}
               onAddPage={addShelfPage.bind(null, group.id)}
+              onAddPdf={addShelfPdf.bind(null, group.id)}
             />
           )}
         </TeacherInbox>
@@ -350,9 +353,13 @@ export default async function GroupPage({
               deleteMessage: "Supprimer",
             }}
           />
+          {/* No onAddPage: a student uploads a PDF or adds a link, not a
+              whole website. addShelfPage keeps its guard on the server; what
+              changed is which control is drawn. */}
           <ShelfFab
+            role="student"
             onAddLink={addShelfLink.bind(null, group.id)}
-            onAddPage={addShelfPage.bind(null, group.id)}
+            onAddPdf={addShelfPdf.bind(null, group.id)}
           />
         </StreamProvider>
       ) : (

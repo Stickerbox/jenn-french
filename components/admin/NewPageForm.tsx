@@ -10,7 +10,7 @@ import { MAX_PDF_BYTES } from "@/lib/page-pdf";
 import { cn } from "@/lib/utils";
 import type { NewPageInput, PageSaveResult } from "@/app/page-actions";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
-import { renderPdfThumbnail } from "@/components/admin/pdf-thumbnail";
+import { renderPdfThumbnail } from "@/components/pdf-thumbnail";
 import { captureAndStoreThumbnail } from "@/components/html-thumbnail";
 
 // Audience first, content second — DOM order matters on the document half,
