@@ -23,9 +23,15 @@ export async function listVersions(
   pageId: string,
   groupId: string,
 ): Promise<StoredVersion[]> {
+  // Student first, then teacher — the same order applyVersions sorts the
+  // shelf's version badge in ("a stable order so the chooser does not
+  // reshuffle between renders"). Without an orderBy here, the shell's own
+  // switcher could list the same worksheet's two versions in the opposite
+  // order from the shelf.
   const rows = await prisma.pageVersion.findMany({
     where: { pageId, groupId },
     select: SUMMARY,
+    orderBy: { fromTeacher: "asc" },
   });
 
   return rows.map((row) => ({

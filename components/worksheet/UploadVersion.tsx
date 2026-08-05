@@ -66,9 +66,11 @@ export function UploadVersion({
     }
 
     setState("saved");
-    // The chooser's own version rows come from a server-rendered list, not
-    // client state — this is what makes the new one appear without closing
-    // the dialog to reopen it.
+    // This refreshes the `pages` prop FilesTab renders from, but
+    // chooserPage there is local state captured at the moment the tile was
+    // clicked, not derived from that prop — so the open chooser still shows
+    // its stale version list. It only picks up the new one after being
+    // closed and reopened.
     router.refresh();
   }
 

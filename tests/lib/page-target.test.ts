@@ -65,4 +65,16 @@ describe("a worksheet", () => {
       newTab: false,
     });
   });
+
+  it("refuses a link row even with worksheet true, matching worksheetOpenable", () => {
+    // No write path can set worksheet on a link row today — a link has no
+    // edit form — but this pins that pageTarget does not silently trust the
+    // flag if one ever did. A link is off-site regardless.
+    expect(
+      pageTarget(
+        { kind: "link", slug: "devoir-3", url: "https://example.com/a", worksheet: true },
+        "marie",
+      ),
+    ).toEqual({ href: "https://example.com/a", newTab: true });
+  });
 });

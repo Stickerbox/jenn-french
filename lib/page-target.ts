@@ -22,7 +22,12 @@ export function pageTarget(
   },
   groupSlug?: string | null,
 ): PageTarget {
-  if (page.worksheet && groupSlug) {
+  // kind !== "link" keeps this agreeing with worksheetOpenable, which refuses
+  // a link for the same reason: it is not hosted here and has nothing to fill
+  // in. Nothing sets `worksheet` on a link row today — a link has no edit form
+  // — but that is a property of today's write paths, not a guarantee this
+  // function should rely on.
+  if (page.worksheet && page.kind !== "link" && groupSlug) {
     return { href: `/g/${groupSlug}/w/${page.slug}`, newTab: false };
   }
   if (page.kind === "link") return { href: page.url ?? "#", newTab: true };

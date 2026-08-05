@@ -9,8 +9,18 @@ import { createMessage } from "@/lib/messages";
 import { versionNotice } from "@/lib/version-notice";
 
 // Room for JSON syntax and multi-byte UTF-8 around a snapshot already capped at
-// MAX_SNAPSHOT_BYTES, the way MAX_CHAT_BYTES is sized around a message.
-const MAX_BODY_BYTES = MAX_SNAPSHOT_BYTES + 64 * 1024;
+// MAX_SNAPSHOT_BYTES, the way MAX_CHAT_BYTES gives roughly 4x headroom over
+// MAX_MESSAGE_LENGTH for the same reason. That ratio does not transfer
+// directly at megabyte scale — 4x here would clear nginx's 4 MB
+// client_max_body_size before the request even arrives — so this instead
+// splits the room left between the two caps: MAX_SNAPSHOT_BYTES is measured
+// as raw UTF-8 bytes in the browser, but the snapshot travels JSON-encoded,
+// where every `"` becomes `\"` and every control character expands. 512 KB
+// (~17% of the snapshot cap) is far more than that escaping can cost even on
+// an attribute-dense worksheet, and still leaves ~512 KB of margin below
+// nginx's limit — which is what MAX_SNAPSHOT_BYTES was chosen against, so
+// this must not exceed it.
+const MAX_BODY_BYTES = MAX_SNAPSHOT_BYTES + 512 * 1024;
 
 // A POST route and NOT a server action. Server actions cap request bodies at
 // 1 MB by default, and raising that limit globally to serve one feature is
