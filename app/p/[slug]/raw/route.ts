@@ -2,38 +2,11 @@ import { NextResponse } from "next/server";
 import { getPageBySlug } from "@/lib/pages";
 import { readPageKind } from "@/lib/page-kind";
 import { pageVersion } from "@/lib/page-version";
+import { SANDBOXED_DOCUMENT_CSP } from "@/lib/sandbox-csp";
 import {
   withCaptureBootstrap,
   withPrintableBootstrap,
 } from "@/lib/printable-bootstrap";
-
-// The iframe sandbox is the primary control; this is the second layer. Every
-// directive here is deliberately restricted to what the document carries
-// inside itself — no https: anywhere — because a subresource load is a real
-// network request and `img-src https:` alone would let a hostile page
-// exfiltrate whatever a student typed via `<img src="https://…?d=answer">`.
-// `connect-src 'none'` closes fetch/XHR/beacon but NOT subresource loads,
-// which is why the passive directives have to be closed too.
-//
-// Residual, accepted and unclosable: a sandboxed frame may navigate itself,
-// so `location.href = "https://…?d=…"` still leaks. No CSP directive
-// prevents it (`navigate-to` was never shipped). The sandbox does block
-// navigating the TOP window and opening popups.
-//
-// Consequence: a page that pulls a font, image, stylesheet or script from a
-// CDN will not load it. Self-contained files are the only supported kind.
-const CONTENT_SECURITY_POLICY = [
-  "default-src 'none'",
-  "script-src 'unsafe-inline' 'unsafe-eval' blob:",
-  "style-src 'unsafe-inline'",
-  "img-src data: blob:",
-  "font-src data:",
-  "media-src data: blob:",
-  "connect-src 'none'",
-  "frame-ancestors 'self'",
-  "form-action 'none'",
-  "base-uri 'none'",
-].join("; ");
 
 // A preview frame asks for ?v=<the row's own token>, and only an exact match is
 // answered with a cacheable response. Accepting any ?v= would let a stale
@@ -86,7 +59,7 @@ export async function GET(
   return new NextResponse(body, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+      "Content-Security-Policy": SANDBOXED_DOCUMENT_CSP,
       "X-Content-Type-Options": "nosniff",
       "Cache-Control": cacheable ? IMMUTABLE : "no-store",
       // Students may publish here now. Nothing on this route should ever reach
