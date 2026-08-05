@@ -3,6 +3,10 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { snapshotDocument } from "@/lib/snapshot-dom";
+import {
+  BOOTSTRAP_MARKER_ATTR,
+  withPrintableBootstrap,
+} from "@/lib/printable-bootstrap";
 
 function load(body: string): Element {
   document.documentElement.innerHTML = `<head></head><body>${body}</body>`;
@@ -188,6 +192,23 @@ describe("snapshotDocument", () => {
     expect(out.querySelector("p")?.textContent).toBe("gardé");
   });
 
+  it("strips a marked element, but leaves the document's own style alone", () => {
+    // The half that matters as much as the removal: a fix broad enough to
+    // strip every <style> would destroy every worksheet's appearance, not
+    // just the injected one.
+    const root = load(
+      `<style>.doc { color: blue }</style>` +
+        `<style ${BOOTSTRAP_MARKER_ATTR}>.injected { color: green }</style>` +
+        `<p>gardé</p>`,
+    );
+
+    const out = reparse(snapshotDocument(root));
+    const styles = out.querySelectorAll("style");
+    expect(styles).toHaveLength(1);
+    expect(styles[0].textContent).toContain(".doc");
+    expect(out.querySelector(`[${BOOTSTRAP_MARKER_ATTR}]`)).toBeNull();
+  });
+
   it("leaves the live document untouched", () => {
     // It also renders what the student is looking at. Writing attributes onto
     // the live tree would be visible mid-save.
@@ -220,5 +241,27 @@ describe("snapshotDocument", () => {
     ) as (root: Element) => string;
 
     expect(inlined(root)).toBe(snapshotDocument(root));
+  });
+
+  it("does not grow across an open, save, reopen, save round trip", () => {
+    // The actual bug: PRINT_STYLE used to survive snapshotDocument's
+    // script-only cleanup, because the parser relocates a trailing <style>
+    // into <body> before this walk ever runs — so serving a saved version and
+    // saving it again added one copy of that style per cycle, monotonically.
+    // This is the property that matters, not an argument about where the
+    // parser puts it, which is why it is pinned on the actual byte length
+    // rather than asserted about in a comment.
+    const blank = "<html><body><p>Bonjour</p></body></html>";
+
+    const served1 = withPrintableBootstrap(blank);
+    const snapshot1 = snapshotDocument(reparse(served1).documentElement);
+
+    // What the worksheet raw route does with a saved version on the next
+    // request: inject the same bootstrap again and serve it.
+    const served2 = withPrintableBootstrap(snapshot1);
+    const snapshot2 = snapshotDocument(reparse(served2).documentElement);
+
+    expect(snapshot2.length).toBe(snapshot1.length);
+    expect(snapshot2).toBe(snapshot1);
   });
 });

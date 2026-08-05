@@ -4,6 +4,25 @@ import { snapshotDocument } from "@/lib/snapshot-dom";
 export const PRINT_MESSAGE = "print-page";
 export const CAPTURE_MESSAGE = "capture-page";
 
+// The marker that lets snapshotDocument (lib/snapshot-dom.ts) find and strip
+// everything a bootstrap injects, not only <script> tags. Without it,
+// PRINT_STYLE below survives a save: HTML parsing relocates a trailing
+// <style> into <body> before the walk ever runs, so it is inside the tree
+// snapshotDocument clones and its script-only cleanup leaves it in place —
+// which meant open → save → reopen → save added one copy of that <style> per
+// round trip, monotonically, to a document the codebase's own rule says
+// "carries no code of ours" (see the comment on snapshotDocument itself).
+//
+// Every element the three bootstraps below inject carries this attribute, so
+// the walk can remove all of them with one selector rather than one exception
+// per tag shape. Both sides import this instead of writing the string
+// themselves — the same agree-by-construction fix worksheet-field.ts uses for
+// its FormData contract — EXCEPT snapshot-dom.ts, which cannot: its source is
+// inlined into a browser <script> via Function.prototype.toString() and may
+// not reference module scope, so its copy is a literal with a comment
+// pointing back here.
+export const BOOTSTRAP_MARKER_ATTR = "data-bootstrap-injected";
+
 // A listener appended to the served document — never to the stored one. The
 // `?printable=1` gate on the raw route is what keeps it out of the admin's
 // download, which has to be a byte-exact copy of what Jenn uploaded so the
@@ -17,7 +36,10 @@ export const CAPTURE_MESSAGE = "capture-page";
 // through.
 //
 // The raw route's CSP admits 'unsafe-inline' for scripts, so this runs.
-const BOOTSTRAP = `<script>
+// Marked like PRINT_STYLE below even though snapshotDocument already strips
+// every <script> unconditionally — that stronger, unconditional rule stays,
+// and the marker is what lets a NON-script injection get the same treatment.
+const BOOTSTRAP = `<script ${BOOTSTRAP_MARKER_ATTR}>
 addEventListener("message", function (event) {
   if (event.source !== window.parent) return;
   if (event.data !== ${JSON.stringify(PRINT_MESSAGE)}) return;
@@ -47,8 +69,10 @@ addEventListener("message", function (event) {
 // same "author intent wins" the refusal above is protecting.
 //
 // Gated with the listener, so the stored document, the admin's download and
-// every preview are untouched.
-const PRINT_STYLE = `<style>
+// every preview are untouched. Marked so a saved worksheet snapshot strips it
+// too — see BOOTSTRAP_MARKER_ATTR above for why a <style> needed one where the
+// <script>s did not.
+const PRINT_STYLE = `<style ${BOOTSTRAP_MARKER_ATTR}>
 @media print {
   html {
     -webkit-print-color-adjust: exact;
@@ -61,8 +85,17 @@ const PRINT_STYLE = `<style>
 // a text editor may have no </body>, or several, and every parser moves a
 // trailing script into the body anyway. The original is a prefix of the result,
 // which is the property the test pins.
+//
+// No separating "\n" between html and what follows, and none between the
+// injected tags either — deliberately, not by omission. A separator would be a
+// text node the parser relocates into <body> beside PRINT_STYLE and BOOTSTRAP,
+// and the marker-based cleanup in snapshotDocument only removes the elements
+// it marks, not stray whitespace around them: a document opened and saved
+// through this bootstrap twice would keep the blank line snapshotDocument left
+// behind the first time and add another, growing by one line per cycle even
+// with the elements themselves cleaned up correctly.
 export function withPrintableBootstrap(html: string): string {
-  return `${html}\n${PRINT_STYLE}\n${BOOTSTRAP}\n`;
+  return `${html}${PRINT_STYLE}${BOOTSTRAP}`;
 }
 
 // The width a tile renders at, matching THUMB_WIDTH in
@@ -91,7 +124,7 @@ const CAPTURE_WIDTH = 320;
 // This needs NO CSP change. `img-src data:` and `script-src 'unsafe-inline'`
 // are already in the policy, for other reasons. Nothing here may be a reason to
 // widen it.
-const CAPTURE_BOOTSTRAP = `<script>
+const CAPTURE_BOOTSTRAP = `<script ${BOOTSTRAP_MARKER_ATTR}>
 (function () {
   var MESSAGE = ${JSON.stringify(CAPTURE_MESSAGE)};
   var WIDTH = ${CAPTURE_WIDTH};
@@ -278,9 +311,12 @@ const CAPTURE_BOOTSTRAP = `<script>
 })();
 </script>`;
 
-// Appended, for the reason withPrintableBootstrap is.
+// Appended, for the reason withPrintableBootstrap is, including the absence
+// of a separating "\n" — see that function's comment. A capture is never fed
+// back into snapshotDocument today, but nothing here should rely on that
+// staying true to avoid the same accumulation.
 export function withCaptureBootstrap(html: string): string {
-  return `${html}\n${CAPTURE_BOOTSTRAP}\n`;
+  return `${html}${CAPTURE_BOOTSTRAP}`;
 }
 
 export const SNAPSHOT_MESSAGE = "snapshot-page";
@@ -301,7 +337,7 @@ export const SNAPSHOT_MESSAGE = "snapshot-page";
 // It replies ALWAYS, which inverts the contract of the capture bootstrap above
 // it. That one answers null on every failure because a missing preview leaves a
 // working iframe in place; a silent save loses a student's homework.
-const SNAPSHOT_BOOTSTRAP = `<script>
+const SNAPSHOT_BOOTSTRAP = `<script ${BOOTSTRAP_MARKER_ATTR}>
 (function () {
   var MESSAGE = ${JSON.stringify(SNAPSHOT_MESSAGE)};
   var MAX_BYTES = ${MAX_SNAPSHOT_BYTES};
@@ -341,7 +377,11 @@ const SNAPSHOT_BOOTSTRAP = `<script>
 })();
 </script>`;
 
-// Appended, for the reason withPrintableBootstrap is.
+// Appended, for the reason withPrintableBootstrap is, including the absence
+// of a separating "\n" — see that function's comment. This one matters most:
+// it is composed with withPrintableBootstrap on the worksheet route, and their
+// output is exactly what snapshotDocument later walks, so a stray separator
+// left here is the same accumulation, one more layer down.
 export function withSnapshotBootstrap(html: string): string {
-  return `${html}\n${SNAPSHOT_BOOTSTRAP}\n`;
+  return `${html}${SNAPSHOT_BOOTSTRAP}`;
 }

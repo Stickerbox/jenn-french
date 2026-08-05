@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MAX_SNAPSHOT_BYTES } from "@/lib/page-snapshot";
 import {
+  BOOTSTRAP_MARKER_ATTR,
   CAPTURE_MESSAGE,
   PRINT_MESSAGE,
   SNAPSHOT_MESSAGE,
@@ -20,7 +21,7 @@ describe("withPrintableBootstrap", () => {
   });
 
   it("adds a script", () => {
-    expect(withPrintableBootstrap(DOC)).toContain("<script>");
+    expect(withPrintableBootstrap(DOC)).toContain("<script");
   });
 
   it("calls print", () => {
@@ -137,6 +138,30 @@ describe("withSnapshotBootstrap", () => {
     const result = withSnapshotBootstrap("<p>fragment</p>");
     expect(result).toContain("<p>fragment</p>");
     expect(result).toContain(JSON.stringify(SNAPSHOT_MESSAGE));
+  });
+});
+
+describe("everything a bootstrap injects carries the strip marker", () => {
+  // snapshotDocument (lib/snapshot-dom.ts) removes every element carrying
+  // BOOTSTRAP_MARKER_ATTR, not only <script>s. That removal is only complete
+  // if nothing a bootstrap adds is missing the marker — this pins the other
+  // half of that contract, on the writing side.
+  it("marks the print style and its script", () => {
+    const result = withPrintableBootstrap(DOC);
+    expect(result).toContain(`<style ${BOOTSTRAP_MARKER_ATTR}>`);
+    expect(result).toContain(`<script ${BOOTSTRAP_MARKER_ATTR}>`);
+  });
+
+  it("marks the capture script", () => {
+    expect(withCaptureBootstrap(DOC)).toContain(
+      `<script ${BOOTSTRAP_MARKER_ATTR}>`,
+    );
+  });
+
+  it("marks the snapshot script", () => {
+    expect(withSnapshotBootstrap(DOC)).toContain(
+      `<script ${BOOTSTRAP_MARKER_ATTR}>`,
+    );
   });
 });
 

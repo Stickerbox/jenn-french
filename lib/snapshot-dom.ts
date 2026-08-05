@@ -20,11 +20,13 @@
 // than in a student's browser.
 //
 // It returns a document that is INERT but still TYPEABLE. Every <script> is
-// removed, including the bootstrap that called this — a stored version carries
-// no code of ours, the same discipline that keeps the print listener out of the
-// admin's <a download>. Text fields, checkboxes and :checked CSS keep working
-// because they are browser behaviour rather than JavaScript, which is what lets
-// Jenn open a student's version and type her corrections into it.
+// removed, including the bootstrap that called this, and so is every other
+// element a bootstrap injected (see the data-bootstrap-injected marker below)
+// — a stored version carries no code of ours, the same discipline that keeps
+// the print listener out of the admin's <a download>. Text fields, checkboxes
+// and :checked CSS keep working because they are browser behaviour rather than
+// JavaScript, which is what lets Jenn open a student's version and type her
+// corrections into it.
 //
 // Keeping the scripts was considered and refused: it restores perfectly on a
 // document whose JavaScript only wires event handlers, and SILENTLY WIPES
@@ -92,9 +94,27 @@ export function snapshotDocument(root: Element): string {
     }
   }
 
+  // "data-bootstrap-injected" is BOOTSTRAP_MARKER_ATTR from
+  // lib/printable-bootstrap.ts, copied as a literal rather than imported —
+  // this file cannot import anything, see the banner above. It marks every
+  // element a bootstrap injects that is NOT a <script>, such as the print
+  // stylesheet: HTML parsing relocates a trailing <style> into <body> before
+  // this walk ever runs, so without a marker it would be indistinguishable
+  // from the document's own styles and would survive into the stored
+  // snapshot — one extra copy per open/save cycle, monotonically.
+  var marked = clone.querySelectorAll("[data-bootstrap-injected]");
+  for (var j = 0; j < marked.length; j++) {
+    var injected = marked[j];
+    if (injected.parentNode) injected.parentNode.removeChild(injected);
+  }
+
+  // Every <script> regardless of marking — a separate, stronger rule than the
+  // one above, and it must stay stronger: a stored version carries no code of
+  // ours, the same discipline that keeps the print listener out of the
+  // admin's <a download>.
   var scripts = clone.querySelectorAll("script");
-  for (var j = 0; j < scripts.length; j++) {
-    var script = scripts[j];
+  for (var k = 0; k < scripts.length; k++) {
+    var script = scripts[k];
     if (script.parentNode) script.parentNode.removeChild(script);
   }
 
