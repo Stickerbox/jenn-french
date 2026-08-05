@@ -1,6 +1,7 @@
 "use client";
 
 import { PRINT_MESSAGE } from "@/lib/printable-bootstrap";
+import { cn } from "@/lib/utils";
 
 // The frame is found by id rather than through a ref so the shell can stay a
 // server component and this button is the only thing shipped to the browser on
@@ -31,7 +32,12 @@ function SaveIcon() {
   );
 }
 
-export function PrintButton() {
+// `className` overrides only the position: the worksheet shell renders this
+// beside a Save pill in the same corner and shifts it left so the two do not
+// overlap (see the note in CLAUDE.md about the two fixed controls that already
+// share bottom-right). Left undefined on /p/[slug], its only other caller,
+// which keeps that route's position exactly as it was.
+export function PrintButton({ className }: { className?: string } = {}) {
   return (
     <button
       type="button"
@@ -53,7 +59,10 @@ export function PrintButton() {
       // print dialog, where Save as PDF is a destination the student chooses.
       // Promising a download would be a promise the dialog can break.
       title="Imprimer ou enregistrer en PDF"
-      className="fixed bottom-5 right-5 z-10 flex items-center gap-2 rounded-full bg-[var(--card-bleu)] px-5 py-3 font-[family-name:var(--card-font-serif)] text-sm text-white shadow-[var(--card-shadow)] transition-opacity hover:opacity-90 print:hidden"
+      className={cn(
+        "fixed bottom-5 right-5 z-10 flex items-center gap-2 rounded-full bg-[var(--card-bleu)] px-5 py-3 font-[family-name:var(--card-font-serif)] text-sm text-white shadow-[var(--card-shadow)] transition-opacity hover:opacity-90 print:hidden",
+        className,
+      )}
     >
       <SaveIcon />
       {/* The word is hidden on the narrowest screens, where a full-width pill
