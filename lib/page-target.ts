@@ -6,11 +6,25 @@ export type PageTarget = { href: string; newTab: boolean };
 // three-way ternary. The rule is that only an html page opens in this tab: a
 // link is off-site, and a PDF opens in a new one so the shelf a student is
 // browsing stays where they left it.
-export function pageTarget(page: {
-  kind: PageKind;
-  slug: string;
-  url: string | null;
-}): PageTarget {
+//
+// A worksheet overrides all of that, and it needs a group to do it — a version
+// belongs to (page, student), and there is no student in a page row. So the
+// worksheet destination is returned ONLY when a shelf supplied one: the admin
+// Pages tab under "All" and /f/[token] pass none and keep the targets they had.
+// That is the same rule the pin control already follows, and for the same
+// reason — "All" is not a shelf.
+export function pageTarget(
+  page: {
+    kind: PageKind;
+    slug: string;
+    url: string | null;
+    worksheet?: boolean;
+  },
+  groupSlug?: string | null,
+): PageTarget {
+  if (page.worksheet && groupSlug) {
+    return { href: `/g/${groupSlug}/w/${page.slug}`, newTab: false };
+  }
   if (page.kind === "link") return { href: page.url ?? "#", newTab: true };
   if (page.kind === "pdf") return { href: `/p/${page.slug}/pdf`, newTab: true };
   return { href: `/p/${page.slug}`, newTab: false };

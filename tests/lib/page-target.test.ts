@@ -33,3 +33,36 @@ describe("pageTarget", () => {
     });
   });
 });
+
+describe("a worksheet", () => {
+  const sheet = { kind: "html" as const, slug: "devoir-3", url: null, worksheet: true };
+
+  it("goes to the student's own worksheet route when there is a shelf", () => {
+    expect(pageTarget(sheet, "marie")).toEqual({
+      href: "/g/marie/w/devoir-3",
+      newTab: false,
+    });
+  });
+
+  it("sends a pdf worksheet there too, so the chooser is reachable", () => {
+    // A PDF has nowhere to put a save control — it opens in the browser's own
+    // viewer — so the chooser is the only surface it has.
+    expect(pageTarget({ ...sheet, kind: "pdf" }, "marie").href).toBe(
+      "/g/marie/w/devoir-3",
+    );
+  });
+
+  it("falls back to the public page with no shelf to open it on", () => {
+    // "All" on the admin Pages tab is not a shelf, and /f/[token] is read-only.
+    // Neither has a student whose versions could be listed.
+    expect(pageTarget(sheet)).toEqual({ href: "/p/devoir-3", newTab: false });
+    expect(pageTarget(sheet, null)).toEqual({ href: "/p/devoir-3", newTab: false });
+  });
+
+  it("leaves a page Jenn has not ticked exactly where it was", () => {
+    expect(pageTarget({ ...sheet, worksheet: false }, "marie")).toEqual({
+      href: "/p/devoir-3",
+      newTab: false,
+    });
+  });
+});
