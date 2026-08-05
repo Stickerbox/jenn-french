@@ -22,6 +22,7 @@ import { readToken, cookieNameFor } from "@/lib/student-tokens";
 import { titleFromUrl } from "@/lib/link-title";
 import { titleFromHtml } from "@/lib/page-title";
 import { inlinePage, type SkippedRef } from "@/lib/page-inline";
+import { readWorksheetField } from "@/lib/worksheet-field";
 
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
@@ -182,9 +183,11 @@ export async function updatePage(
 
   // savePage does not write `worksheet` — see updatePageMeta. An html edit
   // therefore needs both calls: the document through savePage, the metadata
-  // through the function that owns it.
+  // through the function that owns it. `title` here, not `input.title` — it is
+  // the trimmed value validatePage already produced, and the raw prop would
+  // silently overwrite what saveOrExplain just stored two lines above.
   await updatePageMeta(slug, {
-    title: input.title,
+    title,
     groupIds: input.groupIds,
     worksheet: input.worksheet,
   });
@@ -236,10 +239,6 @@ function readGroupIds(formData: FormData): string[] {
     .filter((id) => id !== "");
 }
 
-function readWorksheet(formData: FormData): boolean {
-  return formData.get("worksheet") === "on";
-}
-
 // Teacher-only, like createPage — because this is the ADMIN's upload, which
 // takes an audience and can put a PDF on any shelf or on several. A student
 // uploading to their own shelf goes through addShelfPdf below, which is
@@ -271,7 +270,7 @@ export async function updatePdfPage(
   await requireTeacher();
   const { title, bytes } = await readPdfForm(formData);
   const groupIds = readGroupIds(formData);
-  const worksheet = readWorksheet(formData);
+  const worksheet = readWorksheetField(formData);
 
   if (bytes) {
     await saveOrExplain({

@@ -13,6 +13,7 @@ import type { PageInput, PageSaveResult } from "@/app/page-actions";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
 import { renderPdfThumbnail } from "@/components/pdf-thumbnail";
 import { captureAndStoreThumbnail } from "@/components/html-thumbnail";
+import { WORKSHEET_FIELD, worksheetFieldValue } from "@/lib/worksheet-field";
 
 export type PageEditorGroup = { id: string; name: string };
 
@@ -96,7 +97,7 @@ export function PageEditor({
         const formData = new FormData();
         formData.set("title", title);
         for (const id of groupIds) formData.append("groupIds", id);
-        formData.append("worksheet", worksheet ? "on" : "");
+        formData.append(WORKSHEET_FIELD, worksheetFieldValue(worksheet));
         // Absent when she is editing a stored PDF's title or audience without
         // choosing a new file. The action reads that as "leave the bytes".
         if (pdfFile) formData.set("pdf", pdfFile);
