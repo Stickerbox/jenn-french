@@ -35,12 +35,12 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | Route | Who | Notes |
 |---|---|---|
 | `/` | public | landing page |
-| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the student's own chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included, who once unlocked also gets *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. **Jenn's own chat is her inbox FAB and follows her session, not the token** — the only thing on this page that does, and it carries the delete and read-marker controls with it. Everything the gate controls is unchanged. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding a link or a page is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. The card tab carries the week's five day dots, a week-range line that opens a month calendar, and *Aujourd'hui*; a day with no card cannot be selected. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing |
+| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the student's own chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included, who once unlocked also gets *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. **Jenn's own chat is her inbox FAB and follows her session, not the token** — the only thing on this page that does, and it carries the delete and read-marker controls with it. Everything the gate controls is unchanged. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding to the shelf is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. **Its menu depends on who is looking**: a student gets *Ajouter un lien* and *Ajouter un PDF*, Jenn gets *Add a link*, *Add a page* and *Add a PDF* — she keeps the full admin menu on the one screen where "put this on Marie's shelf" is the obvious act, and the student loses the HTML paste box, because they may upload a PDF and not a website. `addShelfPage` keeps its guard and its tests; what changed is which control is drawn. Jenn also gets a pencil on each editable tile. The card tab carries the week's five day dots, a week-range line that opens a month calendar, and *Aujourd'hui*; a day with no card cannot be selected. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe; a pdf row redirects to `/p/[slug]/pdf` |
 | `/p/[slug]/pdf` | public | an uploaded PDF, in the browser's own viewer |
-| `GET /p/[slug]/thumb` | public | a pdf page's cached first-page preview |
+| `GET /p/[slug]/thumb` | public | a page's cached preview picture — a pdf's first page, or an html page's captured top |
 | `/f/[token]` | students | that student's files, at an opaque unguessable link |
 | `/admin/pages/[slug]` | teacher | edits one uploaded page |
 | `POST /api/pages` | token | publishes a page from outside the browser |
@@ -223,11 +223,33 @@ deploy that rebuilds the app in place. `Bytes` on SQLite is already proven here
 — `Passkey.publicKey` is one — so the idioms are its: `Buffer.from(...)` in,
 `new Uint8Array(...)` out.
 
-Uploading a PDF is **teacher-only**. `createPdfPage` and `updatePdfPage` start
-with `requireTeacher()`; students keep `addShelfLink` and `addShelfPage` and
-nothing more. A student upload would put unvalidated binary in the database
-served from our own origin, and would need `canStudentDelete` extended from
-rows-with-a-url to rows-with-a-blob — a separate decision.
+**A student may upload a PDF to their own shelf.** `addShelfPdf` is the third
+sibling of `addShelfLink` and `addShelfPage` and shares their
+`requireShelfRole` guard, so the everyone group and an untokened visitor are
+refused by a rule that already existed and was already tested. `createPdfPage`
+and `updatePdfPage` remain `requireTeacher()` — those are the *admin's* upload,
+which takes an audience and can reach any shelf; two entry points because they
+answer to different authorities, not because the bytes differ.
+
+The earlier spec refused this, and said a student upload "would need
+`canStudentDelete` extended from rows-with-a-url to rows-with-a-blob — a
+separate decision." This was that decision, and the extension turned out to be
+already paid for: `canStudentDelete` had independently been rewritten to key off
+`addedByStudent` rather than `kind` — its own comment anticipates "if a third
+kind ever appears" — so a student's own PDF, assigned to their shelf alone, is
+already deletable by them, and `deleteShelfLink` re-checks it server-side
+regardless of which controls a tile rendered. **`canStudentDelete` needs no
+change, and changing it would be the wrong move.** `SavePageInput`'s pdf branch
+gained the `addedByStudent` field its comment used to say it deliberately
+lacked.
+
+The other half of the old refusal — unvalidated binary in the database served
+from our own origin — is answered exactly as it is for Jenn: `validatePagePdf`,
+`nosniff`, `contentDispositionInline`, and no sanitiser for the reason there is
+no HTML one. What changed is *who* can reach it, and the honest statement is
+that a student can now put 3 MB of bytes on a public slug. The mitigations are
+the shelf's existing ones: the slug is derived from a title, `/p/[slug]` carries
+`noindex`, and Jenn can delete anything on any shelf.
 
 `MAX_PDF_BYTES` is 3 MB **because** nginx's `client_max_body_size` on the server
 is `4m` (`docs/DEPLOYMENT.md` item 11). Raising the cap means an SSH session and
@@ -266,17 +288,31 @@ names every query that has to select it; a caller that quietly omitted it would
 resolve a broken pdf row as `"html"`, which is the precise failure the function
 exists to prevent.
 
-A pdf row also carries a **picture of its first page**: `pdfThumb` holds a JPEG
-and `pdfThumbAt` says when it was written. Two columns, because the second does
-two jobs a boolean could not. It is the **existence signal**, so no shelf query
-ever selects `pdfThumb` — the same lesson `pdfSize` records one column earlier,
-since a tile grid that loads a blob to decide whether to draw a picture has
-already paid for the picture it might not draw. And it is the **cache version**:
-`/p/[slug]/thumb` answers `public, max-age=31536000, immutable`, which is safe
-**only** because the tile appends `?v=<pdfThumbAt>`. On a stable URL that year
-would pin a replaced document's picture in every browser that had ever seen it.
-The route and `PdfPreview` are two halves of one decision and neither can change
-alone.
+**Either kind of page can carry a picture of itself**: `thumb` holds a JPEG and
+`thumbAt` says when it was written. Page 1 for a pdf, rendered by pdf.js; the
+top of the laid-out document for an html row, via the `?capture=1` harness
+below. One pair of columns rather than two, because they mean *the picture* and
+*the existence signal plus the cache version* and neither meaning was ever about
+PDFs — a second pair would duplicate both arguments and give `savePage`'s
+every-column invariant four columns to keep straight instead of two. (They were
+`pdfThumb`/`pdfThumbAt` until 2026-08-04; if you find the old names, that is
+why.)
+
+Two columns, because the second does two jobs a boolean could not. It is the
+**existence signal**, so no shelf query ever selects `thumb` — the same lesson
+`pdfSize` records one column earlier, since a tile grid that loads a blob to
+decide whether to draw a picture has already paid for the picture it might not
+draw. And it is the **cache version**: `/p/[slug]/thumb` answers
+`public, max-age=31536000, immutable`, which is safe **only** because the tile
+appends `?v=<thumbAt>`. On a stable URL that year would pin a replaced
+document's picture in every browser that had ever seen it. That route and the
+two previews are three parts of one decision and none can change alone.
+
+**Renaming that migration is a trap worth remembering.** Prisma read the column
+rename as a drop plus an add and generated an `INSERT ... SELECT` carrying
+neither column, which would have discarded every stored preview silently, with a
+green migration. The migration is edited by hand to move the bytes. Read the
+generated SQL for any rename on SQLite.
 
 The bytes are a `Bytes` column and **not** a base64 data URL in a `String`,
 which is what `Whiteboard.thumbnail` is. That one is inlined into an `<img src>`
@@ -285,9 +321,14 @@ third more room in a database the nightly `VACUUM INTO` copies whole, for
 nothing.
 
 **pdf.js never loads on a shelf.** `renderPdfThumbnail`
-(`components/admin/pdf-thumbnail.ts`) runs it behind a dynamic `import()` in the
-admin, in Jenn's browser, at the moment she stages a PDF; the shelf receives a
-JPEG through an `<img>`. That is what makes this consistent with the
+(`components/pdf-thumbnail.ts` — it moved out of `admin/` when students gained
+the upload, and is no longer Jenn's browser only) runs it behind a dynamic
+`import()` at the moment someone stages a PDF; the shelf receives a JPEG through
+an `<img>`. The dynamic import matters more for that move, not less: without it
+a PDF renderer would ship in a chunk the router could serve to a student who
+never uploads anything. The accepted cost is that a student staging a PDF
+fetches pdf.js once, at that moment, on their phone, and the ten-second timeout
+degrades to the glyph on a slow connection. That is what makes this consistent with the
 2026-08-03 spec's refusal of pdf.js rather than a reversal of it — that refusal
 was about a dozen renderers mounting at once on a student's phone. The module is
 impure and so is deliberately **not** in `lib/`, the same split
@@ -466,6 +507,29 @@ differs. The request body may now reach `MAX_UPLOAD_BYTES` (3 MB, under nginx's
 `4m`) because it carries base64; the stored document is still capped at
 `MAX_PAGE_BYTES`, and the two stopped being the same measurement.
 
+`tools/publish-dia-artifact.sh` is **silent under Shortcuts and unchanged in a
+terminal**. Every success-path message goes through `say()`, which draws nothing
+without a TTY, and the macOS alert on failure was removed rather than left
+unreachable: it existed because a Shortcuts action discards stdout, but the same
+mechanism was surfacing success chatter as a banner announcing a byte count
+about a step that had already finished. The knowing trade is that a silent
+failure looks like a mis-clicked Shortcut, accepted because the flow ends with a
+browser opening — so a failed publish is a click that did nothing — and because
+a terminal run still reports in full. This is the environment detection the spec
+allows for *presentation* and forbids for *selection*, since a slug is
+permanent. On success it opens `/admin?tab=pages&edit=<slug>`, the edit overlay
+with the list behind it, because the script publishes with no groups and picking
+an audience is always the next step.
+
+Artifacts titled *The X Brief* are never offered. Dia regenerates one on a
+schedule and it is not teaching material, so `candidate_rows` drops it — that
+one function is what the picker, `--list`, `--latest` and the title search all
+read through, which makes the four agree by construction. Anchored at both ends,
+so *The Brief History of Québec* and *Brief Notes* survive, and applied after
+`decode_entities`. The deliberate consequence: searching for one reports *No
+page whose title contains …*, which is correct for a rule saying these are never
+published.
+
 `scripts/backfill-page-assets.mjs` runs the same inliner over
 pages published before this existed; like `backfill-sections.mjs` it imports
 `../lib/*.ts`, which needs `scripts/run-ts.mjs` to resolve the `@/` alias —
@@ -555,9 +619,53 @@ browser's disk cache, which the blanket `no-store` prevented. This removes the
 fetch, not the re-layout of a dozen documents at 500%; `loading="lazy"` is
 still what handles that.
 
+**An html tile can show a stored JPEG instead**, and that is what makes a page
+whose layout is drawn by JavaScript preview as itself rather than as a blank
+box — the `sandbox=""` frame above can never run a script and must not.
+`?capture=1` on the raw route appends `withCaptureBootstrap`
+(`lib/printable-bootstrap.ts`), beside `withPrintableBootstrap` and under the
+same gate rule: only the capture harness asks for it, and the two are
+independent, because the admin's `<a download>` must keep returning Jenn's bytes
+and a student's print must not carry a capture listener.
+
+`captureHtmlThumbnail` (`components/html-thumbnail.ts`, impure and so not in
+`lib/`) frames that route in an offscreen iframe with `sandbox="allow-scripts"`
+— **never `allow-same-origin`**, which beside it would let the page remove its
+own sandbox. That opaque origin is why the document rasterises *itself* and
+posts a JPEG out, rather than the parent reading its DOM. It frames the **stored
+page through its real route under the real CSP**, not the HTML in memory: a
+preview rendered from markup the stored page cannot load would be a working
+feature showing the wrong thing, and the capture therefore runs *after* the
+save. **No CSP directive was widened for any of this** and none may be.
+
+The contract is total — `Promise<Blob | null>`, never throws — so `null` means
+"leave the live iframe in place", which is a working preview, and the
+implementation can be replaced without a caller learning about it. Two guards
+inside it were added because the capture was measured rather than assumed:
+`document.fonts.ready` before serialising, since these artifacts inline their
+typefaces and serialising early rasterises with *no text at all*; and a blank
+check, because a background-only capture is still a valid JPEG and storing one
+would *replace* the working iframe with a flat rectangle.
+
+**It is not reliable on large documents.** A ~500 KB artifact percent-encodes
+into a ~1.5 MB data URL and the decode often fails; measured at roughly one run
+in three, against every run for smaller pages. `blob:` was tried — it is in the
+CSP already — and is worse, never loading from the frame's opaque origin.
+html2canvas was tried per the plan's fallback and made failures deterministic
+without fixing any, so it was reverted rather than kept as an unearned
+dependency. A failed capture stores nothing, so this is strictly better than the
+old behaviour and never worse.
+
+`ThumbBackfill` (`components/admin/ThumbBackfill.tsx`) captures missing previews
+on the Pages tab, one at a time and capped per visit — serial for the reason a
+shelf frame has no `allow-scripts`. It is what covers pages published through
+`POST /api/pages`, where there is no browser to capture in, and it is why there
+is **no backfill script**: one would need the server-side renderer this design
+refuses.
+
 In the admin the tile links to `/p/[slug]` and a pencil icon
-links to the editor, not the reverse — following a thumbnail should show the
-page it is a thumbnail of.
+opens the editor **in an overlay** (below), not the reverse — following a
+thumbnail should show the page it is a thumbnail of.
 
 A **link** tile shows a trash icon in place of that pencil and the download
 beside it, which is the third clause of the same sentence: it trades the two
@@ -570,6 +678,31 @@ which adds no authority — `deleteShelfLink` has always let her remove anything
 there — and matters because chat-filed links arrive with `addedByStudent` false,
 precisely the set she could not reach. `canStudentDelete` is unchanged and is
 still re-checked on the server regardless of which controls a tile rendered.
+
+**Editing happens in an overlay, on both screens.** The pencil is
+`?edit=<slug>`, which `PageEditOverlay` reads to fetch one page through the
+teacher-only `loadPageForEdit` — fetched on open rather than shipped with the
+list, following `loadConversation`, because the payload is a whole document and
+a shelf renders many tiles. It wraps the **unmodified** `PageEditor`, so there
+is one edit form and no second copy to drift.
+
+A search param rather than local state, for four reasons and the last is the one
+that would be hard to add later: Back closes it; it has a URL, which is what the
+dia script opens after publishing; the list stays mounted, so a rename no longer
+costs the scroll position, the search text or the active student chip; and **the
+pencil is an anchor**, which the whiteboard's leave-guard — a capture-phase
+`click` listener on `document` that inspects anchors — therefore protects for
+free. A button calling `router.push` would slip past it and opening this overlay
+during a live board would destroy the op log with no prompt. **Keep it an
+anchor.**
+
+Jenn gets the pencil on a student's shelf too, under the rule `PageList` already
+applies: html and pdf rows get it, a link row keeps its ×, so the two screens
+agree about which tiles are editable. It grants **no new authority** —
+`updatePage`, `updatePdfPage` and `deletePage` were already `requireTeacher()`;
+only a control is drawn where the authority already reached. `/f/[token]` is
+read-only and gets none of it. `/admin/pages/[slug]` is untouched and still
+works for a bookmark.
 
 A pin is a `PagePin(pageId, groupId, pinnedAt)` row, not a column on the page:
 the same page is pinned on one student's shelf and not on another's. Still a

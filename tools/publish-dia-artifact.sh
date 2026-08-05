@@ -416,6 +416,14 @@ decode_entities() {
 # stdout: "mtime<TAB>path<TAB>title<TAB>total<TAB>missing", titles fully decoded
 #
 # Tab-delimited because the paths contain spaces ("Application Support").
+#
+# EVERY CALLER FILTERS BEFORE IT TRIMS: `candidate_rows | head -N`, never
+# `head -N | candidate_rows`. The Brief filter below drops rows, so trimming
+# first spends the ten picker slots on artifacts that are then thrown away — Dia
+# writes a Brief most days, so the list arrived short or empty. It also made
+# --latest report "nothing to publish" whenever the newest artifact happened to
+# be a Brief. Describing the whole list is what the title search already does,
+# so the cost is one already-accepted osascript pass.
 candidate_rows() {
   local src="$WORK/src.txt" paths="$WORK/paths.txt" desc="$WORK/desc.txt"
   cat > "$src"
@@ -454,6 +462,26 @@ candidate_rows() {
         printf '%s\t%s\t%s\t%s\t%s\n' \
           "$mtime" "$path" "$title" "$total" "$missing"
       done
+}
+
+# All candidate rows, newest first, written to a file and echoed back as its
+# path. Every caller reads through this.
+#
+# A FILE AND NOT A PIPE, and that is the whole point. `candidate_rows | head -N`
+# has head close the pipe as soon as it has its rows, which kills the writing
+# subshell with SIGPIPE — and `set -euo pipefail` at the top of this script turns
+# that into exit 141 and aborts the run. `head -N <file>` closes nothing and
+# cannot signal anyone.
+#
+# Filtering therefore happens before any trimming, which is also what the Brief
+# filter needs: trimming first would spend the ten picker slots on rows that are
+# then dropped, and Dia writes a Brief most days.
+all_rows() {
+  local out="$WORK/rows-all.txt"
+  if [ ! -f "$out" ]; then
+    list_artifacts | candidate_rows > "$out"
+  fi
+  printf '%s' "$out"
 }
 
 # stdin:  "mtime<TAB>path<TAB>title<TAB>total<TAB>missing"
@@ -501,7 +529,7 @@ build_labels() {
 if [ "$WANT_LIST" = "1" ]; then
   echo "Recent Dia artifacts:"
   # The same labels the dialog shows, so the two cannot drift.
-  list_artifacts | head -"$LIST_ROWS" | candidate_rows | build_labels |
+  head -"$LIST_ROWS" "$(all_rows)" | build_labels |
     while IFS= read -r label; do printf '  %s\n' "$label"; done
   exit 0
 fi
@@ -536,7 +564,7 @@ function run(argv) {
 choose_artifact() {
   local rows="$WORK/rows.txt" labels="$WORK/labels.txt" picked i n
   local paths=() titles=() totals=() missings=() labellist=()
-  list_artifacts | head -"$LIST_ROWS" | candidate_rows > "$rows"
+  head -"$LIST_ROWS" "$(all_rows)" > "$rows"
   [ -s "$rows" ] || die "No artifacts found yet."
 
   while IFS=$'\t' read -r mtime path title total missing; do
@@ -554,10 +582,12 @@ choose_artifact() {
   picked=$(choose_from_list "$labels" "Which page do you want to publish?") \
     || die "Could not open the chooser. Over SSH or with no window server, use --latest."
 
-  # A deliberate cancel is not a failure. Routing it through die would pop an
-  # alert saying something went wrong when nothing did.
+  # A deliberate cancel is not a failure, and it is not news either: she
+  # dismissed the dialog and knows nothing was published. Through say(), so a
+  # Shortcut draws nothing at all — a banner reporting that the thing she just
+  # cancelled did not happen is the noise this whole change is about.
   if [ -z "$picked" ]; then
-    echo "Cancelled. Nothing was published."
+    say "Cancelled. Nothing was published."
     exit 0
   fi
 
@@ -600,13 +630,13 @@ if [ -n "${1:-}" ]; then
     esac
     # `< <(…)` rather than a pipe: a while on the right of a pipe runs in a
     # subshell in bash 3.2, so INDEX would be empty afterwards.
-  done < <(list_artifacts | candidate_rows)
+  done < <(cat "$(all_rows)")
   [ -n "$INDEX" ] || die "No page whose title contains '$1'. Try --list."
   [ "$HITS" -gt 1 ] && echo "$HITS pages match '$1'; taking the newest."
 elif [ "$WANT_LATEST" = "1" ]; then
   while IFS=$'\t' read -r mtime path title total missing; do
     INDEX="$path"; TITLE="$title"; TOTAL="$total"; MISSING="$missing"
-  done < <(list_artifacts | head -1 | candidate_rows)
+  done < <(head -1 "$(all_rows)")
   [ -n "$INDEX" ] || die "No artifacts found yet."
 else
   choose_artifact          # sets INDEX, TITLE, TOTAL, MISSING

@@ -43,7 +43,13 @@ export default async function AdminPage({
   const { date, tab, edit } = await searchParams;
   const today = new Date().toISOString().slice(0, 10);
   const selected = parseAdminDate(date, today);
-  const active = parseAdminTab(tab);
+  // ?edit= implies the Pages tab. A relative "?edit=..." href replaces the whole
+  // query string rather than merging into it, so the pencil has to carry
+  // ?tab=pages itself — and it does — but a hand-typed or bookmarked ?edit=
+  // would otherwise land on the daily word with an overlay that never mounts,
+  // which reads as the link being broken. The edit param is meaningless on the
+  // other two tabs, so there is nothing to disambiguate.
+  const active = parseAdminTab(tab ?? (edit ? "pages" : undefined));
 
   // Fetched here rather than inside PagesTab, which is where it used to live:
   // the FAB is outside the tab bodies and needs the audience list on every one

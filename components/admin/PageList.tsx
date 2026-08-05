@@ -314,7 +314,7 @@ export function PageList({
                                   destroy the op log with no prompt. The same
                                   link on the student shelf relies on it. */}
                               <Link
-                                href={`?edit=${page.slug}`}
+                                href={`?tab=pages&edit=${page.slug}`}
                                 aria-label={`Edit ${page.title}`}
                                 title="Edit"
                                 className={tileActionClass}
