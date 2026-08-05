@@ -1887,42 +1887,58 @@ git commit -m "Answer once who may open which worksheet"
 ### Task 14: The raw route
 
 **Files:**
-- Create: `app/g/[slug]/w/[pageSlug]/raw/route.ts`
+- Create: `lib/sandbox-csp.ts`, `app/g/[slug]/w/[pageSlug]/raw/route.ts`
+- Modify: `app/p/[slug]/raw/route.ts` (import the shared constant in place of its own copy)
+- Test: `tests/lib/sandbox-csp.test.ts`
 
 **Interfaces:**
 - Consumes: `resolveWorksheet` (Task 13), `getVersionHtml` (Task 9), `withSnapshotBootstrap` + `withPrintableBootstrap` (Task 7), `getPageBySlug`.
-- Produces: `GET` answering `?v=blank|student|teacher` with `text/html`.
+- Produces: `SANDBOXED_DOCUMENT_CSP: string`; `GET` answering `?v=blank|student|teacher` with `text/html`.
 
-- [ ] **Step 1: Write the route**
+- [ ] **Step 1: Extract the policy to `lib/`, with its reasoning**
+
+Two routes are about to serve a sandboxed document under this policy, and `lib/chat-access.ts` already records what happens when one rule lives in two files: *"a rule duplicated across two files is a rule that will eventually differ in one of them, and the difference would be a hole rather than a bug report."* A CSP is a security rule, and unlike `revalidatePages` — which cannot be imported, because `"use server"` turns every export into a callable endpoint — nothing stops this one being shared.
+
+Move the array out of `app/p/[slug]/raw/route.ts` **unchanged**, carrying its comment with it:
 
 ```ts
-// app/g/[slug]/w/[pageSlug]/raw/route.ts
-import { NextResponse } from "next/server";
-import { resolveWorksheet } from "@/lib/worksheet-context";
-import { getPageBySlug } from "@/lib/pages";
-import { getVersionHtml } from "@/lib/version-store";
-import {
-  withPrintableBootstrap,
-  withSnapshotBootstrap,
-} from "@/lib/printable-bootstrap";
+// lib/sandbox-csp.ts
 
-// Copied verbatim from /p/[slug]/raw, and it must stay that way. Every
-// directive is restricted to what the document carries inside itself — NO https:
-// ANYWHERE — because a subresource load is a real network request, and
-// `img-src https:` alone would let a page exfiltrate whatever a student typed
-// via <img src="https://…?d=answer">. connect-src 'none' closes fetch, XHR and
-// beacon but not subresource loads, which is why the passive directives have to
-// be closed too.
+// The policy for a document we did not write, served into a sandboxed frame.
+// Two routes serve one: /p/[slug]/raw (a page Jenn or a student published) and
+// /g/[slug]/w/[pageSlug]/raw (a worksheet and its saved versions).
 //
-// A version contains text a student typed, and a contenteditable region
-// captures as real student-authored HTML — so a student CAN get markup into a
-// document Jenn later opens, and stripping <script> at capture does not close
-// that, since <img onerror> survives. It is contained by the argument already
-// accepted for Jenn's uploads and for student-published pages, not by a new
-// one: the frame has an opaque origin, so it can read no cookie, no storage and
-// no teacher session, and no directive here admits a destination to exfiltrate
-// to.
-const CONTENT_SECURITY_POLICY = [
+// It lives here rather than in each of them for the reason chatRole gives about
+// itself: a rule duplicated across two files is a rule that will eventually
+// differ in one of them, and the difference would be a hole rather than a bug
+// report. That argument is stronger here than there — this one is a security
+// boundary, and the divergence would be silent in both directions.
+//
+// Every directive is restricted to what the document carries inside itself —
+// NO https: ANYWHERE. A subresource load is a real network request, so
+// `img-src https:` alone would let a hostile page exfiltrate whatever a student
+// typed via <img src="https://…?d=answer">. `connect-src 'none'` closes fetch,
+// XHR and beacon but NOT subresource loads, which is why the passive directives
+// have to be closed too.
+//
+// Residual, accepted and unclosable: a sandboxed frame may navigate itself, so
+// `location.href = "https://…?d=…"` still leaks. No CSP directive prevents it
+// (`navigate-to` was never shipped). The sandbox does block navigating the TOP
+// window and opening popups.
+//
+// Consequence: a page that pulls a font, image, stylesheet or script from a CDN
+// will not load it. Self-contained files are the only supported kind, which is
+// what lib/page-inline.ts exists to produce.
+//
+// NOTHING IN THE WORKSHEET FEATURE IS A REASON TO WIDEN THIS. A saved version
+// contains text a student typed, and a contenteditable region captures as real
+// student-authored HTML — so a student can get markup into a document Jenn
+// later opens, and stripping <script> at capture does not close that, since
+// <img onerror> survives. It is contained by the argument already accepted for
+// Jenn's uploads and for student-published pages: the frame has an opaque
+// origin, so it can read no cookie, no storage and no teacher session, and no
+// directive here admits a destination to exfiltrate to.
+export const SANDBOXED_DOCUMENT_CSP = [
   "default-src 'none'",
   "script-src 'unsafe-inline' 'unsafe-eval' blob:",
   "style-src 'unsafe-inline'",
@@ -1934,6 +1950,60 @@ const CONTENT_SECURITY_POLICY = [
   "form-action 'none'",
   "base-uri 'none'",
 ].join("; ");
+```
+
+In `app/p/[slug]/raw/route.ts`, delete the local `CONTENT_SECURITY_POLICY` constant and its comment, import `SANDBOXED_DOCUMENT_CSP`, and use it in the header. **The served header must not change by one byte** — this is a move, not a rewrite.
+
+- [ ] **Step 2: Pin the policy with a test**
+
+```ts
+// tests/lib/sandbox-csp.test.ts
+import { describe, expect, it } from "vitest";
+import { SANDBOXED_DOCUMENT_CSP } from "@/lib/sandbox-csp";
+
+describe("SANDBOXED_DOCUMENT_CSP", () => {
+  it("admits no network destination at all", () => {
+    // The load-bearing property. A subresource load is a real GET request, so
+    // ONE directive admitting https: would reopen the exfiltration path
+    // connect-src 'none' closes for fetch/XHR/beacon.
+    expect(SANDBOXED_DOCUMENT_CSP).not.toContain("https:");
+    expect(SANDBOXED_DOCUMENT_CSP).not.toContain("http:");
+    expect(SANDBOXED_DOCUMENT_CSP).toContain("connect-src 'none'");
+  });
+
+  it("starts closed", () => {
+    expect(SANDBOXED_DOCUMENT_CSP).toContain("default-src 'none'");
+  });
+
+  it("lets a self-contained document render itself", () => {
+    // inlinePage folds every external asset into the document, so these three
+    // are what a published page needs and the whole of what it needs.
+    expect(SANDBOXED_DOCUMENT_CSP).toContain("script-src 'unsafe-inline'");
+    expect(SANDBOXED_DOCUMENT_CSP).toContain("style-src 'unsafe-inline'");
+    expect(SANDBOXED_DOCUMENT_CSP).toContain("img-src data:");
+  });
+
+  it("refuses to be framed off-origin, and refuses form posts", () => {
+    expect(SANDBOXED_DOCUMENT_CSP).toContain("frame-ancestors 'self'");
+    expect(SANDBOXED_DOCUMENT_CSP).toContain("form-action 'none'");
+    expect(SANDBOXED_DOCUMENT_CSP).toContain("base-uri 'none'");
+  });
+});
+```
+
+- [ ] **Step 3: Write the route**
+
+```ts
+// app/g/[slug]/w/[pageSlug]/raw/route.ts
+import { NextResponse } from "next/server";
+import { resolveWorksheet } from "@/lib/worksheet-context";
+import { getPageBySlug } from "@/lib/pages";
+import { getVersionHtml } from "@/lib/version-store";
+import { SANDBOXED_DOCUMENT_CSP } from "@/lib/sandbox-csp";
+import {
+  withPrintableBootstrap,
+  withSnapshotBootstrap,
+} from "@/lib/printable-bootstrap";
 
 export async function GET(
   request: Request,
@@ -1976,7 +2046,7 @@ export async function GET(
   return new NextResponse(body, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+      "Content-Security-Policy": SANDBOXED_DOCUMENT_CSP,
       "X-Content-Type-Options": "nosniff",
       // No ?v= cache token like /p/[slug]/raw has. That route can answer
       // `immutable` because it serves one public document; this serves one
@@ -1989,15 +2059,22 @@ export async function GET(
 }
 ```
 
-- [ ] **Step 2: Verify the two bootstraps coexist**
+- [ ] **Step 4: Verify the two bootstraps coexist, and that `/p/[slug]/raw` did not move**
 
 This route takes **no** `printable`/`capture`/`snapshot` parameter. It injects both bootstraps unconditionally, because it is gated and only the shell reaches it — the gate that matters here is `resolveWorksheet`, not a query string. `/p/[slug]/raw` is untouched and keeps its parameters.
 
-Run `npm run build && npm run dev`, then fetch `/g/<student slug>/w/<worksheet slug>/raw` (with the student's cookie set, or signed in as the teacher). Confirm the response ends with two `<script>` blocks, one carrying `window.print()` and the other `snapshot-page`, and that neither responds to the other's message name.
+Run `npm test && npm run typecheck && npm run lint && npm run build`, then `npm run dev` and fetch `/g/<student slug>/w/<worksheet slug>/raw` (with the student's cookie set, or signed in as the teacher). Confirm the response ends with two `<script>` blocks, one carrying `window.print()` and the other `snapshot-page`, and that neither responds to the other's message name.
 
-- [ ] **Step 3: Commit**
+Then confirm the extraction changed nothing on the existing route: fetch `/p/<some html page slug>/raw` and check its `Content-Security-Policy` header is byte-identical to what `git show HEAD~1` served.
+
+- [ ] **Step 5: Commit**
+
+Two commits, because they are two changes and one of them touches a working security-critical route:
 
 ```bash
+git add lib/sandbox-csp.ts tests/lib/sandbox-csp.test.ts "app/p/[slug]/raw/route.ts"
+git commit -m "Keep one copy of the sandboxed-document policy"
+
 git add "app/g/[slug]/w/[pageSlug]/raw/route.ts"
 git commit -m "Serve any of a worksheet's three versions, gated"
 ```
