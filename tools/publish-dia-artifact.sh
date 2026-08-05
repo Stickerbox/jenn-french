@@ -30,6 +30,16 @@
 # The site defaults to production and can be overridden with $JENN_SITE (e.g.
 # http://localhost:3000 while testing). $DIA_ARTIFACTS overrides where artifacts
 # are read from, which is only useful for testing.
+#
+# WHAT THE TEACHER SEES. In a terminal, everything below prints exactly as it
+# always has. Run from a Shortcut, where there is no terminal, the script draws
+# NOTHING — no stdout, no alert — and the only signal is that a browser opens on
+# the new page's editor. See say() for why, including the accepted trade that a
+# silent failure looks like a mis-clicked Shortcut.
+#
+# Artifacts titled "The <something> Brief" are never offered. Dia regenerates
+# one of those on a schedule and it is not teaching material; the filter lives
+# in candidate_rows so every selection path shares it.
 
 set -euo pipefail
 
@@ -232,27 +242,39 @@ function titleOf(html, path) {
 }
 '
 
-gui_alert() {
-  # activate first, or an alert raised from a menu-bar Shortcut can open behind
-  # whatever is frontmost and read as the click having done nothing.
-  osascript -l JavaScript -e '
-function run(argv) {
-  var app = Application.currentApplication();
-  app.includeStandardAdditions = true;
-  app.activate();
-  app.displayAlert("Publish to francaisavecjenn.ca", { message: argv[0], as: "critical" });
-}' "$1" >/dev/null 2>&1 || true
-}
-
-# Every message this script printed was invisible to the teacher: a Shortcuts
-# "Run Shell Script" action discards stdout and stderr, so a failure surfaced as
-# a generic Shortcuts banner with no reason in it. The wording does not change;
-# the TTY test only decides whether it is also drawn.
+# There WAS a gui_alert() here, raising a macOS alert when no terminal was
+# attached, on the discovery that a Shortcuts "Run Shell Script" action discards
+# stdout. That turned out to be only half the story: the same mechanism also
+# surfaced the success chatter as a banner announcing a byte count about a step
+# that had already finished. The decision is now that Shortcuts gets NOTHING —
+# see say() — and an alert nobody asked for is part of that nothing.
 #
-# This is environment detection, which the spec rejects for *selection* — the
-# page published must never depend on invisible state, because a slug is
-# permanent. It is fine for presentation, which changes only visibility.
-die() { echo "✗ $1" >&2; [ -t 2 ] || gui_alert "$1"; exit 1; }
+# stderr is kept unconditionally: it costs nothing where it is discarded, and it
+# is what a `2>` redirect or a CI log would capture.
+# The alert is gone under Shortcuts too, by the same trade above: nothing is
+# drawn at all. It still exits non-zero, and a terminal run still prints.
+die() { echo "✗ $1" >&2; exit 1; }
+
+# The success path's voice, and it is silent unless someone is watching.
+#
+# Under Shortcuts nothing is drawn AT ALL: no stdout, because the action
+# discards it, and no alert, because the success chatter was written for a
+# terminal. A banner reading 'Publishing "Top 10 Quebecois Words" (13003 bytes)
+# to http://localhost:3000 ...' tells her a number she cannot use about a step
+# that already finished.
+#
+# The WORDING of every message is unchanged; only whether it is emitted. In a
+# terminal the output is byte-identical to what it has always been.
+#
+# This is the same environment detection die() already justifies: rejected for
+# *selection*, because a slug is permanent and must never depend on invisible
+# state, and fine for *presentation*, which changes only visibility.
+#
+# The knowing trade: a silent failure is indistinguishable from a mis-clicked
+# Shortcut. It is accepted because the failure is VISIBLE BY ABSENCE — the flow
+# ends with a browser opening, so a publish that failed is a click that did
+# nothing — and because the same command in a terminal still reports in full.
+say() { [ -t 1 ] && echo "$@"; return 0; }
 
 # Non-fatal, and deliberately not alerted: the paths that reach warn are the
 # terminal and scripted ones. The path with no terminal shows the picker, where
@@ -406,8 +428,31 @@ candidate_rows() {
     || die "describe_artifacts returned the wrong number of rows."
   paste -d'\t' <(cut -d' ' -f1 < "$src") "$paths" "$desc" \
     | while IFS=$'\t' read -r mtime path title total missing; do
+        title="$(decode_entities "$title")"
+        # Dia writes a recurring artifact titled "The <something> Brief". It is
+        # never published and it crowds a ten-row picker, so it is dropped here
+        # — inside candidate_rows, which every selection path reads through: the
+        # picker, --list, --latest and the title search. One filter is what
+        # makes those four agree BY CONSTRUCTION rather than by four copies
+        # staying in step, the same reasoning JXA_ASSETS records for sharing one
+        # ref filter between the picker and the upload.
+        #
+        # Applied AFTER decode_entities, so "The Morning &amp; Evening Brief" is
+        # tested in the form a human would read.
+        #
+        # Anchored at both ends, so "The Brief History of Quebec" and "Brief
+        # Notes" survive. On the TITLE and not the folder name, which is usually
+        # template_output.
+        #
+        # The deliberate consequence: publish-dia-artifact.sh "The Morning
+        # Brief" now reports "No page whose title contains ...". That is correct
+        # for a rule saying these are never published, and it is discoverable —
+        # the message names the search that found nothing.
+        if printf '%s' "$title" | grep -qiE '^The .+ Brief$'; then
+          continue
+        fi
         printf '%s\t%s\t%s\t%s\t%s\n' \
-          "$mtime" "$path" "$(decode_entities "$title")" "$total" "$missing"
+          "$mtime" "$path" "$title" "$total" "$missing"
       done
 }
 
@@ -647,7 +692,7 @@ EXTRA=""
 if [ "${TOTAL:-0}" != "0" ]; then
   EXTRA=", plus $((TOTAL - MISSING)) file(s)"
 fi
-echo "Publishing \"${TITLE}\" ($(wc -c < "$INDEX" | tr -d ' ') bytes$EXTRA) to ${SITE} ..."
+say "Publishing \"${TITLE}\" ($(wc -c < "$INDEX" | tr -d ' ') bytes$EXTRA) to ${SITE} ..."
 
 # The body arrives on stdin, not in an argument. ARG_MAX is 1 MB while the
 # endpoint accepts MAX_UPLOAD_BYTES, so `-d "$BODY"` died with "argument list too
@@ -671,7 +716,7 @@ fi
 URL=$(osascript -l JavaScript -e 'function run(argv) { return JSON.parse(argv[0]).url; }' "$PAYLOAD")
 SLUG="${URL##*/p/}"
 
-echo "✓ $URL"
+say "✓ $URL"
 
 # The site inlines a page's external assets when it publishes it and reports
 # whatever it could not fetch. That report exists only in the reply, so it has
@@ -684,15 +729,26 @@ function run(argv) {
 }' "$PAYLOAD")
 
 if [ -n "$SKIPPED" ]; then
-  echo "⚠ The page published, but some files could not be included:"
+  say "⚠ The page published, but some files could not be included:"
   # A read loop rather than one printf, so each line is indented. `<<<` is fine
   # on the bash 3.2 macOS ships; mapfile is not.
   while IFS= read -r line; do
-    echo "    $line"
+    say "    $line"
   done <<< "$SKIPPED"
 fi
 
-printf '%s' "$URL" | pbcopy 2>/dev/null && echo "  (link copied to the clipboard)"
+# pbcopy runs in BOTH cases — the copy is a side effect worth having, and only
+# the sentence announcing it was noise.
+printf '%s' "$URL" | pbcopy 2>/dev/null && say "  (link copied to the clipboard)"
 
-# Published with no groups, so the link works but no class sees it listed yet.
-open "$SITE/admin/pages/$SLUG" 2>/dev/null || true
+# Published with no groups, so the link works but no class sees it listed yet —
+# which is why this lands on the editor rather than the page: the next step is
+# always to pick an audience.
+#
+# The overlay on the Pages tab, not /admin/pages/$SLUG, so the list is visible
+# behind it. That route still exists and still works; this just opens the one
+# with somewhere to go back to.
+#
+# It is also the whole feedback channel under Shortcuts: a browser opening is
+# success, and nothing happening is failure.
+open "$SITE/admin?tab=pages&edit=$SLUG" 2>/dev/null || true
