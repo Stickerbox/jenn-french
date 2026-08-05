@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTeacher } from "@/lib/session";
 import {
+  getPageForAdmin,
   savePage,
   setPageThumbnail,
   updatePageMeta,
@@ -418,6 +419,32 @@ export async function addShelfPdf(
   });
 
   revalidatePages(slug);
+}
+
+// Everything the edit overlay needs to open on one page, fetched WHEN IT OPENS
+// rather than shipped with the list — following loadConversation, and for the
+// same reason: the payload contains a whole document, and a shelf renders many
+// tiles. Shipping it with the list would put every page's html into the HTML of
+// every page that lists them.
+//
+// Returns null for a missing row AND for a link row, so the overlay agrees with
+// /admin/pages/[slug], which already 404s on a link. Rendering an upload form
+// over a row that can never accept one is the failure both are avoiding.
+export async function loadPageForEdit(slug: string): Promise<{
+  page: NonNullable<Awaited<ReturnType<typeof getPageForAdmin>>>;
+  groups: { id: string; name: string }[];
+} | null> {
+  await requireTeacher();
+
+  const page = await getPageForAdmin(slug);
+  if (!page || page.kind === "link") return null;
+
+  const groups = await prisma.group.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+
+  return { page, groups };
 }
 
 // deleteMany rather than delete: delete throws P2025 when the row is already

@@ -1,6 +1,7 @@
 "use client";
 
 import { PageList, type PageSummary } from "@/components/admin/PageList";
+import { PageEditOverlay } from "@/components/admin/PageEditOverlay";
 import { useAdminChip } from "@/components/admin/AdminChrome";
 import { defaultGroupId } from "@/lib/default-audience";
 
@@ -19,6 +20,7 @@ export function PagesTabClient({
   today,
   onTogglePin,
   onDelete,
+  edit,
 }: {
   pages: AdminPage[];
   groups: { id: string; name: string }[];
@@ -31,6 +33,8 @@ export function PagesTabClient({
   // on, which is why it is teacher-only and why the student page's
   // deleteShelfLink is a different action.
   onDelete: (slug: string) => Promise<void>;
+  // The slug whose editor is open, from ?edit= on the server.
+  edit: string | null;
 }) {
   const { chip, setChip } = useAdminChip();
   const activeGroupId = defaultGroupId(chip, groups);
@@ -59,6 +63,11 @@ export function PagesTabClient({
         onDelete={onDelete}
         today={today}
       />
+
+      {/* Closing navigates back to the same URL without ?edit=, which keeps the
+          chip and the search text — they live in this component's state, and it
+          stays mounted because the overlay is a sibling rather than a route. */}
+      <PageEditOverlay slug={edit} closeTo="?tab=pages" />
     </div>
   );
 }

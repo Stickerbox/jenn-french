@@ -7,6 +7,7 @@ import { HtmlPreview } from "@/components/ui/HtmlPreview";
 import { LinkPreview } from "@/components/ui/LinkPreview";
 import { PdfPreview } from "@/components/ui/PdfPreview";
 import { PinIcon } from "@/components/ui/PinIcon";
+import { PencilIcon } from "@/components/ui/PencilIcon";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { KindFilter } from "@/components/ui/KindFilter";
 import { filterPagesByKind, type KindFilter as Kind } from "@/lib/page-filters";
@@ -47,26 +48,6 @@ export type PageSummary = {
   groupNames: string[];
   sharedWithEveryone: boolean;
 };
-
-// A pencil laid across a baseline: the nib, the barrel, the line it writes on.
-function PencilIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-    </svg>
-  );
-}
 
 // Same three strokes as a download icon anywhere: a shaft, a chevron, a floor.
 function DownloadIcon() {
@@ -311,8 +292,29 @@ export function PageList({
                             </form>
                           ) : (
                             <>
+                              {/* A search param, not a route and not local
+                                  state, and it buys four things. Back closes
+                                  the overlay rather than leaving the page,
+                                  which matters most on a phone. It has a URL,
+                                  which is what lets the dia script open the
+                                  editor for the page it just published. The
+                                  list stays mounted behind it, so a rename no
+                                  longer costs the scroll position, the search
+                                  text, or — the one that actually matters — the
+                                  active student chip, which drives which pin
+                                  applies and a new page's default audience.
+
+                                  AND IT MUST STAY AN ANCHOR. The whiteboard's
+                                  leave-guard is a capture-phase click listener
+                                  on document that inspects anchors, written
+                                  that way so "a future link is protected
+                                  without knowing the guard exists". A button
+                                  calling router.push would slip past it, and
+                                  opening this overlay during a live board would
+                                  destroy the op log with no prompt. The same
+                                  link on the student shelf relies on it. */}
                               <Link
-                                href={`/admin/pages/${page.slug}`}
+                                href={`?edit=${page.slug}`}
                                 aria-label={`Edit ${page.title}`}
                                 title="Edit"
                                 className={tileActionClass}

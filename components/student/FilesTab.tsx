@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { PageTile } from "@/components/ui/PageTile";
 import { HtmlPreview } from "@/components/ui/HtmlPreview";
 import { LinkPreview } from "@/components/ui/LinkPreview";
 import { PdfPreview } from "@/components/ui/PdfPreview";
 import { PinIcon } from "@/components/ui/PinIcon";
+import { PencilIcon } from "@/components/ui/PencilIcon";
 import { KindFilter } from "@/components/ui/KindFilter";
 import { SearchField } from "@/components/admin/SearchField";
 import {
@@ -43,6 +45,7 @@ export function FilesTab({
   today,
   canWrite,
   canDeleteAny = false,
+  canEdit = false,
   onTogglePin,
   onDeleteLink,
 }: {
@@ -61,6 +64,14 @@ export function FilesTab({
   // and a delete that applies to some tiles and not others is a rule to explain
   // where there is no rule.
   canDeleteAny?: boolean;
+  // The teacher, and only on /g/[slug] — false on /f/[token], which is
+  // read-only because filesToken addresses a shelf and nothing else.
+  //
+  // NO NEW AUTHORITY IS GRANTED BY THIS. updatePage, updatePdfPage and
+  // deletePage are all already requireTeacher(); this draws a control where
+  // that authority already reached, so that the two screens agree about which
+  // tiles are editable.
+  canEdit?: boolean;
   onTogglePin?: (slug: string, pinned: boolean) => Promise<void>;
   onDeleteLink?: (slug: string) => Promise<void>;
 }) {
@@ -156,6 +167,32 @@ export function FilesTab({
                         action={
                           canWrite && onTogglePin ? (
                             <div className="flex items-center gap-1">
+                              {/* Same rule PageList applies: html and pdf rows
+                                  get a pencil, a link row does not — renaming a
+                                  link is impossible on both sides, and the two
+                                  screens agreeing is worth more than either
+                                  rule alone.
+
+                                  AN ANCHOR, AND THAT IS NOT A STYLE CHOICE.
+                                  The whiteboard's leave-guard is a
+                                  capture-phase click listener on document that
+                                  inspects anchors, written that way so "a
+                                  future link is protected without knowing the
+                                  guard exists". A button calling router.push
+                                  would slip past it, and opening this overlay
+                                  during a live board would destroy the op log
+                                  with no prompt. */}
+                              {canEdit && page.kind !== "link" && (
+                                <Link
+                                  href={`?tab=files&edit=${page.slug}`}
+                                  aria-label={`Edit ${page.title}`}
+                                  title="Edit"
+                                  className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]"
+                                >
+                                  <PencilIcon />
+                                </Link>
+                              )}
+
                               <form
                                 action={onTogglePin.bind(
                                   null,

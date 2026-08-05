@@ -11,6 +11,7 @@ import { readToken, cookieNameFor } from "@/lib/student-tokens";
 import { listPagesForGroup } from "@/lib/pages";
 import { StudentTabs } from "@/components/student/StudentTabs";
 import { FilesTab } from "@/components/student/FilesTab";
+import { PageEditOverlay } from "@/components/admin/PageEditOverlay";
 import { ShelfFab } from "@/components/student/ShelfFab";
 import { greeting, teacherPageLabel } from "@/lib/student-greeting";
 import { CardHeading } from "@/components/student/CardHeading";
@@ -51,10 +52,10 @@ export default async function GroupPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ date?: string; tab?: string }>;
+  searchParams: Promise<{ date?: string; tab?: string; edit?: string }>;
 }) {
   const { slug } = await params;
-  const { date, tab: tab_ } = await searchParams;
+  const { date, tab: tab_, edit } = await searchParams;
 
   // An explicit select rather than the whole row, because one of these columns
   // is a password hash and this file renders into a client tree. It is read for
@@ -199,6 +200,7 @@ export default async function GroupPage({
           today={today}
           canWrite={unlocked}
           canDeleteAny={viewerIsTeacher}
+          canEdit={viewerIsTeacher}
           onTogglePin={setShelfPin.bind(null, group.id)}
           onDeleteLink={deleteShelfLink.bind(null, group.id)}
         />
@@ -233,6 +235,14 @@ export default async function GroupPage({
           It needs no guard wiring of its own — BoardEditor's capture-phase
           listener sees it because it is an anchor, which is the property that
           decision was made for. */}
+      {/* Teacher-only, and it grants no authority the pencil did not already
+          imply: updatePage, updatePdfPage and deletePage are all
+          requireTeacher(). Mounted here rather than inside FilesTab so it
+          survives a tab change while open. */}
+      {viewerIsTeacher && (
+        <PageEditOverlay slug={edit ?? null} closeTo="?tab=files" />
+      )}
+
       {viewerIsTeacher && (
         <Link
           href="/admin?tab=groups"

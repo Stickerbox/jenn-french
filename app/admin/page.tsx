@@ -35,12 +35,12 @@ import { TeacherInbox } from "@/components/chat/TeacherInbox";
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; tab?: string }>;
+  searchParams: Promise<{ date?: string; tab?: string; edit?: string }>;
 }) {
   const teacher = await getCurrentTeacher();
   if (!teacher) redirect("/login");
 
-  const { date, tab } = await searchParams;
+  const { date, tab, edit } = await searchParams;
   const today = new Date().toISOString().slice(0, 10);
   const selected = parseAdminDate(date, today);
   const active = parseAdminTab(tab);
@@ -85,7 +85,7 @@ export default async function AdminPage({
         >
           {active === "daily" && <DailyWordTab selected={selected} today={today} />}
           {active === "groups" && <GroupsTab />}
-          {active === "pages" && <PagesTab groups={groups} />}
+          {active === "pages" && <PagesTab groups={groups} edit={edit ?? null} />}
         </AdminChrome>
       </div>
 
@@ -163,8 +163,12 @@ async function GroupsTab() {
 // FAB, and a second identical query on this tab would be pure duplication.
 async function PagesTab({
   groups,
+  edit,
 }: {
   groups: { id: string; name: string; isEveryone: boolean }[];
+  // The slug whose editor is open, from ?edit=. Read here and handed down
+  // rather than held in client state: see the pencil's comment in PageList.
+  edit: string | null;
 }) {
   const pages = await listPagesForAdmin();
 
@@ -196,6 +200,7 @@ async function PagesTab({
         today={new Date()}
         onTogglePin={setShelfPin}
         onDelete={deletePage}
+        edit={edit}
       />
     </>
   );
