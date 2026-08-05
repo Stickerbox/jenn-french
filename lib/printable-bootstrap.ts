@@ -22,12 +22,44 @@ addEventListener("message", function (event) {
 });
 </script>`;
 
+// Backgrounds and colours survive the print dialog.
+//
+// Chrome's "Background graphics" checkbox is OFF by default and there is no API
+// to tick it — a page cannot reach the print dialog's controls. What a page CAN
+// do is declare that its colours are content rather than decoration, which is
+// what print-color-adjust: exact means, and Chrome honours that regardless of
+// the checkbox. So the box stays unticked and the backgrounds print anyway.
+//
+// THIS NARROWS A DOCUMENTED REFUSAL AND THE DISTINCTION IS THE WHOLE ARGUMENT.
+// The rule is that a print stylesheet injected here "would be a guess about
+// someone else's design". This is the one print declaration that guesses at
+// nothing: it changes no layout, no spacing, no typography, no page breaks. It
+// does not decide how the document should look — it stops the browser
+// discarding colours the document already chose. Anything that moved a box
+// would still be forbidden.
+//
+// No !important, and it is set on `html` alone rather than on `*`, because the
+// property inherits: that makes it a DEFAULT the document can still override.
+// A page that deliberately asks for `economy` somewhere keeps it, which is the
+// same "author intent wins" the refusal above is protecting.
+//
+// Gated with the listener, so the stored document, the admin's download and
+// every preview are untouched.
+const PRINT_STYLE = `<style>
+@media print {
+  html {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+</style>`;
+
 // Appended rather than spliced before </body>. A document that has been through
 // a text editor may have no </body>, or several, and every parser moves a
 // trailing script into the body anyway. The original is a prefix of the result,
 // which is the property the test pins.
 export function withPrintableBootstrap(html: string): string {
-  return `${html}\n${BOOTSTRAP}\n`;
+  return `${html}\n${PRINT_STYLE}\n${BOOTSTRAP}\n`;
 }
 
 // The width a tile renders at, matching THUMB_WIDTH in

@@ -604,6 +604,25 @@ screen. The fix belongs upstream, in `@media print` rules in the document Jenn
 writes — a print stylesheet injected here would be a guess about someone else's
 design, which is what this feature has refused to do since it shipped.
 
+**One declaration is excepted, and the distinction is the whole argument.**
+`withPrintableBootstrap` also injects
+`@media print { html { print-color-adjust: exact } }`, because Chrome's
+*Background graphics* checkbox is off by default, is unreachable from a page,
+and without it every coloured panel prints white. That rule guesses at nothing:
+it moves no box, changes no spacing, typography or page break. It does not
+decide how the document should look — it stops the browser discarding colours
+the document already chose. It carries no `!important` and sits on `html` rather
+than `*`, and since the property inherits that makes it a **default the document
+can still override**, which is the same author-intent-wins the refusal above
+protects. Anything that moved a box would still be forbidden. It rides the
+`?printable=1` gate, so the stored document, the admin's download and every
+preview are untouched.
+
+The button that triggers it reads *Enregistrer en PDF* with a save icon. It said
+just `PDF` until 2026-08-04, with the full sentence only in a `title` attribute
+— invisible on a phone, where most of these students are, so the control read as
+a file-type badge rather than something to press.
+
 There is no HTML sanitiser, deliberately. Sanitising would strip exactly the
 interactivity the feature exists to preserve, and the sandbox already contains
 what a sanitiser would defend against.

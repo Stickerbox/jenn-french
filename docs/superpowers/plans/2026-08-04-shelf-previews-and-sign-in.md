@@ -139,8 +139,10 @@ described.
 
 - [x] Run against the development database:
       `npx prisma db execute --stdin <<< "SELECT email, COUNT(*) c FROM \"Group\" WHERE email IS NOT NULL GROUP BY email HAVING c > 1;"`
-- [ ] **Ask the human to run the same query against production** before Task 5.
+- [x] **Ask the human to run the same query against production** before Task 5.
       The runbook is `docs/DEPLOYMENT.md`; the database is SQLite on the box.
+      **Answered 2026-08-04: production has no email addresses at all, so the
+      unique index cannot collide. Task 5 unblocked.**
 - [x] If any row comes back, **stop and report it**. Do not deduplicate data on
       your own initiative — which student keeps the address is Jenn's decision,
       and the other student's account has to be reset by her afterwards.

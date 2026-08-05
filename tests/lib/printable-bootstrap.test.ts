@@ -42,6 +42,29 @@ describe("withPrintableBootstrap", () => {
     expect(result).toContain("<p>fragment</p>");
     expect(result).toContain("window.print()");
   });
+
+  it("asks the browser to keep the document's own colours when printing", () => {
+    // Chrome's "Background graphics" box is off by default and unreachable
+    // from a page; print-color-adjust is how a document says its colours are
+    // content rather than decoration.
+    const result = withPrintableBootstrap(DOC);
+    expect(result).toContain("print-color-adjust: exact");
+    expect(result).toContain("-webkit-print-color-adjust: exact");
+  });
+
+  it("scopes that to print and to nothing else", () => {
+    expect(withPrintableBootstrap(DOC)).toContain("@media print");
+  });
+
+  it("leaves it overridable, so it is a default and not a decision", () => {
+    // No !important, and on `html` rather than `*`: the property inherits, so a
+    // document that deliberately asks for `economy` still wins. Injecting a
+    // print rule at all narrows a documented refusal; this is what keeps it to
+    // "do not discard the author's colours" rather than "the author is wrong".
+    const result = withPrintableBootstrap(DOC);
+    expect(result).not.toContain("print-color-adjust: exact !important");
+    expect(result).not.toContain("* {");
+  });
 });
 
 describe("withCaptureBootstrap", () => {
