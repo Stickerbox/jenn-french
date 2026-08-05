@@ -3,6 +3,8 @@ import { slugify, uniqueSlug } from "@/lib/page-slug";
 import { effectivePages } from "@/lib/effective-pages";
 import { readPageKind, type PageKind } from "@/lib/page-kind";
 import { applyPins } from "@/lib/page-pins";
+import { applyVersions } from "@/lib/page-versions";
+import { listShelfVersions } from "@/lib/version-store";
 
 type SaveCommon = {
   // null means "derive one from the title"; a value means "create or replace
@@ -146,6 +148,9 @@ const SHELF_SELECT = {
   // /p/[slug]/thumb and the browser fetches the bytes only for tiles it renders.
   thumbAt: true,
   addedByStudent: true,
+  // Cheap, and every tile needs it: it decides the tile's destination and
+  // whether a badge can appear at all.
+  worksheet: true,
 } as const;
 
 export function getPageBySlug(slug: string) {
@@ -205,7 +210,7 @@ export async function listPagesForGroup(groupId: string) {
   // own the merge rule and be tested without a database. The pins are this
   // shelf's only — a pin on another student's shelf is none of this one's
   // business.
-  const [own, everyone, pins] = await Promise.all([
+  const [own, everyone, pins, versions] = await Promise.all([
     prisma.page.findMany({
       where: { groups: { some: { groupId } } },
       orderBy: { createdAt: "desc" },
@@ -220,6 +225,7 @@ export async function listPagesForGroup(groupId: string) {
       where: { groupId },
       select: { pageId: true, pinnedAt: true },
     }),
+    listShelfVersions(groupId),
   ]);
 
   const merged = effectivePages(own, everyone).map((page) => ({
@@ -227,7 +233,9 @@ export async function listPagesForGroup(groupId: string) {
     kind: readPageKind(page),
   }));
 
-  return applyPins(merged, pins);
+  // Pins first, then versions: applyPins is what sectionPages reads, and
+  // applyVersions only adds a field neither of them looks at.
+  return applyVersions(applyPins(merged, pins), versions);
 }
 
 export async function listPagesForAdmin() {
@@ -257,6 +265,7 @@ export async function listPagesForAdmin() {
     pdfSize: page.pdfSize,
     thumbAt: page.thumbAt,
     addedByStudent: page.addedByStudent,
+    worksheet: page.worksheet,
     groupIds: page.groups.map((g) => g.group.id),
     groupNames: page.groups.map((g) => g.group.name),
     // Drives both the tile's marker and the filter: a page shared with
@@ -277,6 +286,7 @@ export async function getPageForAdmin(slug: string) {
       kind: true,
       url: true,
       pdfSize: true,
+      worksheet: true,
       groups: { select: { groupId: true } },
     },
   });
@@ -289,6 +299,7 @@ export async function getPageForAdmin(slug: string) {
     kind: readPageKind(page),
     url: page.url,
     pdfSize: page.pdfSize,
+    worksheet: page.worksheet,
     groupIds: page.groups.map((g) => g.groupId),
   };
 }
