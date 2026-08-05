@@ -35,4 +35,17 @@ export const TOO_MANY_TRIES =
 export const INVITE_USED =
   "Ce lien a déjà été utilisé. Écrivez à Jenn pour en recevoir un nouveau.";
 
+// Shown when a second student tries to claim an account with an address that is
+// already in use. Group.email is unique, so this is a real constraint and not a
+// guess.
+//
+// THE ONE SPECIFIC MESSAGE in an area whose whole design is uniform failures,
+// and the distinction holds: the uniform ones are about SIGN-IN, where naming
+// which half was wrong tells someone guessing slugs which students exist. A
+// claim is already authorised by a single-use invite issued for a named
+// student, so there is nothing left to enumerate — and "your address is already
+// in use" is the only thing that lets the family act.
+export const EMAIL_TAKEN =
+  "Ce courriel est déjà utilisé par un autre élève. Utilisez une autre adresse ou écrivez à Jenn.";
+
 export const GENERIC_FAILURE = "Une erreur est survenue. Réessayez.";

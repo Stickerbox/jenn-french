@@ -46,9 +46,22 @@ const proseStyle = {
 export default function RootPage() {
   return (
     <main
-      className="min-h-screen px-5 py-16 sm:py-24"
+      className="relative min-h-screen px-5 py-16 sm:py-24"
       style={{ background: "var(--card-page-bg)" }}
     >
+      {/* The first thing on this page that is not about Jenn, which is why it
+          is a small link in a corner rather than a call to action competing
+          with the sample card below. Absolutely positioned, following
+          /g/[slug]'s "← Back to admin", so the centred column does not shift at
+          any width. */}
+      <Link
+        href="/signin"
+        className="absolute right-4 top-4 rounded-full border border-[var(--card-line)] px-4 py-1.5 text-[13px] text-[var(--card-bleu)] transition-opacity hover:opacity-80 sm:right-6 sm:top-6"
+        style={{ fontFamily: SERIF }}
+      >
+        Se connecter
+      </Link>
+
       <div className="mx-auto w-full max-w-[660px]">
         <header>
           <h1

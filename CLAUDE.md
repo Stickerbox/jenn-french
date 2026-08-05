@@ -36,6 +36,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 |---|---|---|
 | `/` | public | landing page |
 | `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the student's own chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included, who once unlocked also gets *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. **Jenn's own chat is her inbox FAB and follows her session, not the token** — the only thing on this page that does, and it carries the delete and read-marker controls with it. Everything the gate controls is unchanged. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding to the shelf is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. **Its menu depends on who is looking**: a student gets *Ajouter un lien* and *Ajouter un PDF*, Jenn gets *Add a link*, *Add a page* and *Add a PDF* — she keeps the full admin menu on the one screen where "put this on Marie's shelf" is the obvious act, and the student loses the HTML paste box, because they may upload a PDF and not a website. `addShelfPage` keeps its guard and its tests; what changed is which control is drawn. Jenn also gets a pencil on each editable tile. The card tab carries the week's five day dots, a week-range line that opens a month calendar, and *Aujourd'hui*; a day with no card cannot be selected. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing |
+| `/signin` | students | sign in with an email address and a password, from anywhere |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe; a pdf row redirects to `/p/[slug]/pdf` |
@@ -180,6 +181,36 @@ because clearing a password without rotating would leave whoever is signed in
 still signed in. It obliges Jenn to send the new invite — the student's page
 cannot tell them their account was reset without telling a stranger the same
 thing.
+
+**`/signin` is a second door, not a change to `/login`.** A student who has
+bookmarked nothing — or a parent on a new phone — had nowhere to go, because
+sign-in was per-page and the form was scoped to the slug in the URL.
+`signInByEmail` takes an address and a password and redirects to that student's
+page. One page for both audiences was rejected: it would show every student a
+*Sign in with passkey* button that is not for them, and put a student form on
+the teacher's page. `/login` keeps the passkey ceremony and stays unadvertised,
+and `signInStudent` is untouched, so a student who still has their link never
+sees `/signin`.
+
+`Group.email` is `@unique` for it, which retires the schema's old argument
+against uniqueness — that argument was right when sign-in was scoped to a slug,
+and a door taking an address and nothing else has to have that address name one
+student. The alternatives were worse: silently choosing one sibling, or a
+chooser that reads other students' names out to whoever typed the address.
+`claimStudent` catches the resulting `P2002` and returns a specific sentence —
+the one specific message in an area whose whole design is uniform failures,
+because the uniform ones are about *sign-in*, where naming which half was wrong
+is enumeration, and a claim is already authorised by a single-use invite for a
+named student.
+
+Every defence in `signInStudent` is carried across deliberately, because this
+endpoint is reachable **without knowing any slug** and is therefore a better
+target than the per-page form: one message for every failure, a hash performed
+even when no group matches (an instant answer would say which addresses are
+real), and the throttle — `isLockedFor`, keyed `email:…` rather than `slug:…` so
+the two namespaces cannot share a counter. Measured: a wrong password, an
+unknown address and an unclaimed student all answer in ~305ms with the same
+sentence, and the eleventh attempt locks.
 
 Nothing here sends email. The address is stored for newsletters and chat alerts
 later; "I forgot my password" is Jenn pressing Reset sign-in.

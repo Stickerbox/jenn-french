@@ -1,0 +1,20 @@
+-- Group.email becomes unique, because /signin takes an address and nothing else
+-- and so the address has to name exactly one student.
+--
+-- Written by hand rather than generated: `prisma migrate dev` will not add a
+-- unique index without an interactive prompt. It is one statement and no table
+-- is rebuilt, so there is nothing here for a generator to get right.
+--
+-- SQLite treats NULLs as distinct in a unique index, which is exactly what this
+-- needs: every unclaimed student has a null email and they must not collide.
+--
+-- THIS CAN FAIL ON PRODUCTION DATA and cannot fail here. If two students share
+-- an address the index is rejected and the migration aborts. Check before
+-- deploying:
+--
+--   SELECT email, COUNT(*) c FROM "Group"
+--   WHERE email IS NOT NULL GROUP BY email HAVING c > 1;
+--
+-- The fix is Jenn deciding which student keeps the address, and resetting the
+-- other's sign-in afterwards. Do not deduplicate on anyone else's behalf.
+CREATE UNIQUE INDEX "Group_email_key" ON "Group"("email");

@@ -23,11 +23,21 @@ model Group {
   // because it is an identifier we compare on sign-in and will one day mail —
   // not a secret.
   //
-  // Deliberately NOT @unique: sign-in is scoped to the slug in the URL, so
-  // uniqueness buys nothing, and two siblings taught by Jenn share one parent's
-  // inbox. A unique index would fail the second sign-up with nothing but a
-  // constraint error to explain it.
-  email             String?
+  // Was deliberately NOT @unique, and that argument was right when it was
+  // written: sign-in was scoped to the slug in the URL, so uniqueness bought
+  // nothing, and two siblings taught by Jenn could share one parent's inbox.
+  //
+  // /signin retired it. That door takes an address and NOTHING else, so the
+  // address has to name one student — and the alternatives are worse: silently
+  // choosing one sibling, or a chooser that reads other students' names out to
+  // whoever typed the address. The shared-inbox case is now served by Jenn
+  // sending each student their own invite.
+  //
+  // Uniqueness is over the NORMALISED value, which is the only form ever
+  // written: normaliseEmail trims and lowercases before any insert.
+  // claimStudent catches the resulting P2002 and turns it into a sentence
+  // rather than a constraint error.
+  email             String?   @unique
   // bcrypt, cost 12. The salt lives inside the string — the bcrypt format
   // carries it, so there is no second column.
   passwordHash      String?
