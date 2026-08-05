@@ -1,4 +1,10 @@
 // The policy for a document we did not write, served into a sandboxed frame.
+// The iframe sandbox (allow-scripts, never allow-same-origin) is the PRIMARY
+// control; this is the second layer, not a replacement for it — an opaque
+// origin is what actually stops the framed document reading cookies, storage
+// or the teacher session, and this CSP is what stops it phoning out over the
+// network while it runs.
+//
 // Two routes serve one: /p/[slug]/raw (a page Jenn or a student published) and
 // /g/[slug]/w/[pageSlug]/raw (a worksheet and its saved versions).
 //

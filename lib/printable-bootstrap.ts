@@ -321,8 +321,15 @@ export function withCaptureBootstrap(html: string): string {
 
 export const SNAPSHOT_MESSAGE = "snapshot-page";
 
-// The third injection, and the same gate rule as the other two: only the
-// worksheet shell asks for ?snapshot=1, and none of the three implies another.
+// The third injection, and its gate is NOT a query string like the other
+// two's. /g/[slug]/w/[pageSlug]/raw composes this with withPrintableBootstrap
+// UNCONDITIONALLY — every version needs both the Save pill and the print
+// pill, and resolveWorksheet has already decided whether the caller may be on
+// that route at all, so there is nothing left for a query parameter to gate.
+// Composing them in one document is safe because the two listeners key on
+// different event.data values and each returns early on a message that is
+// not its own — see "the three bootstraps are mutually exclusive" in
+// tests/lib/printable-bootstrap.test.ts, which pins that independence.
 //
 // The walk lives in lib/snapshot-dom.ts and is inlined here by its own source —
 // the technique Playwright uses for page.evaluate. That is not cleverness for

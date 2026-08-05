@@ -57,6 +57,17 @@ This release adds the `Page` and `PageGroup` tables this way — an ordinary
 also needs `PAGES_UPLOAD_TOKEN` added by hand before this deploy; see
 "Environment variables" in `DEPLOYMENT.md`.
 
+The worksheet-versions release is not this simple. Its migration adds a
+non-nullable `worksheet` column with a default, which Prisma cannot do on
+SQLite with an `ALTER TABLE` — it rewrites the whole `Page` table (the
+`RedefineTables` steps: create `new_Page`, copy every row across, drop the old
+table, rename). Rows carry up to 3 MB of PDF each, so for the length of that
+copy the table's on-disk footprint roughly doubles, and it is not instant.
+`deploy.sh` already runs `~/backup-db.sh` immediately before any migration, so
+the routine flow covers this — but if you are ever applying this one by hand
+outside the script, take a fresh `VACUUM INTO` backup first rather than
+trusting an old one.
+
 ## 2. Commit and push
 
 `main` is the deploy branch and CI runs on pushes to it. Push directly for small

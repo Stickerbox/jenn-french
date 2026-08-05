@@ -23,6 +23,11 @@ npx prisma generate                          # after any schema.prisma change
 npx prisma migrate dev --name <name>         # create + apply a migration
 ```
 
+`happy-dom` is a devDependency for exactly one file, `tests/lib/snapshot-dom.test.ts`, opted
+into with a per-file `@vitest-environment happy-dom` docblock rather than a
+config change — the global environment stays `node`, which every other test in
+the suite runs against and none of them needs a DOM.
+
 CI (`.github/workflows/ci.yml`) runs, in order: `prisma generate` → lint → `tsc
 --noEmit` → test → build. Run those locally before claiming work is done.
 
@@ -53,7 +58,11 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `POST /api/whiteboard/[slug]/ops` | teacher | appends and fans out ops |
 | `POST /api/whiteboard/[slug]/discard` | teacher | drops a live board, saving nothing |
 | `GET /api/whiteboard/[slug]/[id]` | token or teacher | a board's ops, for the JPEG export |
-| `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, `/api/chat/*`, `/api/inbox/*`, `/api/whiteboard/*`, and `/p/[slug]/raw`) |
+| `/g/[slug]/w/[pageSlug]` | student or teacher | the worksheet shell: full-screen frame, version switcher, Save pill, print pill |
+| `GET /g/[slug]/w/[pageSlug]/raw` | student or teacher | `?v=blank\|student\|teacher`; the document, under `SANDBOXED_DOCUMENT_CSP` |
+| `GET /g/[slug]/w/[pageSlug]/pdf` | student or teacher | a pdf version, top-level, in the browser's own viewer |
+| `POST /api/worksheets/[slug]/[pageSlug]` | student or teacher | saves the caller's own slot |
+| `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, `/api/chat/*`, `/api/inbox/*`, `/api/whiteboard/*`, `/api/worksheets/*`, and `/p/[slug]/raw`) |
 
 ## Architecture
 
@@ -852,6 +861,88 @@ overwrites a choice she made is worse than no default. `PageEditor` implements
 it as a render-phase comparison against the previous prop, not a `useEffect`;
 `react-hooks/set-state-in-effect` rejects the effect form, and an effect would
 render once with the stale selection before correcting it.
+
+### Worksheet versions
+
+A page Jenn ticks `worksheet` gains up to two saved versions per student,
+beside the blank: an attempt and a correction. **Three versions, two rows** —
+the blank is `Page.html` / `Page.pdf` and was never a row to begin with.
+`PageVersion.fromTeacher` is a boolean for the reason `Message.fromTeacher` is
+one: there are exactly two participants and one has no row to point at.
+`@@unique([pageId, groupId, fromTeacher])` **is** the three-slot rule — a save
+is an upsert against it, so there is no counting, no pruning, and no way for a
+fourth row to exist. It is enforced by the database, not by a convention
+inside an action.
+
+**A version is not a `Page` row.** `/p/[slug]` is public and a slug is derived
+from a title, so a version-as-page would publish a named student's homework to
+anyone who tried `devoir-3-marie`. Access instead runs through `chatRole`,
+reused **verbatim** — no new access module — because its clause order already
+refuses the everyone group before it checks the teacher, which is what keeps
+`/g/all` out for both parties: there is no student there for a version to
+belong to. Three further guards specific to the page sit in
+`lib/worksheet-access.ts` (`worksheetOpenable`): it must be flagged, it must
+not be a link, and it must be on *this* student's effective shelf — without
+that a guessable page slug would let anyone attach versions to any document.
+
+**An html version is a serialised DOM snapshot, not an answer set.** These
+worksheets come out of Dia and are full of drag-and-drop matching and
+div-based pickers that a `{field: value}` capture could not replay.
+`snapshotDocument` (`lib/snapshot-dom.ts`) clones the live tree instead, which
+catches anything the page's own JavaScript did — toggled classes, moved
+elements — without knowing what any of it means. **Every `<script>` is
+stripped from the clone**, including the bootstrap that took it: keeping
+scripts restores perfectly on a document whose JS only wires event handlers
+and **silently wipes everything** on one that rebuilds the DOM on load, and
+deterministic-and-degraded beats sometimes-perfect. **A stripped snapshot is
+still typeable** — text fields, checkboxes and `:checked` CSS are browser
+behaviour, not JavaScript — which is what makes the correction the *same
+operation* as the attempt rather than a second feature: Jenn opens the
+student's version and types into it.
+
+`snapshotDocument` is inlined into the served document as a `<script>` via
+`Function.prototype.toString()`, the technique Playwright uses for
+`page.evaluate`. **It must stay self-contained** — no imports, no closure over
+module scope, no syntax that compiles to a helper call — because it is the
+*bundled* output, not the source, that ends up in a student's browser; it is
+written in ES5 `var` for that reason, and its test runs the actual
+`toString()` output rather than trusting the source file.
+
+`snapshot` is brotli-compressed before storage (`lib/snapshot-codec.ts`) so a
+500 KB Dia artifact costs roughly 40-70 KB in a SQLite file the nightly
+`VACUUM INTO` copies whole; `pdf` is left alone, since it is already
+compressed and brotli would spend CPU to grow it. **Brotli through the async
+API only**, never `brotliCompressSync` — one pm2 fork process serves every SSE
+stream, and a synchronous compress of a megabyte would stall the `: ping`
+heartbeats. That joins the chat bus, the live board, and the sign-in throttle
+on the list of things that depend on pm2 staying in fork mode.
+
+`MAX_SNAPSHOT_BYTES` is 3 MB **because** nginx's `client_max_body_size` on the
+server is `4m` — the same ceiling `MAX_PDF_BYTES` answers to. The frame
+measures its own serialised string against it before posting, so an
+over-large save fails with a sentence in the shell rather than a raw 413
+nginx returns and Next never sees.
+
+The shelf tile carries a count badge once more than one version exists.
+Opening it goes straight to the shell for an html worksheet holding only the
+blank, but a pdf worksheet always opens the chooser
+(`components/worksheet/VersionChooser.tsx`), even at one version: a PDF opens
+top-level in the browser's own viewer, with nowhere in it to put a Save
+control, so the chooser is the only surface that can hold the upload button.
+**The chooser's rows are anchors, not buttons**, the same reason the admin's
+pencil had to stay one: the whiteboard's leave-guard is a capture-phase
+`click` listener on `document` that inspects anchors, so a row is protected by
+it without knowing it exists, and a `router.push` handler would slip past it.
+
+`pageTarget` needs a group slug to build the worksheet route, because a
+version belongs to (page, student) and there is no student in a bare page
+row. It is supplied only by an actual shelf, so **the badge and the worksheet
+target do not appear on the admin Pages tab under "All" or on
+`/f/[token]`** — both pass no group slug and keep today's targets. That is
+correct, not missing: "All" is not a shelf and has no student whose versions
+could be listed, the same rule the pin control already follows; `/f/[token]`
+is read-only, and a student's answers are not the files link forwarded to a
+parent.
 
 ### Lesson chat
 

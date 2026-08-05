@@ -166,11 +166,16 @@ describe("everything a bootstrap injects carries the strip marker", () => {
 });
 
 describe("the three bootstraps are mutually exclusive", () => {
-  // No gate implies another. The admin's <a download> hits the raw route with
-  // no parameter at all and has to get Jenn's bytes back; a print must not
-  // carry a capture or snapshot listener, and a snapshot must not carry a print
-  // one — they are separate listeners on one message channel, and a document
-  // holding two would answer a message it was never sent.
+  // Calling one of these functions alone never injects another's listener —
+  // that's what the admin's <a download> relies on, hitting the raw route
+  // with no parameter at all and getting Jenn's bytes back untouched. It does
+  // NOT mean two can never share a document: app/g/[slug]/w/[pageSlug]/raw
+  // deliberately composes withSnapshotBootstrap(withPrintableBootstrap(...))
+  // on every version, because that shell needs both the Save pill and the
+  // print pill. That composition is safe because each listener below checks
+  // event.data before doing anything and returns early on a message that
+  // isn't its own, so a document holding two answers only the one it was
+  // sent — never both, and never the wrong one.
   it("does not inject the capture listener when asked to print", () => {
     expect(withPrintableBootstrap(DOC)).not.toContain(
       JSON.stringify(CAPTURE_MESSAGE),

@@ -233,8 +233,13 @@ export async function listPagesForGroup(groupId: string) {
     kind: readPageKind(page),
   }));
 
-  // Pins first, then versions: applyPins is what sectionPages reads, and
-  // applyVersions only adds a field neither of them looks at.
+  // Pins then versions — deliberate, but NOT load-bearing: the two folds
+  // commute. applyPins only sets pinnedAt, which sectionPages (outside this
+  // function, and unchanged by either fold) is the sole reader of;
+  // applyVersions only adds a versions field that neither applyPins nor
+  // sectionPages looks at. Kept in this order because it reads as "where does
+  // it belong, then what's on it" — not because swapping it would break
+  // anything.
   return applyVersions(applyPins(merged, pins), versions);
 }
 
