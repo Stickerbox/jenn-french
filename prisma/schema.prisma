@@ -52,6 +52,7 @@ model Group {
   createdAt DateTime    @default(now())
   pages     PageGroup[]
   pins      PagePin[]
+  versions  PageVersion[]
 }
 
 model Message {
@@ -145,6 +146,16 @@ model Page {
   // author id for the reason Message.fromTeacher is one: there are exactly two
   // participants and one of them has no row to point at.
   addedByStudent Boolean @default(false)
+  // Jenn's tick: students may save their answers to this page. Only an html or
+  // pdf row can carry it — a link has nothing to fill in, and worksheetOpenable
+  // refuses one regardless of this column.
+  //
+  // Written by updatePageMeta and NOT by savePage, for the reason
+  // addedByStudent is absent from savePage's update branch: it is metadata
+  // rather than content, so re-flagging must not read and rewrite 3 MB, and a
+  // republish at the same slug has to keep it.
+  worksheet Boolean @default(false)
+  versions  PageVersion[]
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
   groups    PageGroup[]
@@ -177,6 +188,49 @@ model PagePin {
   group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@id([pageId, groupId])
+}
+
+// A student's attempt at a worksheet, or Jenn's correction of one. The blank is
+// not in here: it is Page.html or Page.pdf, which makes three versions out of
+// two rows.
+//
+// NOT a Page row with a parent pointer, which is the obvious model and is
+// wrong: /p/[slug] is public and a slug is derived from a title, so that would
+// publish a named student's homework to anyone who tried "devoir-3-marie". A
+// version is reachable only from a gated route under /g/[slug]/.
+model PageVersion {
+  id      String @id @default(cuid())
+  pageId  String
+  groupId String
+  page    Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  // Who saved it. A boolean for the reason Message.fromTeacher is one: there
+  // are exactly two participants and one of them has no row to point at.
+  fromTeacher Boolean
+
+  // "html" | "pdf", copied from the page at save time and deliberately NOT read
+  // back through the relation. savePage lets an html page be replaced by a pdf
+  // at the same slug, which would silently retype every version already saved.
+  // lib/page-version-kind.ts narrows it.
+  kind String
+
+  // Exactly one branch is populated, mirroring Page's own three content
+  // columns. The html one is brotli-compressed and the pdf one is not: a 500 KB
+  // artifact stores at 40-70 KB, and without that this table becomes the
+  // largest thing in a file the nightly VACUUM INTO copies whole — while a PDF
+  // is already compressed, so brotli would spend CPU to grow it.
+  snapshot Bytes?
+  pdf      Bytes?
+  pdfSize  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // THIS IS THE THREE-SLOT RULE, enforced by the database rather than by a
+  // convention inside an action. A save is an upsert against it; there is no
+  // counting, no pruning, and no way for a fourth row to exist.
+  @@unique([pageId, groupId, fromTeacher])
 }
 
 model Whiteboard {
