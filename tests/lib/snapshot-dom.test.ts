@@ -87,6 +87,33 @@ describe("snapshotDocument", () => {
     expect(options[2].hasAttribute("selected")).toBe(true);
   });
 
+  it("clears `selected` from an option the student unpicked", () => {
+    // The multiple-select test above never starts an option selected, so it
+    // never exercises removeAttribute("selected") — only the branch beside
+    // it. This is the option-list twin of the checkbox uncheck test: an
+    // option the student turned OFF must not come back on.
+    const root = load(
+      `<select id="a" multiple><option id="o1" value="1" selected>un</option><option id="o2" value="2">deux</option></select>`,
+    );
+    (document.getElementById("o1") as HTMLOptionElement).selected = false;
+
+    const out = reparse(snapshotDocument(root));
+    expect(out.getElementById("o1")?.hasAttribute("selected")).toBe(false);
+  });
+
+  it("never writes a typed password, or any file value, into the markup", () => {
+    // Not just "the code happens to skip these" — a stored version is served
+    // from a guessable public slug, so a typed password reaching value= would
+    // be a privacy leak, not just a display bug. A file input's value cannot
+    // be restored from markup at all.
+    const root = load(`<input id="a" type="password"><input id="b" type="file">`);
+    (document.getElementById("a") as HTMLInputElement).value = "secret123";
+
+    const out = reparse(snapshotDocument(root));
+    expect(out.getElementById("a")?.hasAttribute("value")).toBe(false);
+    expect(out.getElementById("b")?.hasAttribute("value")).toBe(false);
+  });
+
   it("keeps whatever the page's own JavaScript put in the DOM", () => {
     // This is the whole reason a version is a snapshot and not an answer set.
     // Drag-and-drop results, generated question lists and div-based pickers are
@@ -103,6 +130,50 @@ describe("snapshotDocument", () => {
 
     const out = reparse(snapshotDocument(root));
     expect(out.getElementById("a")?.innerHTML).toBe("<b>gras</b>");
+  });
+
+  it("replaces a canvas with a picture of itself, and a later element still pairs correctly", () => {
+    // happy-dom has no real rasteriser, so toDataURL is stubbed on the
+    // element rather than exercised for real — the point is to pin the DOM
+    // walk's replacement, not the browser's rendering.
+    //
+    // The canvas branch is the only one that mutates the CLONE mid-loop
+    // (replaceChild), which is exactly the hazard the lockstep comment above
+    // the loop defends against: if the replacement shifted later indices,
+    // the input after the canvas would either be skipped or would receive
+    // the canvas's own write instead of its.
+    const root = load(`<canvas id="a" width="10" height="7"></canvas><input id="b" type="text">`);
+    const canvas = document.getElementById("a") as HTMLCanvasElement;
+    canvas.toDataURL = () => "data:image/png;base64,AAAA";
+    (document.getElementById("b") as HTMLInputElement).value = "bonjour";
+
+    const out = reparse(snapshotDocument(root));
+    // The canvas is gone — replaced by an <img>, which carries no id.
+    expect(out.getElementById("a")).toBeNull();
+    const img = out.querySelector("img");
+    expect(img?.getAttribute("src")).toBe("data:image/png;base64,AAAA");
+    expect(img?.getAttribute("width")).toBe("10");
+    expect(img?.getAttribute("height")).toBe("7");
+    // The next element's own write must land on the next element, not be
+    // lost or misapplied because the canvas ahead of it was swapped out.
+    expect(out.getElementById("b")?.getAttribute("value")).toBe("bonjour");
+    // The live canvas the student is looking at is never touched.
+    expect(document.getElementById("a")?.tagName).toBe("CANVAS");
+  });
+
+  it("leaves a tainted canvas in place and still saves the rest of the document", () => {
+    // toDataURL throws on a tainted canvas. That element is left as an empty
+    // canvas rather than losing the whole snapshot to one thrown error.
+    const root = load(`<canvas id="a" width="5" height="5"></canvas><p>gardé</p>`);
+    const canvas = document.getElementById("a") as HTMLCanvasElement;
+    canvas.toDataURL = () => {
+      throw new Error("tainted");
+    };
+
+    const out = reparse(snapshotDocument(root));
+    expect(out.getElementById("a")?.tagName).toBe("CANVAS");
+    expect(out.querySelector("img")).toBeNull();
+    expect(out.querySelector("p")?.textContent).toBe("gardé");
   });
 
   it("strips every script, including the bootstrap that called it", () => {
