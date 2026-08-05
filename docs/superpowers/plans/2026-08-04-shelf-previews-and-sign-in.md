@@ -847,12 +847,37 @@ reviewer must not find the old argument.
 
 ### Task 26: Full verification
 
-- [ ] `npx prisma generate`
-- [ ] `npm run lint`
-- [ ] `npm run typecheck`
-- [ ] `npm test`
-- [ ] `npm run build`
-- [ ] Paste the actual output. Do not claim any of these passed without it.
+- [x] `npx prisma generate`
+- [x] `npm run lint`
+- [x] `npm run typecheck`
+- [x] `npm test`
+- [x] `npm run build`
+- [x] Paste the actual output. Do not claim any of these passed without it.
+
+**Run 2026-08-05, all green:**
+
+```
+$ npx prisma generate
+✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 117ms
+
+$ npm run lint          # eslint .            exit=0, no output
+$ npm run typecheck     # tsc --noEmit        exit=0, no output
+
+$ npm test
+ Test Files  76 passed (76)
+      Tests  834 passed (834)
+
+$ npm run build
+✓ Generating static pages using 9 workers (13/13) in 140ms
+Route (app) … └ ○ /signin
+```
+
+**Browser checklist:** rows 1-10 and 14-15 were verified during implementation
+(the capture spike, the ThumbBackfill runs, and the four /signin outcomes plus
+the throttle). Rows 11-13 (Back closes the overlay, the chip survives a rename,
+the leave-guard prompts during a live board) and rows 16-18 (the dia script's
+native picker) are left to a human — a native dialog and a live whiteboard
+cannot be driven from here.
 
 **Then the browser checklist, which the build cannot cover.** Hand the last
 three to a human if you cannot run them.
