@@ -19,10 +19,18 @@ export function MessageInput({
   replyTo,
   onCancelReply,
   cancelReplyLabel,
+  composerRef,
 }: {
   onSend: (body: string) => Promise<void>;
   placeholder: string;
   sendLabel: string;
+  // Handed up so the caller can focus this field from INSIDE the gesture that
+  // staged a quote. It cannot be done from here: an effect watching `replyTo`
+  // runs after the browser has left the touch handler's call stack, and iOS
+  // Safari opens the on-screen keyboard only for a focus() that happens within
+  // a user gesture. So the ref travels up rather than the trigger travelling
+  // down.
+  composerRef?: React.RefObject<HTMLTextAreaElement | null>;
   // The message being quoted, or none. Both undefined and null mean "not
   // replying" — undefined is what a caller with no reply feature at all
   // passes, null is Conversation's own "cleared" state — so the preview below
@@ -104,7 +112,13 @@ export function MessageInput({
       )}
       <form onSubmit={submit} className="flex items-end gap-3 p-4">
         <textarea
-          ref={textareaRef}
+          // A callback ref because two owners need this node: the autosize
+          // effect here, and the caller's focus() above. React takes one `ref`
+          // attribute, so it assigns both.
+          ref={(el) => {
+            textareaRef.current = el;
+            if (composerRef) composerRef.current = el;
+          }}
           value={body}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={onKeyDown}
@@ -114,7 +128,16 @@ export function MessageInput({
           maxLength={MAX_MESSAGE_LENGTH}
           // text-base, not smaller: iOS Safari zooms the whole page in on focus
           // of any field under 16px.
-          className="max-h-32 flex-1 resize-none overflow-y-auto rounded-xl border border-[var(--color-field-border)] bg-[var(--color-field)] px-3.5 py-2.5 text-base text-[var(--color-ink)] transition-shadow duration-150 focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/35 motion-reduce:transition-none"
+          className={cn(
+            "max-h-32 flex-1 resize-none overflow-y-auto rounded-xl border border-[var(--color-field-border)] bg-[var(--color-field)] px-3.5 py-2.5 text-base text-[var(--color-ink)] transition-shadow duration-150 focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/35 motion-reduce:transition-none",
+            // Held while a quote is staged, so the field reads as the thing
+            // waiting on the reader even after the keyboard has covered half
+            // the screen and the quote above has scrolled out of the visual
+            // viewport. It matches what focus draws, so nothing moves when the
+            // field then takes focus for real.
+            replyTo &&
+              "border-[var(--color-accent)] ring-2 ring-[var(--color-accent)]/35",
+          )}
         />
         <button
           type="submit"

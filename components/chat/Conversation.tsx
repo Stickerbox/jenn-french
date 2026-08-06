@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   MessageList,
   type MessageListLabels,
@@ -46,6 +46,19 @@ export function Conversation({
   footer?: ReactNode;
 }) {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+
+  // Focused IN THE GESTURE'S OWN CALL STACK, not from an effect watching
+  // `replyTo`. iOS Safari opens the on-screen keyboard only for a focus() that
+  // happens inside a user gesture, and by the time an effect runs the browser
+  // has left the touch handler — the quote would stage with the keyboard shut,
+  // which on a phone reads as the reply having done nothing. The composer is
+  // always mounted, so there is a node to focus before the state update that
+  // draws the quote has even rendered.
+  function startReply(message: ChatMessage) {
+    setReplyTo(message);
+    composerRef.current?.focus();
+  }
 
   async function handleSend(body: string) {
     if (!onSend) return;
@@ -64,7 +77,7 @@ export function Conversation({
           self={self}
           labels={labels}
           onDeleteMessage={onDeleteMessage}
-          onReply={onSend ? setReplyTo : undefined}
+          onReply={onSend ? startReply : undefined}
         />
       </div>
 
@@ -75,6 +88,7 @@ export function Conversation({
             placeholder={labels.placeholder}
             sendLabel={labels.send}
             replyTo={replyTo}
+            composerRef={composerRef}
             onCancelReply={() => setReplyTo(null)}
             cancelReplyLabel={labels.cancelReply}
           />
