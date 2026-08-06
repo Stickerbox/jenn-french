@@ -186,9 +186,25 @@ async function PagesTab({
   // two facts it needs — the kind and whether a preview exists — are both in
   // SHELF_SELECT, and `thumb` itself is deliberately not, which is the whole
   // reason thumbAt is a separate column.
+  //
+  // Both kinds without a preview, not just html: a pdf row reaches here the
+  // same way an html one always has, either published with no browser around
+  // (POST /api/pages has none; a student's own upload has one, but
+  // ShelfFab.submitPdf no longer waits out a slow render). `kind` rides along
+  // so ThumbBackfill knows which renderer a given row needs without asking
+  // readPageKind a second time.
   const missingThumbs = pages
-    .filter((page) => readPageKind(page) === "html" && page.thumbAt === null)
-    .map((page) => ({ slug: page.slug, version: pageVersion(page.updatedAt) }));
+    .map((page) => ({ page, kind: readPageKind(page) }))
+    .filter(
+      (row): row is { page: (typeof pages)[number]; kind: "html" | "pdf" } =>
+        (row.kind === "html" || row.kind === "pdf") &&
+        row.page.thumbAt === null,
+    )
+    .map(({ page, kind }) => ({
+      slug: page.slug,
+      version: pageVersion(page.updatedAt),
+      kind,
+    }));
 
   // No 560px cap out here, unlike the other tabs: the page grid uses the
   // whole 1152px so four tiles are worth looking at. PagesTabClient caps its

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
+import { OverlayProvider } from "@/components/ui/OverlayProvider";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -26,7 +27,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
-      <body>{children}</body>
+      <body>
+        {/* One provider for every route, so every Fab and every overlay —
+            AddSheet today, ChatPanel once Task D1 wires it in — shares the
+            same open-overlay count regardless of which page mounts them. */}
+        <OverlayProvider>{children}</OverlayProvider>
+      </body>
     </html>
   );
 }

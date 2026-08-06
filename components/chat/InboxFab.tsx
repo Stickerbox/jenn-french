@@ -17,8 +17,25 @@ import {
 } from "@/components/chat/UnclaimedNotice";
 import { Fab } from "@/components/ui/Fab";
 import { messagesFor } from "@/lib/chat-select";
+import { orderConversations } from "@/lib/inbox-order";
+import {
+  parseStoredSelection,
+  resolveInboxSelection,
+  type InboxView,
+} from "@/lib/inbox-selection";
 import type { ConversationSummary } from "@/lib/inbox";
 import type { ChatMessage } from "@/lib/chat-message";
+
+// One key for the whole inbox, not per student: it remembers which
+// conversation the panel was left on, not a fact about any one student.
+const inboxSelectionKey = "chat-inbox-selection";
+
+function persistSelection(next: { selectedId: string | null; view: InboxView }) {
+  window.localStorage.setItem(
+    inboxSelectionKey,
+    JSON.stringify({ groupId: next.selectedId, view: next.view }),
+  );
+}
 
 export type InboxLabels = ConversationLabels &
   ConversationListLabels &
@@ -53,7 +70,10 @@ export function InboxFab({
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(initialSelectedId);
   // Mobile only — at md both panes are visible and ChatPanel ignores this.
-  const [view, setView] = useState<"list" | "conversation">(
+  // This starting value is only ever what SSR can know (initialSelectedId);
+  // toggle() below reruns resolveInboxSelection with the device's remembered
+  // selection the moment she actually opens the panel.
+  const [view, setView] = useState<InboxView>(
     initialSelectedId ? "conversation" : "list",
   );
   const [unread, setUnread] = useState(
@@ -111,6 +131,7 @@ export function InboxFab({
   async function select(groupId: string) {
     setSelectedId(groupId);
     setView("conversation");
+    persistSelection({ selectedId: groupId, view: "conversation" });
     setUnread((current) => new Map(current).set(groupId, 0));
     // Fire and forget: a failure to stamp "read" must not stop the conversation
     // from opening.
@@ -133,8 +154,48 @@ export function InboxFab({
     }
   }
 
+  function goToList() {
+    setView("list");
+    persistSelection({ selectedId, view: "list" });
+  }
+
   function toggle() {
-    if (!open && selectedId) void select(selectedId);
+    if (!open) {
+      // localStorage and matchMedia are both browser-only reads. The FAB
+      // button below renders on the server, so reading either one during
+      // render would make the server pass and the hydration pass disagree —
+      // this handler only ever runs after mount, in response to a click, so
+      // it is the safe place for both.
+      const wide = window.matchMedia("(min-width: 768px)").matches;
+      const stored = parseStoredSelection(
+        window.localStorage.getItem(inboxSelectionKey),
+      );
+      // Same order the list renders in, so "the first conversation" on a
+      // fresh desktop open matches what she would see at the top of it.
+      const ordered = orderConversations(conversations).map((c) => c.groupId);
+      const resolved = resolveInboxSelection({
+        pinned: initialSelectedId,
+        stored,
+        ordered,
+        wide,
+      });
+
+      if (resolved.selectedId && (resolved.view === "conversation" || wide)) {
+        // select() fetches history and marks the thread read, which is right
+        // here: either the resolved view is the conversation itself, or md+
+        // shows both panes regardless of a stored "list" view, so she is
+        // about to be looking at it either way. On a phone resolving to the
+        // list, nothing has been read yet — see the mobile branch below.
+        void select(resolved.selectedId);
+      } else {
+        // Mobile default (or a dangling stored id that fell back to it): land
+        // on the list with nothing marked read, since she has not looked at
+        // any one conversation yet.
+        setSelectedId(resolved.selectedId);
+        setView(resolved.view);
+        persistSelection(resolved);
+      }
+    }
     setOpen(!open);
   }
 
@@ -175,7 +236,7 @@ export function InboxFab({
           onClose={() => setOpen(false)}
           // Only when there is somewhere to go back to. ChatPanel hides it at
           // md, where both panes are on screen at once.
-          onBack={view === "conversation" ? () => setView("list") : undefined}
+          onBack={view === "conversation" ? goToList : undefined}
           showAside={view === "list"}
           aside={
             <ConversationList

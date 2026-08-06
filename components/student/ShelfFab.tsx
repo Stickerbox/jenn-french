@@ -14,6 +14,15 @@ import { fieldClassName } from "@/components/ui/field";
 
 type Open = null | "menu" | "link" | "page" | "pdf";
 
+// The render starts at stagePdf, while a student is still reading the title
+// field — so this is a grace period, not the render's budget (that is
+// renderPdfThumbnail's own RENDER_TIMEOUT_MS). Bounded, unlike NewPageForm's
+// wait: on the connection slow enough to need this, pressing Enregistrer
+// should not become a second wait on top of the upload. Whatever this misses
+// is not lost, only deferred — ThumbBackfill's renderAndStorePdfThumbnail
+// picks up any pdf row still missing a preview on Jenn's next Pages tab visit.
+const THUMB_WAIT_MS = 3_000;
+
 export type ShelfRole = "student" | "teacher";
 
 // Two label sets, chosen by role, following the split this codebase keeps
@@ -160,10 +169,22 @@ export function ShelfFab({
       const formData = new FormData();
       formData.set("title", pdfTitle);
       formData.set("pdf", pdfFile);
-      // Awaited rather than read from state: a render still in flight is not a
-      // reason to save without a preview, and a failed one resolves null and
-      // saves without one — which is the fallback the glyph exists to be.
-      const rendered = thumbJob.current ? await thumbJob.current : null;
+      // Raced against a short timer rather than awaited unbounded: on the
+      // connection that motivated this, the render itself can take longer than
+      // a student will wait on a save they already pressed. THUMB_WAIT_MS is
+      // the grace period, not the render's own budget; a slow render that
+      // loses the race still finishes, but nothing here is listening for it —
+      // the upload proceeds without a thumbnail and ThumbBackfill catches it
+      // later. NewPageForm keeps its unbounded await: Jenn uploads from a
+      // desktop, where this race would only ever fire pointlessly.
+      const rendered = thumbJob.current
+        ? await Promise.race([
+            thumbJob.current,
+            new Promise<null>((resolve) =>
+              setTimeout(() => resolve(null), THUMB_WAIT_MS),
+            ),
+          ])
+        : null;
       if (rendered) formData.set("thumb", rendered, "thumb.jpg");
       // No audience: the action is curried on the group id, so the shelf is
       // whichever page this FAB is on.

@@ -39,7 +39,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 
 | Route | Who | Notes |
 |---|---|---|
-| `/` | public | landing page |
+| `/` | public | landing page — **but a signed-in visitor is redirected off it**: a teacher session goes to `/admin`, a live student cookie to that student's `/g/[slug]`. `/?stay=1` is the escape hatch and renders the page for anyone; the link to it is drawn only when a redirect would otherwise have fired |
 | `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the student's own chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included, who once unlocked also gets *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. **Jenn's own chat is her inbox FAB and follows her session, not the token** — the only thing on this page that does, and it carries the delete and read-marker controls with it. Everything the gate controls is unchanged. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding to the shelf is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. **Its menu depends on who is looking**: a student gets *Ajouter un lien* and *Ajouter un PDF*, Jenn gets *Add a link*, *Add a page* and *Add a PDF* — she keeps the full admin menu on the one screen where "put this on Marie's shelf" is the obvious act, and the student loses the HTML paste box, because they may upload a PDF and not a website. `addShelfPage` keeps its guard and its tests; what changed is which control is drawn. Jenn also gets a pencil on each editable tile. The card tab carries the week's five day dots, a week-range line that opens a month calendar, and *Aujourd'hui*; a day with no card cannot be selected. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing |
 | `/signin` | students | sign in with an email address and a password, from anywhere |
 | `/login` | teacher | passkey register/authenticate |
@@ -191,8 +191,27 @@ still signed in. It obliges Jenn to send the new invite — the student's page
 cannot tell them their account was reset without telling a stranger the same
 thing.
 
+**One student, one token, one cookie.** A student has exactly one `chatToken`,
+and therefore at most one `student-token-<slug>` cookie in their browser. That
+is a product fact, not an accident of the current code: nothing here should
+branch on a browser holding two students' cookies, and any text implying one
+person manages several students is wrong. It is what lets the landing page take
+the first `student-token-*` cookie it finds and redirect on it with nothing to
+disambiguate (`studentSlugFromCookies`, `lib/landing-redirect.ts`).
+
+That page still validates before it redirects, which is the part worth keeping.
+It resolves the cookie against the database and goes to `/g/[slug]` **only** for
+the state `studentGate` calls `signed-in` — the presented value equals the live
+`chatToken` and `passwordHash` is non-null. A stale cookie, or one naming a
+deleted group, falls through to the landing page: bouncing someone into a
+sign-in form they did not ask for is worse than showing them Jenn's bio, and a
+404 in place of the marketing page is worse still. The accepted cost is that
+reading a cookie makes `/` **dynamic** rather than static. Middleware could have
+kept it static, but middleware runs on the Edge runtime with no database, so it
+could not tell a live token from a spent one.
+
 **`/signin` is a second door, not a change to `/login`.** A student who has
-bookmarked nothing — or a parent on a new phone — had nowhere to go, because
+bookmarked nothing — or who is on a new phone — had nowhere to go, because
 sign-in was per-page and the form was scoped to the slug in the URL.
 `signInByEmail` takes an address and a password and redirects to that student's
 page. One page for both audiences was rejected: it would show every student a
@@ -204,7 +223,7 @@ sees `/signin`.
 `Group.email` is `@unique` for it, which retires the schema's old argument
 against uniqueness — that argument was right when sign-in was scoped to a slug,
 and a door taking an address and nothing else has to have that address name one
-student. The alternatives were worse: silently choosing one sibling, or a
+student. The alternatives were worse: silently choosing one of the matches, or a
 chooser that reads other students' names out to whoever typed the address.
 `claimStudent` catches the resulting `P2002` and returns a specific sentence —
 the one specific message in an area whose whole design is uniform failures,
@@ -367,15 +386,36 @@ the upload, and is no longer Jenn's browser only) runs it behind a dynamic
 an `<img>`. The dynamic import matters more for that move, not less: without it
 a PDF renderer would ship in a chunk the router could serve to a student who
 never uploads anything. The accepted cost is that a student staging a PDF
-fetches pdf.js once, at that moment, on their phone, and the ten-second timeout
-degrades to the glyph on a slow connection. That is what makes this consistent with the
+fetches pdf.js once, at that moment, on their phone. That is what makes this consistent with the
 2026-08-03 spec's refusal of pdf.js rather than a reversal of it — that refusal
 was about a dozen renderers mounting at once on a student's phone. The module is
 impure and so is deliberately **not** in `lib/`, the same split
 `lib/whiteboard-thumbnail.ts` and `BoardEditor.renderThumbnail` already make. It
 never throws: an encrypted, corrupt or zero-page PDF, a dead worker and a render
-past ten seconds all return `null`, because **an upload must never fail because
+that ran long all return `null`, because **an upload must never fail because
 a preview did not render** — the glyph is a working fallback.
+
+**Two budgets, not one, and the difference is a bug that shipped.** A single
+ten-second race used to cover both fetching pdf.js and rendering with it. The
+renderer and its worker are most of a megabyte, so on weak LTE the download
+alone spent the whole budget and every student on a poor connection got the
+glyph for a PDF that would have rendered fine. `LOAD_TIMEOUT_MS` (30 s) covers
+the dynamic import; `RENDER_TIMEOUT_MS` (10 s) covers only the decode and draw.
+Neither may be folded back into one.
+
+The upload does not wait the render out either. `ShelfFab.submitPdf` races the
+staged job against `THUMB_WAIT_MS` (3 s) and saves without a picture if it has
+not finished — the render starts at *staging*, while they read the title field,
+so three seconds is a grace period rather than the budget. `NewPageForm` still
+awaits its job in full, deliberately: Jenn uploads from a desktop.
+
+Anything either rule drops is picked up by `ThumbBackfill`, which now covers
+**pdf rows as well as html ones** through `renderAndStorePdfThumbnail` — it
+fetches the stored bytes back through the public `/p/[slug]/pdf`, renders them,
+and stores the JPEG through the same teacher-only `setPageThumb`. **No authority
+widened**: a student's own thumbnail still arrives inside its own upload's
+FormData under `requireShelfRole`, and the backfill only ever runs in Jenn's
+admin. It stays serial and capped per visit, for the reason it always was.
 
 `savePage` writes both columns on every call, joining its flat every-column
 invariant. The reason is stronger here than the `readPageKind` one that
@@ -384,15 +424,19 @@ is a picture of the previous document under the new document's title, which
 reads as a working feature showing the wrong thing. `updatePageMeta` touches
 neither, which is why renaming a PDF page keeps its picture.
 
-PDFs uploaded before this existed have `null` in both and keep the glyph. There
-is deliberately **no backfill**: a script would need the server-side renderer
-this design refuses, and re-uploading is a control that already exists.
+PDFs uploaded before this existed have `null` in both, and are filled in by
+`ThumbBackfill` above the next time Jenn opens the Pages tab. There is still
+deliberately **no backfill *script***, for either kind: one would need the
+server-side renderer this design refuses. The browser doing the work is the
+whole point, and it is why the backfill is a component and not a `scripts/`
+file.
 
 `/p/[slug]/raw` and `POST /api/pages` refuse everything that is not an html row
 — 404 or 400, never a redirect to the external URL. An open redirect on a public
 route is a phishing primitive. `/p/[slug]/pdf` is their mirror: it refuses
 everything that is not a pdf row, and `/p/[slug]/thumb` is the third, refusing
-everything that is not a pdf row *with* a thumbnail. Three routes rather than
+everything that has no stored picture — of *either* kind, since the columns
+behind it mean "the picture" and never meant "the PDF's picture". Three routes rather than
 one handler switching on kind, because they want different headers and one
 handler under three header regimes is what a later edit gets wrong.
 
@@ -977,6 +1021,30 @@ full-screen treatment and no back arrow, because they have no second level.
 `/admin/[slug]` no longer exists (it was the override-card editor removed
 above, and never hosted chat).
 
+**The inbox remembers where she was.** `resolveInboxSelection`
+(`lib/inbox-selection.ts`) answers what the panel opens on, from four inputs and
+in this clause order: `initialSelectedId` still wins, so standing on a student's
+page and pressing the FAB lands in that conversation; then a selection stored on
+this device; then, at `md` and up, the first conversation in the ordered list;
+then, below `md`, the list itself. An id that is no longer in the list — a
+student deleted since — falls through rather than selecting a group that does
+not exist, which is why both the pinned and the stored branches test membership
+rather than trusting the value.
+
+Two details are load-bearing. It is read in the **click handler**, never during
+render: `InboxFab`'s button does render on the server, so a render-phase
+`localStorage` or `matchMedia` read is a hydration mismatch — the same rule the
+rest of this section states, reached from the other direction. And opening onto
+the list on a phone must **not** call `select()`, because `select()` stamps the
+conversation read: marking the first student's thread read while showing Jenn a
+list would clear an unread dot she never saw.
+
+Storage is one `chat-inbox-selection` key in `localStorage`, per device, the
+precedent `chat-seen:<slug>` already set — the panel's state is a fact about
+this browser, not about a student. It parses defensively and answers `null` to
+anything malformed, the contract `readSections`, `readOps` and `readPageKind`
+all carry.
+
 **Her FAB follows her session, not the token.** That changes no access rule:
 `chatRole` has always answered `"teacher"` on the session alone, and both the
 POST and the SSE route have always honoured it — the UI was the only thing
@@ -1007,6 +1075,36 @@ selected by hand — it was never paste-able, having no origin. It is now copied
 than the `ORIGIN` env var: what she wants to send is a link to the site she is
 looking at, and where those two disagree the browser is right. Building it during
 render instead would be a hydration mismatch.
+
+**The panel's own shape.** `ChatPanel` is still one tree for both sizes driven
+entirely by CSS, and still must not read `matchMedia` during render. One
+exception is made in an **effect**, which is safe because the panel is mounted
+from an `open` state that starts `false` and so never renders on the server:
+below `md` it drives its own `top` and `height` from `window.visualViewport`.
+iOS Safari does not shrink a `fixed inset-0` element when the on-screen keyboard
+opens — the visual viewport shrinks and the layout viewport, and so `100dvh`,
+does not — which pushed the header and its X above what the reader could see, on
+the device most of these students use. At `md` and up the inline style is
+cleared so the floating panel's own classes take back over.
+
+The X is now drawn in **every** state. It used to hide whenever the back arrow
+showed, which left Jenn inside a student's conversation on a phone with no way
+to close the panel at all without going back to the list first; back and close
+are different actions. The back control is one button wrapping the arrow *and*
+the title, because the arrow alone was a 14px hit target.
+
+Message bubbles group into runs (`groupIntoRuns`, `lib/chat-run.ts`): consecutive
+messages from one sender collapse, a gap over five minutes starts a new run even
+from the same sender, and one timestamp is drawn per run rather than under every
+bubble. It runs **inside** each day group, so `groupByDay` is untouched and still
+owns the date separators.
+
+The three animations (`panel-rise`, `panel-pop`, `bubble-in`) live as named
+keyframes in `app/globals.css` and each consumer carries
+`motion-reduce:animate-none`. The variant sits on the element rather than a rule
+matching class names, because the duration lives inside the Tailwind utility —
+a global override would have to substring-match a generated class string and
+would break silently the first time a caller chose a different duration.
 
 The header line on `/g/[slug]` is chosen by audience: `greeting` gives the
 student *Bonjour Marie* in French from the first word of the name, and
@@ -1274,6 +1372,20 @@ the slot.
   will silently paint over one of them — which is exactly what the admin's `+`
   did until 2026-08-04. `bottom-24` is not a free slot either: that is where the
   open panel and the add menu go.
+- **An open overlay hides both of them, below `md` only.** `AddSheet` and
+  `ChatPanel` were `z-50` too and render *earlier* in the tree, so on a phone
+  the `+` painted on top of the PDF sheet's own submit button and both buttons
+  sat on top of the full-screen chat. Both overlays are `z-[60]` now, but that
+  alone only fixes the overlap: over a dimmed backdrop the button would still be
+  visible, just behind the card. So they call `useOverlayLock`
+  (`components/ui/OverlayProvider.tsx`, mounted in `app/layout.tsx`) and `Fab`
+  hides itself while the count is above zero. **Below `md` only** — at desktop
+  size the chat panel floats with the page readable behind it and the FAB is
+  what closes it, so hiding it there would strand the panel. `AddMenu`
+  deliberately does *not* lock: the FAB is its anchor. The provider is UI
+  plumbing rather than a rule, which is why it has no `lib/` module and no unit
+  test; that is a deliberate exception to the convention above it, not an
+  oversight.
 
 ## Docs
 

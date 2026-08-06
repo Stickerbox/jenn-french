@@ -361,15 +361,19 @@ export async function addShelfPage(
   revalidatePages(slug);
 }
 
-// Stores a captured preview of an html page. The picture is taken in the
-// browser, against the page as it is already stored — see
-// components/html-thumbnail.ts — so this only writes what it is handed.
+// Stores a captured preview for either kind of page — an html document or a
+// pdf. The picture is taken in the browser, against the page as it is already
+// stored — html via components/html-thumbnail.ts, pdf via
+// components/pdf-thumbnail.ts's renderAndStorePdfThumbnail (ThumbBackfill's
+// retry for a student's upload whose own render didn't finish in time) — so
+// this only ever writes what it is handed.
 //
 // Teacher-only, and the narrowness is deliberate rather than an oversight.
 // Publishing an html document is teacher-only again now that the student's FAB
-// offers a link and a PDF, and a PDF's thumbnail still arrives inside its own
-// upload's FormData under requireShelfRole. One authority per path, neither
-// widened: there is no route by which a student reaches this.
+// offers a link and a PDF, and a student's own PDF thumbnail still arrives
+// inside its own upload's FormData under requireShelfRole rather than through
+// this action. One authority per path, neither widened: there is no route by
+// which a student reaches this.
 //
 // A rejected thumbnail is NOT an error and returns silently, exactly as
 // readThumb documents. The document is already saved; this is decoration on top

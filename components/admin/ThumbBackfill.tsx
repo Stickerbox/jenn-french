@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { captureAndStoreThumbnail } from "@/components/html-thumbnail";
+import { renderAndStorePdfThumbnail } from "@/components/pdf-thumbnail";
 
 // How many to attempt on one visit. A bound, not a target: the objection the
 // shelf's sandbox="" answers was ever only to a dozen documents running scripts
@@ -15,21 +16,26 @@ const PER_VISIT = 5;
 // A page published through POST /api/pages has no browser to be captured in —
 // the dia script is a shell script talking to a server — so its preview can
 // only ever be taken later, somewhere a DOM exists. This is that somewhere. It
-// covers every page that already existed at the same time, which is why no
-// migration script is needed: one would have to render HTML on the server,
+// covers every html page that already existed at the same time, which is why
+// no migration script is needed: one would have to render HTML on the server,
 // which is the thing this whole design refuses (see the spec's non-goals, and
 // scripts/backfill-page-assets.mjs for the shape being avoided).
 //
+// It covers pdf rows for a different reason: renderPdfThumbnail already runs
+// in a browser, at upload — a student's, on a phone — but ShelfFab.submitPdf
+// no longer waits out a slow one. This is where whatever that dropped gets a
+// second try, in Jenn's browser on her next visit to the Pages tab.
+//
 // Failure is invisible and costs nothing. A null result leaves thumbAt null and
-// the row is retried on a later visit, behind the live iframe that was there
-// all along — so nothing is recorded, nothing is retried within a visit, and
-// nothing is reported to Jenn. This is an optimisation over a working fallback,
-// and an optimisation that announces its own failures is worse than one that
-// does not.
+// the row is retried on a later visit, behind the live iframe or the glyph that
+// was there all along — so nothing is recorded, nothing is retried within a
+// visit, and nothing is reported to Jenn. This is an optimisation over a
+// working fallback, and an optimisation that announces its own failures is
+// worse than one that does not.
 export function ThumbBackfill({
   pages,
 }: {
-  pages: { slug: string; version: string }[];
+  pages: { slug: string; version: string; kind: "html" | "pdf" }[];
 }) {
   const router = useRouter();
   // Guards against a second pass in React's development double-invoke, and
@@ -48,10 +54,16 @@ export function ThumbBackfill({
       // ONE AT A TIME, each awaited before the next begins. Serial for the same
       // reason a shelf frame has no allow-scripts: one document running its own
       // JavaScript in a hidden frame is the trade renderPdfThumbnail already
-      // makes, and a queue of them is not.
+      // makes, and a queue of them is not. Dispatching on kind does not relax
+      // that — a pdf render also imports pdf.js and spins up its worker, which
+      // is exactly the kind of thing this loop exists to keep to one at a time.
       for (const page of pages.slice(0, PER_VISIT)) {
         if (cancelled) return;
-        if (await captureAndStoreThumbnail(page.slug, page.version)) stored += 1;
+        const ok =
+          page.kind === "pdf"
+            ? await renderAndStorePdfThumbnail(page.slug)
+            : await captureAndStoreThumbnail(page.slug, page.version);
+        if (ok) stored += 1;
       }
 
       // Once at the end, not once per page: each refresh re-renders the whole

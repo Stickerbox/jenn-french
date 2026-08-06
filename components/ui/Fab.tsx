@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useOverlayCount } from "@/components/ui/OverlayProvider";
 
 // The round button in the bottom-right corner. Extracted from ChatFab so the
 // chat bubble and the add button are one object rendered twice: they sit side
@@ -29,6 +30,16 @@ export function Fab({
   badge?: ReactNode;
   children: ReactNode;
 }) {
+  // AddSheet and ChatPanel were `z-50`, same as this button, and render earlier
+  // in the tree — so on a phone they lost the document-order tiebreak and this
+  // button painted on top of them. Both are `z-[60]` now, which fixes the
+  // overlap but not the ask: over a dimmed backdrop the button would still be
+  // visible, just behind the card. Hiding it is the fix — but only below `md`:
+  // at desktop size the chat panel
+  // floats at bottom-24 right-4 with the page still readable behind it, and
+  // this button is what closes it, so hiding it there would strand the panel.
+  const overlayOpen = useOverlayCount() > 0;
+
   return (
     <button
       type="button"
@@ -37,6 +48,7 @@ export function Fab({
       aria-label={label}
       className={cn(
         "fixed z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-accent)] text-white shadow-lg transition-opacity hover:opacity-90",
+        overlayOpen && "hidden md:flex",
         className,
       )}
     >

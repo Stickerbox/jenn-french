@@ -1,5 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { getCurrentTeacher } from "@/lib/session";
+import { cookieNameFor } from "@/lib/cookie-name";
+import {
+  STAY_PARAM,
+  STAY_VALUE,
+  studentSlugFromCookies,
+  wantsLanding,
+} from "@/lib/landing-redirect";
 
 export const metadata: Metadata = {
   title: "Français Avec Jenn",
@@ -43,7 +54,65 @@ const proseStyle = {
   lineHeight: 1.6,
 };
 
-export default function RootPage() {
+export default async function RootPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ stay?: string }>;
+}) {
+  const { stay } = await searchParams;
+  const staying = wantsLanding(stay);
+
+  // Reading cookies and the teacher session on every visit is what makes this
+  // page dynamic instead of static — it used to render once at build time and
+  // now renders per request. Affordable for a single-tutor site, and it is
+  // what buys correctness: middleware runs on the Edge runtime and cannot
+  // reach the database, so it could see a cookie was present but never tell a
+  // live token from a stale one.
+  const teacher = await getCurrentTeacher();
+
+  // Computed even while staying, not only in the branch that would act on it —
+  // the escape-hatch link below needs to know a redirect would have fired here
+  // in order to show itself, so "would redirect" and "did redirect" have to be
+  // two separate questions.
+  let redirectTo: string | null = null;
+  if (teacher) {
+    redirectTo = "/admin";
+  } else {
+    const cookieStore = await cookies();
+    const slug = studentSlugFromCookies(
+      cookieStore.getAll().map((c) => c.name),
+    );
+    if (slug) {
+      const group = await prisma.group.findUnique({
+        where: { slug },
+        select: { slug: true, chatToken: true, passwordHash: true },
+      });
+      // Only the exact state studentGate calls "signed-in": the cookie must
+      // equal the group's live chatToken and the account must be claimed. A
+      // stale or unknown cookie — a revoked token, an unclaimed invite, or a
+      // deleted group giving `group` as null — falls through to the landing
+      // page rather than bouncing someone into a sign-in form they did not
+      // ask for, or a 404 in place of the marketing page.
+      const presented = cookieStore.get(cookieNameFor(slug))?.value;
+      if (
+        group &&
+        group.passwordHash !== null &&
+        presented === group.chatToken
+      ) {
+        redirectTo = `/g/${group.slug}`;
+      }
+    }
+  }
+
+  if (redirectTo && !staying) {
+    redirect(redirectTo);
+  }
+
+  // Only true when a redirect would otherwise have fired — a plain visitor
+  // with nothing to escape from never sees a link about a page they are
+  // already on.
+  const showStayLink = redirectTo !== null;
+
   return (
     <main
       className="relative min-h-screen px-5 py-16 sm:py-24"
@@ -54,13 +123,24 @@ export default function RootPage() {
           with the sample card below. Absolutely positioned, following
           /g/[slug]'s "← Back to admin", so the centred column does not shift at
           any width. */}
-      <Link
-        href="/signin"
-        className="absolute right-4 top-4 rounded-full border border-[var(--card-line)] px-4 py-1.5 text-[13px] text-[var(--card-bleu)] transition-opacity hover:opacity-80 sm:right-6 sm:top-6"
-        style={{ fontFamily: SERIF }}
-      >
-        Se connecter
-      </Link>
+      <div className="absolute right-4 top-4 flex items-center gap-2 sm:right-6 sm:top-6">
+        {showStayLink && (
+          <Link
+            href={`/?${STAY_PARAM}=${STAY_VALUE}`}
+            className="rounded-full border border-[var(--card-line)] px-4 py-1.5 text-[13px] text-[var(--card-bleu)] transition-opacity hover:opacity-80"
+            style={{ fontFamily: SERIF }}
+          >
+            Voir la page publique
+          </Link>
+        )}
+        <Link
+          href="/signin"
+          className="rounded-full border border-[var(--card-line)] px-4 py-1.5 text-[13px] text-[var(--card-bleu)] transition-opacity hover:opacity-80"
+          style={{ fontFamily: SERIF }}
+        >
+          Se connecter
+        </Link>
+      </div>
 
       <div className="mx-auto w-full max-w-[660px]">
         <header>

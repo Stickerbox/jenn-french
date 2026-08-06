@@ -9,6 +9,15 @@ import { listStamp } from "@/lib/chat-stamp";
 import type { ConversationSummary } from "@/lib/inbox";
 import { cn } from "@/lib/utils";
 
+// Two letters, not a rule with a test: a name that produces no second word
+// (or none at all) just falls back to what it has. Nothing downstream reads
+// meaning from the result the way lib/ modules are relied on to — it is a
+// glyph in a circle, not a decision.
+function initials(name: string): string {
+  const [first = "", second = ""] = name.trim().split(/\s+/).filter(Boolean);
+  return ((first[0] ?? "") + (second[0] ?? "")).toUpperCase();
+}
+
 export type ConversationListLabels = {
   search: string;
   noStudents: string;
@@ -82,57 +91,66 @@ export function ConversationList({
                   onClick={() => onSelect(conversation.groupId)}
                   aria-current={selected ? "true" : undefined}
                   className={cn(
-                    "flex w-full flex-col gap-0.5 px-4 py-3 text-left transition-colors",
+                    "flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors",
                     selected
                       ? "bg-[var(--color-accent-soft)]"
                       : "hover:bg-[var(--color-field)]",
                   )}
                 >
-                  <span className="flex items-center gap-2">
-                    {count > 0 && (
-                      <span
-                        // A dot, not a number: the count is on the Students tab
-                        // and this list answers "who", not "how many".
-                        aria-hidden="true"
-                        className="h-2 w-2 shrink-0 rounded-full bg-[var(--card-rouge)]"
-                      />
-                    )}
-                    <span
-                      className={cn(
-                        "flex-1 truncate text-sm text-[var(--color-ink)]",
-                        count > 0 && "font-semibold",
-                      )}
-                    >
-                      {conversation.name}
-                    </span>
-                    {count > 0 && (
-                      // The dot is aria-hidden, so the unread state reaches a
-                      // screen reader here instead.
-                      <span className="sr-only">{labels.unread}</span>
-                    )}
-                    {conversation.lastMessage && (
-                      <span className="shrink-0 text-[11px] text-[var(--color-ink-muted)]">
-                        {listStamp(
-                          conversation.lastMessage.createdAt,
-                          now,
-                          labels.locale,
-                          { yesterday: labels.yesterday },
-                        )}
-                      </span>
-                    )}
+                  <span
+                    aria-hidden="true"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-sm font-semibold text-[var(--color-accent)] ring-1 ring-black/5"
+                  >
+                    {initials(conversation.name)}
                   </span>
 
-                  <span className="truncate text-xs text-[var(--color-ink-muted)]">
-                    {previewText(conversation.lastMessage, {
-                      you: labels.you,
-                      // Only reached when there is no last message, so an
-                      // unclaimed student who DOES have history — Jenn could
-                      // have written to them under the old model — still shows
-                      // that history here.
-                      empty: conversation.claimed
-                        ? labels.noMessages
-                        : labels.notSignedUp,
-                    })}
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="flex items-center gap-2">
+                      {count > 0 && (
+                        <span
+                          // A dot, not a number: the count is on the Students tab
+                          // and this list answers "who", not "how many".
+                          aria-hidden="true"
+                          className="h-2 w-2 shrink-0 rounded-full bg-[var(--card-rouge)]"
+                        />
+                      )}
+                      <span
+                        className={cn(
+                          "flex-1 truncate text-sm text-[var(--color-ink)]",
+                          count > 0 && "font-semibold",
+                        )}
+                      >
+                        {conversation.name}
+                      </span>
+                      {count > 0 && (
+                        // The dot is aria-hidden, so the unread state reaches a
+                        // screen reader here instead.
+                        <span className="sr-only">{labels.unread}</span>
+                      )}
+                      {conversation.lastMessage && (
+                        <span className="shrink-0 text-[11px] text-[var(--color-ink-muted)]">
+                          {listStamp(
+                            conversation.lastMessage.createdAt,
+                            now,
+                            labels.locale,
+                            { yesterday: labels.yesterday },
+                          )}
+                        </span>
+                      )}
+                    </span>
+
+                    <span className="truncate text-xs text-[var(--color-ink-muted)]">
+                      {previewText(conversation.lastMessage, {
+                        you: labels.you,
+                        // Only reached when there is no last message, so an
+                        // unclaimed student who DOES have history — Jenn could
+                        // have written to them under the old model — still shows
+                        // that history here.
+                        empty: conversation.claimed
+                          ? labels.noMessages
+                          : labels.notSignedUp,
+                      })}
+                    </span>
                   </span>
                 </button>
               </li>

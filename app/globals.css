@@ -64,3 +64,50 @@ body {
   color: #b0a488;
   pointer-events: none;
 }
+
+/* Chat panel open animations (ChatPanel, Task D1) and the message-bubble
+   entrance (MessageList, Task D2) — named here rather than left as Tailwind
+   arbitrary values because Task D2 has to reference `bubble-in` without
+   being able to define it: this file is the one place both tasks can agree
+   on the name. */
+@keyframes panel-rise {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes panel-pop {
+  from {
+    transform: scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes bubble-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Motion is decoration, not information, so every element that uses one of the
+   three keyframes above also carries `motion-reduce:animate-none`. That is
+   Tailwind's own variant on the element rather than a rule here matching class
+   names with `[class*="animate-["]`, which was the first attempt: the duration
+   lives inside the utility (`animate-[bubble-in_180ms_ease-out]`), so a global
+   override has to substring-match a generated class string, and it breaks
+   silently the day a caller writes a different duration or Tailwind changes how
+   it escapes brackets. The variant travels with the element that opted in. */
