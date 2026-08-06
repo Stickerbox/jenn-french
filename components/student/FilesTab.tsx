@@ -18,8 +18,9 @@ import {
   pageSectionList,
   tileActionClass,
 } from "@/components/card-styles";
-import { sectionPages } from "@/lib/page-sections";
 import { sectionLabel } from "@/lib/page-section-labels";
+import { orderPages, type PageSort } from "@/lib/page-sort";
+import { SortFilter } from "@/components/ui/SortFilter";
 import { filterPages } from "@/lib/admin-search";
 import { filterPagesByKind, type KindFilter as Kind } from "@/lib/page-filters";
 import type { PageKind } from "@/lib/page-kind";
@@ -107,12 +108,15 @@ export function FilesTab({
   const strings = getStrings(locale);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind>("all");
+  const [sort, setSort] = useState<PageSort>("created");
   const [chooserPage, setChooserPage] = useState<ShelfPage | null>(null);
 
   const visible = filterPagesByKind(filterPages(pages, query), kind);
-  // Sections form over the filtered set — a heading above nothing would be a
-  // bug the search field caused.
-  const sections = sectionPages(visible, today);
+  // Groups form over the filtered set — a heading above nothing would be a
+  // bug the search field caused. See lib/page-sort.ts for why "modified"
+  // collapses the date headings rather than keeping ones that would then be
+  // describing the wrong timestamp.
+  const groups = orderPages(visible, sort, today);
 
   // The old 560px cap was sized for one column of rows and would pin the grid
   // at two columns forever. 1152px is the admin's own content width, so a tile
@@ -134,25 +138,37 @@ export function FilesTab({
             tone="card"
             labels={strings.student.files.kindFilter}
           />
+          <SortFilter
+            value={sort}
+            onChange={setSort}
+            tone="card"
+            labels={strings.student.files.sortFilter}
+          />
         </div>
       )}
 
       {pages.length === 0 ? (
         <p className={emptyStateText}>{strings.student.files.emptyShelf}</p>
-      ) : sections.length === 0 ? (
+      ) : groups.length === 0 ? (
         <p className={emptyStateText}>{strings.student.files.noMatches}</p>
       ) : (
         <div className={pageSectionList}>
-          {sections.map((section) => (
+          {groups.map((group, groupIndex) => (
             <section
-              key={`${section.key.kind}-${sectionLabel(section.key, locale)}`}
+              key={
+                group.heading
+                  ? `${group.heading.kind}-${sectionLabel(group.heading, locale)}`
+                  : `flat-${groupIndex}`
+              }
             >
-              <h2 className={pageSectionHeading}>
-                {sectionLabel(section.key, locale)}
-              </h2>
+              {group.heading && (
+                <h2 className={pageSectionHeading}>
+                  {sectionLabel(group.heading, locale)}
+                </h2>
+              )}
 
               <ul className={pageGrid}>
-                {section.pages.map((page) => {
+                {group.pages.map((page) => {
                   const target = pageTarget(page, groupSlug);
                   // One expression for both previews; see PageList, which
                   // computes the same thing for the same reason.

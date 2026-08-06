@@ -106,11 +106,17 @@ export async function POST(
   const worksheetUrl = `${origin}/g/${context.group.slug}/w/${context.page.slug}`;
 
   try {
-    await createMessage(
-      context.group.id,
+    // automated + href, not a URL appended to the body: the bubble itself is
+    // the link now (components/chat/MessageList.tsx), so the address travels
+    // structurally instead of as a substring versionNotice's prose has to
+    // carry and linkifyBody has to re-find.
+    await createMessage({
+      groupId: context.group.id,
       fromTeacher,
-      versionNotice(context.page.title, fromTeacher, context.group.name, worksheetUrl),
-    );
+      body: versionNotice(context.page.title, fromTeacher, context.group.name),
+      automated: true,
+      href: worksheetUrl,
+    });
   } catch {
     // Deliberately swallowed, for the reason above.
   }

@@ -8,13 +8,26 @@ import {
 } from "@/components/chat/Conversation";
 import { Fab } from "@/components/ui/Fab";
 import { useStream } from "@/components/StreamProvider";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 
 // Per-device by design: the student has no account to hang a read marker on,
 // and tracking it server-side would mean a write path from an unauthenticated
 // visitor for the sake of a dot.
 const seenKey = (slug: string) => `chat-seen:${slug}`;
 
-export type StudentChatLabels = ConversationLabels & {
+// The exact shape app/g/[slug]/page.tsx builds by hand today — a route this
+// task does not own. It is deliberately NARROWER than ConversationLabels:
+// reply/cancelReply are filled in below from labels.locale instead of being
+// threaded in from that caller, so this type does not gain a field the
+// existing call site would then be missing.
+export type StudentChatLabels = {
+  empty: string;
+  locale: string;
+  today: string;
+  deleteMessage: string;
+  placeholder: string;
+  send: string;
   title: string;
   close: string;
   back: string;
@@ -27,9 +40,13 @@ export type StudentChatLabels = ConversationLabels & {
 export function ChatFab({
   slug,
   labels,
+  locale,
 }: {
   slug: string;
   labels: StudentChatLabels;
+  // The locale itself, not the resolved dictionary — see getStrings below.
+  // `labels.locale` is a BCP-47 tag for Intl and is a different thing.
+  locale: Locale;
 }) {
   const [open, setOpen] = useState(false);
   const [unseen, setUnseen] = useState(false);
@@ -63,16 +80,28 @@ export function ChatFab({
     }
   }, [messages, slug]);
 
-  async function send(body: string) {
+  async function send(body: string, replyToId: string | null) {
     const response = await fetch(`/api/chat/${slug}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, replyTo: replyToId }),
     });
     if (!response.ok) throw new Error("send failed");
     // Nothing is appended here — the message arrives back through the stream,
     // which is also what gives it its real id and timestamp.
   }
+
+  // The two strings the caller's label object does not carry. It is the
+  // LOCALE that crosses, never the resolved Strings object — lib/strings.ts
+  // holds interpolating functions, React cannot serialize a function across
+  // the server/client boundary, and passing the object threw a 500 at runtime
+  // while lint, tsc, the tests and the build all stayed green.
+  const chatStrings = getStrings(locale).chat;
+  const conversationLabels: ConversationLabels = {
+    ...labels,
+    reply: chatStrings.reply,
+    cancelReply: chatStrings.cancelReply,
+  };
 
   function handleToggle() {
     if (!open) {
@@ -105,7 +134,7 @@ export function ChatFab({
           <Conversation
             messages={messages}
             self="student"
-            labels={labels}
+            labels={conversationLabels}
             onSend={send}
           />
         </ChatPanel>

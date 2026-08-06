@@ -63,7 +63,24 @@ model Message {
   // two participants and one of them has no row to point at.
   fromTeacher Boolean
   body        String
-  createdAt   DateTime @default(now())
+  // True for a message this app posted itself (a worksheet save notice, so
+  // far) rather than one either party typed. versionNotice used to jam a URL
+  // into body and let the bubble linkify it; this is what replaces that — the
+  // link now travels structurally in href, not as a substring of the prose,
+  // so the bubble can style and gate it without re-parsing the text.
+  automated Boolean @default(false)
+  // Where an automated message points, when it points anywhere. Nullable
+  // because the column has to admit a message with nothing to link to, even
+  // though nothing here currently creates one.
+  href      String?
+  // The message this one is quoting, if any. SetNull rather than Cascade:
+  // Jenn can delete an individual message, and a reply quoting a deleted one
+  // must keep its own text — cascading would delete the reply too, which is
+  // not what deleting the original one means.
+  replyToId String?
+  replyTo   Message?  @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[] @relation("MessageReply")
+  createdAt DateTime  @default(now())
 
   @@index([groupId, createdAt])
 }

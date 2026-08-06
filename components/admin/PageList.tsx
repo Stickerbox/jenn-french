@@ -19,8 +19,9 @@ import {
   pageSectionList,
   tileActionClass,
 } from "@/components/card-styles";
-import { sectionPages } from "@/lib/page-sections";
 import { sectionLabel } from "@/lib/page-section-labels";
+import { orderPages, type PageSort } from "@/lib/page-sort";
+import { SortFilter } from "@/components/ui/SortFilter";
 import { pageAudienceLabel } from "@/lib/page-tile";
 import { pageTarget } from "@/lib/page-target";
 import { SearchField } from "@/components/admin/SearchField";
@@ -152,6 +153,7 @@ export function PageList({
   const labels = strings.admin.pageList;
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind>("all");
+  const [sort, setSort] = useState<PageSort>("created");
 
   const groupNames = pageGroupNames(pages);
   const visible = filterPagesByKind(
@@ -163,9 +165,11 @@ export function PageList({
     kind,
   );
 
-  // Sections form over the FILTERED set, not the whole list — a heading above
-  // nothing would be a bug the search field caused.
-  const sections = sectionPages(visible, today);
+  // Groups form over the FILTERED set, not the whole list — a heading above
+  // nothing would be a bug the search field caused. See lib/page-sort.ts for
+  // why "modified" collapses the date headings rather than keeping ones that
+  // would then be describing the wrong timestamp.
+  const groups = orderPages(visible, sort, today);
 
   if (pages.length === 0) {
     return <p className={cn("mb-8", emptyStateText)}>{labels.noPagesYet}</p>;
@@ -193,6 +197,12 @@ export function PageList({
           onChange={setKind}
           tone="card"
           labels={labels.kindFilter}
+        />
+        <SortFilter
+          value={sort}
+          onChange={setSort}
+          tone="card"
+          labels={labels.sortFilter}
         />
 
         {groupNames.length > 0 && (
@@ -224,20 +234,26 @@ export function PageList({
         )}
       </div>
 
-      {sections.length === 0 ? (
+      {groups.length === 0 ? (
         <p className={emptyStateText}>{strings.admin.noMatches}</p>
       ) : (
         <div className={pageSectionList}>
-          {sections.map((section) => (
+          {groups.map((pageGroup, groupIndex) => (
             <section
-              key={`${section.key.kind}-${sectionLabel(section.key, locale)}`}
+              key={
+                pageGroup.heading
+                  ? `${pageGroup.heading.kind}-${sectionLabel(pageGroup.heading, locale)}`
+                  : `flat-${groupIndex}`
+              }
             >
-            <h3 className={pageSectionHeading}>
-              {sectionLabel(section.key, locale)}
-            </h3>
+            {pageGroup.heading && (
+              <h3 className={pageSectionHeading}>
+                {sectionLabel(pageGroup.heading, locale)}
+              </h3>
+            )}
 
             <ul className={pageGrid}>
-              {section.pages.map((page) => {
+              {pageGroup.pages.map((page) => {
                 const target = pageTarget(page, groupSlug);
                 // One expression for both previews, because one pair of columns
                 // now serves both kinds. Null means nothing has been captured

@@ -405,6 +405,7 @@ export default async function GroupPage({
           {body}
           <ChatFab
             slug={slug}
+            locale={locale}
             labels={{
               title: strings.chat.title,
               empty: strings.chat.empty,

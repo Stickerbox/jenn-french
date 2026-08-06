@@ -61,7 +61,35 @@ export async function POST(
   );
   if (body === null) return new NextResponse("Bad request", { status: 400 });
 
-  const message = await createMessage(group.id, role === "teacher", body);
+  // Optional quote-reply. Validated against THIS group, not just "does the id
+  // exist": without that check, anyone holding one student's token could
+  // quote a message id from another student's conversation and have its text
+  // rendered back to them inside their own thread — a read of somebody else's
+  // chat wearing a reply's clothes. An id that fails is refused outright
+  // rather than silently dropped, because a reply that quietly lost its quote
+  // reads as a bug, not a security boundary doing its job.
+  const replyToRaw = (payload as { replyTo?: unknown } | null)?.replyTo ?? null;
+  let replyToId: string | null = null;
+  if (replyToRaw !== null) {
+    if (typeof replyToRaw !== "string") {
+      return new NextResponse("Bad request", { status: 400 });
+    }
+    const quoted = await prisma.message.findUnique({
+      where: { id: replyToRaw },
+      select: { groupId: true },
+    });
+    if (!quoted || quoted.groupId !== group.id) {
+      return new NextResponse("Bad request", { status: 400 });
+    }
+    replyToId = replyToRaw;
+  }
+
+  const message = await createMessage({
+    groupId: group.id,
+    fromTeacher: role === "teacher",
+    body,
+    replyToId,
+  });
 
   // After the write, never before — the ordering rule createMessage states
   // about chatBus.publish, for the same reason: nothing observable may exist

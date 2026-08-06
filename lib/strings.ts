@@ -121,6 +121,11 @@ export type Strings = {
         link: string;
         pdf: string;
       };
+      sortFilter: {
+        group: string;
+        created: string;
+        modified: string;
+      };
       emptyShelf: string;
       noMatches: string;
       edit: (title: string) => string;
@@ -205,6 +210,10 @@ export type Strings = {
     send: string;
     back: string;
     deleteMessage: string;
+    // Aria-label for the per-bubble quote-reply affordance, and for the
+    // composer's control that clears a reply once one is staged.
+    reply: string;
+    cancelReply: string;
   };
 
   // Wave 3 (Task H2). Same rules as `student`: grouped by the component or
@@ -392,6 +401,11 @@ export type Strings = {
         link: string;
         pdf: string;
       };
+      sortFilter: {
+        group: string;
+        created: string;
+        modified: string;
+      };
       filterByStudentAria: string;
       allChip: string;
       addedByStudent: string;
@@ -569,6 +583,11 @@ const fr: Strings = {
         link: "Les liens",
         pdf: "Les PDF",
       },
+      sortFilter: {
+        group: "Trier par",
+        created: "Ajout",
+        modified: "Modification",
+      },
       emptyShelf: "Rien ici pour l'instant.",
       noMatches: "Rien ne correspond.",
       edit: (title) => `Modifier ${title}`,
@@ -644,6 +663,8 @@ const fr: Strings = {
     send: "Envoyer",
     back: "Retour",
     deleteMessage: "Supprimer",
+    reply: "Répondre",
+    cancelReply: "Annuler la réponse",
   },
 
   admin: {
@@ -817,6 +838,11 @@ const fr: Strings = {
         link: "Les liens",
         pdf: "Les PDF",
       },
+      sortFilter: {
+        group: "Trier par",
+        created: "Ajout",
+        modified: "Modification",
+      },
       filterByStudentAria: "Filtrer par élève",
       allChip: "Tout",
       addedByStudent: "ajouté par l'élève",
@@ -988,6 +1014,11 @@ const en: Strings = {
         link: "Links",
         pdf: "PDFs",
       },
+      sortFilter: {
+        group: "Sort by",
+        created: "Added",
+        modified: "Modified",
+      },
       emptyShelf: "Nothing here yet.",
       noMatches: "Nothing matches.",
       edit: (title) => `Edit ${title}`,
@@ -1059,6 +1090,8 @@ const en: Strings = {
     send: "Send",
     back: "Back",
     deleteMessage: "Delete",
+    reply: "Reply",
+    cancelReply: "Cancel reply",
   },
 
   admin: {
@@ -1229,6 +1262,11 @@ const en: Strings = {
         html: "Pages",
         link: "Links",
         pdf: "PDFs",
+      },
+      sortFilter: {
+        group: "Sort by",
+        created: "Added",
+        modified: "Modified",
       },
       filterByStudentAria: "Filter by student",
       allChip: "All",

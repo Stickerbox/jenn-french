@@ -8,6 +8,10 @@ const at = (iso: string, fromTeacher: boolean): ChatMessage => ({
   groupId: "g1",
   fromTeacher,
   body: "salut",
+  automated: false,
+  href: null,
+  replyToId: null,
+  replyTo: null,
   createdAt: new Date(iso),
 });
 

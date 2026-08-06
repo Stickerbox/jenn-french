@@ -59,6 +59,8 @@ export async function TeacherInbox({
     today: strings.common.today,
     yesterday: chat.yesterday,
     deleteMessage: strings.chat.deleteMessage,
+    reply: strings.chat.reply,
+    cancelReply: strings.chat.cancelReply,
     search: chat.search,
     clear: strings.common.clear,
     noStudents: chat.noStudents,

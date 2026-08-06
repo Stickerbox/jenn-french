@@ -11,9 +11,15 @@
 #   publish-dia-artifact.sh --latest               # the newest, no dialog
 #   publish-dia-artifact.sh <words in the title>   # e.g. crêpes
 #   publish-dia-artifact.sh --list                 # the ten newest, with dates
-#   publish-dia-artifact.sh --token <value> [name] # supply the token inline
 #
-# Options go before the title.
+# --token <value> supplies the token inline and does not select an artifact by
+# itself — it combines with any line above, including the bare first one:
+#   publish-dia-artifact.sh --token <value>                # dialog, with the token set
+#   publish-dia-artifact.sh --token <value> --latest       # newest, with the token set
+#   publish-dia-artifact.sh --token <value> <words in the title>
+#   publish-dia-artifact.sh --token <value> --list
+#
+# Options go before the title, in any order among themselves.
 #
 # Artifacts are identified by the <title> of their index.html, not by their
 # directory name: Dia calls most directories template_output, so the name
@@ -41,6 +47,27 @@
 # one of those on a schedule and it is not teaching material; the filter lives
 # in candidate_rows so every selection path shares it.
 
+# Re-exec under real bash when something else started this.
+#
+# macOS's /bin/sh IS bash, in POSIX mode, and it reads this file happily until
+# it reaches the process substitution inside candidate_rows — then dies with
+# "syntax error near unexpected token `('" naming a line four hundred below
+# anything the reader chose to run. That is the worst shape a failure can take:
+# the number points at code the teacher never typed, so the report comes back
+# as a line number nobody can act on. A Shortcuts "Run Shell Script" action is
+# the likely way in, because that action picks the interpreter itself and the
+# shebang above is ignored.
+#
+# The test is the CAPABILITY, not the shell's name or version. Under `sh` this
+# process IS bash and BASH_VERSION is set, so neither would answer the only
+# question that matters: can this interpreter parse the syntax further down?
+# The eval runs in a subshell, so the syntax error it provokes is caught rather
+# than fatal, and it is inside quotes so this line itself stays parseable by
+# every shell that could get here.
+if ! (eval ': <(:)') 2>/dev/null; then
+  exec /bin/bash "$0" "$@"
+fi
+
 set -euo pipefail
 
 # Overridable so verification can run against a disposable fixture tree rather
@@ -48,10 +75,36 @@ set -euo pipefail
 # non-UTF-8, missing-title or duplicate-timestamp artifacts to test against.
 # Unset in normal use — the teacher never sets it.
 #
-# `-` not `:-`, unlike JENN_SITE below: an empty value means a caller meant to
-# redirect this and got the path wrong, and falling back to the real folder
-# would publish a real artifact. Empty instead fails the [ -d ] check below.
-ARTIFACTS="${DIA_ARTIFACTS-$HOME/Library/Application Support/Dia/User Data/Default/AgentArtifacts}"
+# `+x`, not a plain truthiness test: an empty value means a caller meant to
+# redirect this and got the path wrong, and falling back to a candidate would
+# publish a real artifact. Empty instead skips the search below and fails the
+# [ -d ] check that follows it, unchanged from before this list existed.
+#
+# The macOS *directory* is always named Library/Application Support in every
+# system language — French Finder shows "Bibliothèque" only as a display name
+# (LaunchServices localises it for Finder; the entry on disk is untouched), so
+# a literal path built from "Library" is expected to resolve on a French
+# system too. This list exists for the case that expectation is wrong on some
+# machine anyway — a real folder using the localised name, a Dia version that
+# writes somewhere else, a sandboxed container path — without turning this
+# script into a guessing game about why: the first candidate that exists wins,
+# and if none does, the die below names every path it tried.
+ARTIFACT_CANDIDATES=(
+  "$HOME/Library/Application Support/Dia/User Data/Default/AgentArtifacts"
+  "$HOME/Bibliothèque/Application Support/Dia/User Data/Default/AgentArtifacts"
+)
+
+if [ "${DIA_ARTIFACTS+x}" = "x" ]; then
+  ARTIFACTS="$DIA_ARTIFACTS"
+else
+  ARTIFACTS=""
+  for candidate in "${ARTIFACT_CANDIDATES[@]}"; do
+    if [ -d "$candidate" ]; then
+      ARTIFACTS="$candidate"
+      break
+    fi
+  done
+fi
 SITE="${JENN_SITE:-https://francaisavecjenn.ca}"
 TOKEN_FILE="$HOME/.config/francaisavecjenn/token"
 LIST_ROWS=10
@@ -335,7 +388,20 @@ if [ "$USE_LOCAL" = "1" ]; then
   curl -sS -o /dev/null "$SITE/" 2>/dev/null || die "Nothing answering on $SITE. Run 'npm run dev' first."
 fi
 
-[ -d "$ARTIFACTS" ] || die "No Dia artifacts folder. Is Dia installed?"
+if [ ! -d "$ARTIFACTS" ]; then
+  if [ "${DIA_ARTIFACTS+x}" = "x" ]; then
+    die "No Dia artifacts folder at '$DIA_ARTIFACTS' (from \$DIA_ARTIFACTS). Check the path, or unset \$DIA_ARTIFACTS to try the usual locations."
+  else
+    MSG="No Dia artifacts folder. Is Dia installed? Tried:"
+    for candidate in "${ARTIFACT_CANDIDATES[@]}"; do
+      MSG="$MSG
+  $candidate"
+    done
+    MSG="$MSG
+If Dia stores artifacts somewhere else on this Mac, set \$DIA_ARTIFACTS to that path."
+    die "$MSG"
+  fi
+fi
 
 # Every artifact is <uuid>/<name>/site/index.html. Sorting the index files by
 # modification time is what makes "the one I just made" the default, without

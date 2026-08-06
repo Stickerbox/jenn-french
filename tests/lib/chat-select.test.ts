@@ -7,6 +7,10 @@ const msg = (id: string, groupId: string, iso: string): ChatMessage => ({
   groupId,
   fromTeacher: false,
   body: id,
+  automated: false,
+  href: null,
+  replyToId: null,
+  replyTo: null,
   createdAt: new Date(iso),
 });
 

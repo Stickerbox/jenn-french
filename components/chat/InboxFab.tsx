@@ -199,7 +199,7 @@ export function InboxFab({
     setOpen(!open);
   }
 
-  async function send(body: string) {
+  async function send(body: string, replyToId: string | null) {
     const selected = conversations.find((c) => c.groupId === selectedId);
     if (!selected) return;
     // No ?k= — chatRole reads her session and answers "teacher" without one,
@@ -207,7 +207,7 @@ export function InboxFab({
     const response = await fetch(`/api/chat/${selected.slug}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, replyTo: replyToId }),
     });
     if (!response.ok) throw new Error("send failed");
     // Nothing appended here — it arrives back through the stream, which is what
@@ -250,6 +250,13 @@ export function InboxFab({
         >
           {selected ? (
             <Conversation
+              // Resets Conversation's own reply-in-progress state on a
+              // switch: without this, a reply staged against Marie's message
+              // would still be showing in the composer after selecting
+              // Sophie, and sending it would quote a message id from a
+              // different group — which the route now refuses (400), turning
+              // a UI mixup into a visible "send failed".
+              key={selected.groupId}
               messages={messagesFor(messages, selected.groupId)}
               self="teacher"
               labels={labels}

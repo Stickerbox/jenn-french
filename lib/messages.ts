@@ -1,11 +1,28 @@
 import { prisma } from "@/lib/prisma";
 import { chatBus } from "@/lib/chat-bus";
 
+// The quoted message, inlined rather than a second round trip: MessageList
+// draws the quote from what it already has, and the SSE route stringifies
+// this whole select, so a nested query here is a nested payload there for
+// free — no separate fetch when a reply arrives live.
+export type QuotedMessage = { id: string; body: string; fromTeacher: boolean };
+
 export type StoredMessage = {
   id: string;
   groupId: string;
   fromTeacher: boolean;
   body: string;
+  // True for a message this app posted itself, never one either party typed —
+  // see versionNotice and the schema comment on Message.automated.
+  automated: boolean;
+  // Structural, not a substring of body: where an automated message points,
+  // when it points anywhere.
+  href: string | null;
+  replyToId: string | null;
+  // Null both when there is no quote and when the quoted row was deleted —
+  // replyToId SetNull on delete, so the two cases are indistinguishable here
+  // by design: a reply whose quote is gone still has its own text.
+  replyTo: QuotedMessage | null;
   createdAt: Date;
 };
 
@@ -14,6 +31,12 @@ const SELECT = {
   groupId: true,
   fromTeacher: true,
   body: true,
+  automated: true,
+  href: true,
+  replyToId: true,
+  replyTo: {
+    select: { id: true, body: true, fromTeacher: true },
+  },
   createdAt: true,
 } as const;
 
@@ -112,19 +135,38 @@ export async function messagesAfterAll(
   return newest.reverse();
 }
 
+// An options object rather than positional booleans, so a caller cannot add
+// automated: true and forget href, or add a reply without noticing there is
+// now something to add — the two new fields are optional and default to a
+// plain human message, but they are named at every call site rather than
+// slotted in by position.
+export type CreateMessageInput = {
+  groupId: string;
+  fromTeacher: boolean;
+  body: string;
+  automated?: boolean;
+  href?: string | null;
+  replyToId?: string | null;
+};
+
 export async function createMessage(
-  groupId: string,
-  fromTeacher: boolean,
-  body: string,
+  input: CreateMessageInput,
 ): Promise<StoredMessage> {
   const message = await prisma.message.create({
-    data: { groupId, fromTeacher, body },
+    data: {
+      groupId: input.groupId,
+      fromTeacher: input.fromTeacher,
+      body: input.body,
+      automated: input.automated ?? false,
+      href: input.href ?? null,
+      replyToId: input.replyToId ?? null,
+    },
     select: SELECT,
   });
 
   // Published after the write, never before: a viewer that received a message
   // the database then failed to store would show something nobody can reload.
-  chatBus.publish(groupId, message);
+  chatBus.publish(input.groupId, message);
   return message;
 }
 

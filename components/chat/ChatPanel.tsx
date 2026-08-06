@@ -104,7 +104,13 @@ export function ChatPanel({
         // in). Both collapse to a plain fade under prefers-reduced-motion —
         // see the keyframes in globals.css.
         "animate-[panel-rise_320ms_ease-out] md:animate-[panel-pop_220ms_ease-out] motion-reduce:animate-none",
-        "md:inset-auto md:bottom-24 md:right-4 md:max-h-[70vh] md:h-[560px]",
+        // Taller than the original 560px, which read as short once the panel
+        // had a reply preview competing with the composer for room at the
+        // bottom. 85vh is the cap, not a second fixed height: without it a
+        // short laptop screen (a browser at 700px tall, say) would still ask
+        // for 720px and get clipped against the top of the viewport, the same
+        // failure a fixed height alone always risks.
+        "md:inset-auto md:bottom-24 md:right-4 md:h-[720px] md:max-h-[85vh]",
         "md:max-w-[calc(100vw-2rem)] md:rounded-2xl md:border md:border-[var(--color-field-border)] md:shadow-2xl",
         // The inbox needs room for two panes; a student's single conversation
         // keeps the width it has today.

@@ -27,20 +27,23 @@ import { firstNameOf } from "@/lib/student-greeting";
 // student's: French has no gender-neutral third-person possessive, and this
 // sidesteps needing one, since no student's gender is known here.
 //
-// url sits at the end with nothing after it — no trailing period, no
-// closing punctuation — so a reader tapping the link at the end of the bubble
-// never has to wonder whether a character just past the boundary belongs to
-// the address or the sentence.
+// No URL in the body any more. It used to sit at the end with nothing after
+// it, and the bubble linkified it — now the caller passes the worksheet's
+// address as createMessage's `href` and `automated: true` instead, and the
+// bubble itself is the link (see components/chat/MessageList.tsx). Body is
+// prose only, so it reads correctly with no trailing punctuation to reason
+// about. Messages saved before this change still carry the old URL inside
+// their body and still linkify it — see CLAUDE.md's Lesson chat note; nothing
+// here rewrites them.
 export function versionNotice(
   title: string,
   fromTeacher: boolean,
   studentName: string,
-  url: string,
 ): string {
   if (fromTeacher) {
-    return `Jenn a déposé sa correction de « ${title} » ${url}`;
+    return `Jenn a déposé sa correction de « ${title} »`;
   }
 
   const first = firstNameOf(studentName) ?? studentName;
-  return `${first} a terminé son devoir : « ${title} » ${url}`;
+  return `${first} a terminé son devoir : « ${title} »`;
 }

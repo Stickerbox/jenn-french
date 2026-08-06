@@ -15,6 +15,7 @@ export type MessageListLabels = {
   locale: string;
   today: string;
   deleteMessage: string;
+  reply: string;
 };
 
 // NEVER RENDERED ON THE SERVER. Every heading and every timestamp below is
@@ -28,11 +29,16 @@ export function MessageList({
   self,
   labels,
   onDeleteMessage,
+  onReply,
 }: {
   messages: ChatMessage[];
   self: "teacher" | "student";
   labels: MessageListLabels;
   onDeleteMessage?: (id: string) => void;
+  // Optional for the same reason onDeleteMessage is: a read-only thread (an
+  // unclaimed student's footer replaces the composer entirely) has nothing to
+  // reply into.
+  onReply?: (message: ChatMessage) => void;
 }) {
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -120,51 +126,165 @@ export function MessageList({
                           mine && "flex-row-reverse",
                         )}
                       >
-                        <div
-                          className={cn(
-                            "rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words",
-                            mine
-                              ? "bg-[var(--color-accent)] text-white"
-                              : "bg-[var(--color-field)] text-[var(--color-ink)]",
-                            // The bubble tail every messenger uses, without an
-                            // SVG: only the corner nearest the run's tail
-                            // squares off, and only on the last bubble of the
-                            // run.
-                            isLast &&
-                              (mine ? "rounded-br-md" : "rounded-bl-md"),
-                          )}
-                        >
-                          {/* linkifyBody is a pure function over the message
-                              string — no hook, no window read — so mapping it
-                              here does not touch the no-SSR rule this file
-                              states above: it is still a plain render of
-                              props, the same as {message.body} was. */}
-                          {linkifyBody(message.body).map((segment, i) =>
-                            segment.kind === "link" ? (
-                              <a
-                                key={i}
-                                href={segment.href}
-                                target="_blank"
-                                // noopener: an off-site link opened from a
-                                // chat message must not hand the new tab a
-                                // window.opener it can use to navigate this
-                                // one — the same reverse-tabnabbing reason
-                                // link tiles carry it.
-                                rel="noopener noreferrer"
-                                // currentColor, not a fixed link colour: this
-                                // bubble is white-on-accent when it is the
-                                // reader's own and ink-on-field otherwise, so
-                                // a literal colour would be unreadable on one
-                                // of the two.
-                                className="underline underline-offset-2 break-words"
+                        {message.automated ? (
+                          // An automated message is never linkified: its body
+                          // no longer carries a URL to find (see
+                          // lib/version-notice.ts) — the bubble IS the link,
+                          // via href, which is why this branch skips
+                          // linkifyBody entirely rather than running it over
+                          // prose that has nothing for it to match.
+                          message.href ? (
+                            <a
+                              href={message.href}
+                              // Same-origin (a worksheet route on this site),
+                              // so no target="_blank" and no rel gymnastics —
+                              // a same-tab navigation carries no opener to
+                              // guard against.
+                              className={cn(
+                                "flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm italic leading-relaxed transition-colors duration-150 motion-reduce:transition-none",
+                                mine
+                                  ? "bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent)]/90"
+                                  : "bg-[var(--color-field)] text-[var(--color-ink)] hover:bg-[var(--color-field-border)]/60",
+                                isLast &&
+                                  (mine ? "rounded-br-md" : "rounded-bl-md"),
+                                accentFocusRing,
+                              )}
+                            >
+                              <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
+                                {message.body}
+                              </span>
+                              {/* Trailing chevron: the only visual cue this
+                                  whole bubble navigates, since there is no
+                                  underlined URL text left to read as a link. */}
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                                className="shrink-0 opacity-80"
                               >
-                                {segment.label}
-                              </a>
-                            ) : (
-                              <span key={i}>{segment.value}</span>
-                            ),
-                          )}
-                        </div>
+                                <path d="m9 6 6 6-6 6" />
+                              </svg>
+                            </a>
+                          ) : (
+                            // href is nullable on the column even though
+                            // nothing here currently creates a hrefless
+                            // automated message — a plain, non-clickable
+                            // bubble rather than a dead anchor is the correct
+                            // degrade if one ever exists.
+                            <div
+                              className={cn(
+                                "rounded-2xl px-4 py-2.5 text-sm italic leading-relaxed whitespace-pre-wrap break-words",
+                                mine
+                                  ? "bg-[var(--color-accent)] text-white"
+                                  : "bg-[var(--color-field)] text-[var(--color-ink)]",
+                                isLast &&
+                                  (mine ? "rounded-br-md" : "rounded-bl-md"),
+                              )}
+                            >
+                              {message.body}
+                            </div>
+                          )
+                        ) : (
+                          <div
+                            className={cn(
+                              "rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words",
+                              mine
+                                ? "bg-[var(--color-accent)] text-white"
+                                : "bg-[var(--color-field)] text-[var(--color-ink)]",
+                              // The bubble tail every messenger uses, without an
+                              // SVG: only the corner nearest the run's tail
+                              // squares off, and only on the last bubble of the
+                              // run.
+                              isLast &&
+                                (mine ? "rounded-br-md" : "rounded-bl-md"),
+                            )}
+                          >
+                            {message.replyTo && (
+                              // Visually subordinate to the reply's own text
+                              // below it: smaller, dimmed, clamped to two
+                              // lines. Null both when there is no quote and
+                              // when the quoted row was deleted (replyToId
+                              // SetNull) — either way there is nothing to
+                              // draw, so this reply's own text still stands
+                              // alone.
+                              <div
+                                className={cn(
+                                  "mb-1.5 line-clamp-2 border-l-2 pl-2 text-xs opacity-80",
+                                  mine
+                                    ? "border-white/50"
+                                    : "border-[var(--color-accent)]/50",
+                                )}
+                              >
+                                {message.replyTo.body}
+                              </div>
+                            )}
+                            {/* linkifyBody is a pure function over the message
+                                string — no hook, no window read — so mapping it
+                                here does not touch the no-SSR rule this file
+                                states above: it is still a plain render of
+                                props, the same as {message.body} was. */}
+                            {linkifyBody(message.body).map((segment, i) =>
+                              segment.kind === "link" ? (
+                                <a
+                                  key={i}
+                                  href={segment.href}
+                                  target="_blank"
+                                  // noopener: an off-site link opened from a
+                                  // chat message must not hand the new tab a
+                                  // window.opener it can use to navigate this
+                                  // one — the same reverse-tabnabbing reason
+                                  // link tiles carry it.
+                                  rel="noopener noreferrer"
+                                  // currentColor, not a fixed link colour: this
+                                  // bubble is white-on-accent when it is the
+                                  // reader's own and ink-on-field otherwise, so
+                                  // a literal colour would be unreadable on one
+                                  // of the two.
+                                  className="underline underline-offset-2 break-words"
+                                >
+                                  {segment.label}
+                                </a>
+                              ) : (
+                                <span key={i}>{segment.value}</span>
+                              ),
+                            )}
+                          </div>
+                        )}
+                        {onReply && (
+                          <button
+                            type="button"
+                            onClick={() => onReply(message)}
+                            aria-label={`${labels.reply}: ${message.body.slice(0, 40)}`}
+                            // Same reveal rule as the delete button below:
+                            // group-hover + focus-visible, never focus — see
+                            // its comment for why.
+                            className={cn(
+                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-muted)] opacity-0 transition-opacity duration-150 hover:bg-[var(--color-field)] group-hover/msg:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none",
+                              accentFocusRing,
+                            )}
+                          >
+                            <svg
+                              width="15"
+                              height="15"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M9 14 4 9l5-5" />
+                              <path d="M4 9h10.5A5.5 5.5 0 0 1 20 14.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+                            </svg>
+                          </button>
+                        )}
                         {onDeleteMessage && (
                           <button
                             type="button"
