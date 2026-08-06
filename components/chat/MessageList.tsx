@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { groupByDay } from "@/lib/chat-day";
 import { groupIntoRuns } from "@/lib/chat-run";
 import { dayHeading } from "@/lib/chat-stamp";
 import { formatTime, localDayKey } from "@/lib/chat-time";
 import { linkifyBody } from "@/lib/chat-linkify";
+import { swipeReply } from "@/lib/swipe-reply";
 import type { ChatMessage } from "@/lib/chat-message";
 import { cn } from "@/lib/utils";
 import { accentFocusRing } from "@/components/ui/field";
@@ -41,6 +42,17 @@ export function MessageList({
   onReply?: (message: ChatMessage) => void;
 }) {
   const bottom = useRef<HTMLDivElement>(null);
+
+  // Where a touch started, and which message it started on. A ref rather than
+  // state because nothing renders from it — only the handlers read it, and a
+  // setState per touchmove for a value nothing draws would re-render the whole
+  // list on every frame of the gesture.
+  const swipeStart = useRef<{ id: string; x: number; y: number } | null>(null);
+  // What IS drawn: one message at a time, so this is a single value rather than
+  // a map. Two fingers on two bubbles is not a gesture worth modelling.
+  const [swipe, setSwipe] = useState<
+    { id: string; offset: number; armed: boolean } | null
+  >(null);
 
   // Jump to the newest whenever one arrives. A chat that opens at the top of a
   // year of history is a chat nobody scrolls.
@@ -121,11 +133,108 @@ export function MessageList({
                         // replay on a re-render, since the class string never
                         // changes. Only a genuinely new message mounts a new
                         // node.
+                        //
+                        // `touch-pan-y` is what makes the drag below possible
+                        // at all: React attaches touch listeners passively, so
+                        // preventDefault() inside onTouchMove does nothing, and
+                        // the browser would keep the horizontal gesture for
+                        // itself. Declaring that only vertical panning belongs
+                        // to the browser hands us the rest — CSS where an event
+                        // handler cannot reach.
                         className={cn(
-                          "group/msg flex items-center gap-1 animate-[bubble-in_180ms_ease-out] motion-reduce:animate-none",
+                          "group/msg relative flex items-center gap-1 animate-[bubble-in_180ms_ease-out] motion-reduce:animate-none",
                           mine && "flex-row-reverse",
+                          onReply && "touch-pan-y",
+                          // No transition WHILE dragging — the row has to sit
+                          // under the finger, not chase it. On release the id
+                          // clears, this class comes back, and the row eases
+                          // home from wherever it was let go.
+                          swipe?.id !== message.id &&
+                            "transition-transform duration-200 motion-reduce:transition-none",
                         )}
+                        style={
+                          swipe?.id === message.id
+                            ? { transform: `translateX(${swipe.offset}px)` }
+                            : undefined
+                        }
+                        onTouchStart={
+                          onReply
+                            ? (event) => {
+                                const touch = event.touches[0];
+                                // Where the finger landed, kept in a ref: it is
+                                // read only in these handlers, never during
+                                // render, which is what `react-hooks/refs`
+                                // forbids.
+                                swipeStart.current = {
+                                  id: message.id,
+                                  x: touch.clientX,
+                                  y: touch.clientY,
+                                };
+                              }
+                            : undefined
+                        }
+                        onTouchMove={
+                          onReply
+                            ? (event) => {
+                                const start = swipeStart.current;
+                                if (!start || start.id !== message.id) return;
+                                const touch = event.touches[0];
+                                const next = swipeReply(
+                                  touch.clientX - start.x,
+                                  touch.clientY - start.y,
+                                );
+                                setSwipe(
+                                  next ? { id: message.id, ...next } : null,
+                                );
+                              }
+                            : undefined
+                        }
+                        onTouchEnd={
+                          onReply
+                            ? () => {
+                                // Read before the reset, and the reset happens
+                                // either way: a gesture that ended below the
+                                // trigger still has to put the row back.
+                                const armed =
+                                  swipe?.id === message.id && swipe.armed;
+                                swipeStart.current = null;
+                                setSwipe(null);
+                                if (armed) onReply(message);
+                              }
+                            : undefined
+                        }
                       >
+                        {/* The target, sitting just off the row's left edge so
+                            it is drawn out from under it as the message
+                            travels — the row translates and carries this with
+                            it. It fills in once the gesture would succeed,
+                            because an indicator that appears at the moment of
+                            release is one nobody sees. */}
+                        {onReply && swipe?.id === message.id && (
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "pointer-events-none absolute left-0 top-1/2 flex h-7 w-7 -translate-x-9 -translate-y-1/2 items-center justify-center rounded-full transition-colors duration-150 motion-reduce:transition-none",
+                              swipe.armed
+                                ? "bg-[var(--color-accent)] text-white"
+                                : "bg-[var(--color-field)] text-[var(--color-ink-muted)]",
+                            )}
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M9 14 4 9l5-5" />
+                              <path d="M4 9h10.5A5.5 5.5 0 0 1 20 14.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+                            </svg>
+                          </span>
+                        )}
                         {message.automated ? (
                           // An automated message is never linkified: its body
                           // no longer carries a URL to find (see
