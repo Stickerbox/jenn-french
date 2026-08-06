@@ -303,9 +303,16 @@ export default async function GroupPage({
         >
           {strings.student.brand.wordmark}
         </h1>
-        <div className="font-[family-name:var(--card-font-serif)] text-[15px] italic text-[var(--card-moss)]">
-          {strings.student.brand.tagline}
-        </div>
+        {/* The card tab only. The line describes the daily card — "one day,
+            one card" — and it sat above the Files and Whiteboard tabs too,
+            where it described nothing on the screen. An unlocked teacher has
+            no card tab at all, so it never shows for her, which is right for
+            the same reason. */}
+        {tab === "card" && (
+          <div className="font-[family-name:var(--card-font-serif)] text-[15px] italic text-[var(--card-moss)]">
+            {strings.student.brand.tagline}
+          </div>
+        )}
         {/* Suppressed on the everyone group, whose name is literally "Everyone".
             The greeting is shown to untokened visitors too: /g/marie already
             spells the name in the URL, so there is nothing here a token was

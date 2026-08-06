@@ -62,6 +62,27 @@ export function WorksheetShell({
     }
 
     window.addEventListener("message", onMessage);
+
+    // ASKED HERE AS WELL AS ON THE IFRAME'S onLoad, and both are needed.
+    //
+    // The version tabs and the back control are plain anchors, so moving
+    // between versions is a full document load — and on a full load the frame
+    // can finish loading BEFORE React hydrates and attaches onLoad, which
+    // React does not replay. The probe was then never sent, no answer ever
+    // came, and the Save pill never appeared on a saved version. Arriving
+    // from the shelf chooser hid it: that is a next/link navigation, so the
+    // handler is attached before the frame starts loading and the event is
+    // caught. Same URL, same document, opposite outcome — which is exactly how
+    // it read as "it works if I go straight there".
+    //
+    // This covers the frame that is ALREADY loaded; onLoad covers the frame
+    // that is not yet. A post to a frame still showing about:blank is
+    // harmless: nothing is listening in it, and onLoad follows.
+    const frame = document.getElementById(WORKSHEET_FRAME_ID);
+    if (frame instanceof HTMLIFrameElement) {
+      frame.contentWindow?.postMessage(EDITABLE_MESSAGE, "*");
+    }
+
     return () => window.removeEventListener("message", onMessage);
   }, []);
 

@@ -16,8 +16,15 @@ const inter = Inter({
   variable: "--font-body-family",
 });
 
+// The site's own name, not a description of one feature. "Word of the Day" was
+// the browser tab's title on every route — the admin, a student's shelf, a
+// worksheet — and named the daily card on all of them. It is also what a
+// bookmark is called, which is the copy students actually keep.
+//
+// Not translated, deliberately, unlike everything in lib/strings.ts: this is a
+// proper name and reads the same in both languages.
 export const metadata: Metadata = {
-  title: "Word of the Day",
+  title: "Français Avec Jenn",
   description: "Daily French vocabulary flashcards",
 };
 
