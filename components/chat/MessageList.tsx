@@ -261,11 +261,20 @@ export function MessageList({
                             type="button"
                             onClick={() => onReply(message)}
                             aria-label={`${labels.reply}: ${message.body.slice(0, 40)}`}
-                            // Same reveal rule as the delete button below:
-                            // group-hover + focus-visible, never focus — see
-                            // its comment for why.
+                            // ALWAYS VISIBLE BELOW md, hover-revealed above it.
+                            // The reveal was copied from the delete button and
+                            // shipped that way: a phone has no hover and no
+                            // focus-visible, so the control was a transparent
+                            // 32px square nobody could find — the whole feature
+                            // was unreachable on the device most of these
+                            // students use. At md and up the pointer exists and
+                            // an arrow beside every bubble is noise, so the
+                            // reveal stays there.
+                            //
+                            // 44px on a phone, the project's hit-box rule,
+                            // dropping to 32px at md where a mouse aims for it.
                             className={cn(
-                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-muted)] opacity-0 transition-opacity duration-150 hover:bg-[var(--color-field)] group-hover/msg:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none",
+                              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-muted)] transition-opacity duration-150 hover:bg-[var(--color-field)] focus-visible:opacity-100 motion-reduce:transition-none md:h-8 md:w-8 md:opacity-0 md:group-hover/msg:opacity-100",
                               accentFocusRing,
                             )}
                           >
@@ -295,8 +304,13 @@ export function MessageList({
                             // meant a click that happened to focus the button
                             // first left it stuck visible with no hover — the
                             // same distinction accentFocusRing exists to draw.
+                            //
+                            // Visible below md for the reason the reply button
+                            // above states: Jenn reads her inbox on a phone
+                            // too, and a control revealed by hover is a control
+                            // she does not have there.
                             className={cn(
-                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm text-[var(--color-ink-muted)] opacity-0 transition-opacity duration-150 hover:bg-[var(--color-field)] group-hover/msg:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none",
+                              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm text-[var(--color-ink-muted)] transition-opacity duration-150 hover:bg-[var(--color-field)] focus-visible:opacity-100 motion-reduce:transition-none md:h-8 md:w-8 md:opacity-0 md:group-hover/msg:opacity-100",
                               accentFocusRing,
                             )}
                           >
