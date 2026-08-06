@@ -13,10 +13,12 @@ import {
   cardDateLabel,
   cardEyebrow,
   cardFieldSkin,
+  cardFocusRing,
   cardHeaderRow,
   cardPanel,
   cardPanelBack,
   cardSubjectPill,
+  formErrorText,
   panelLabel,
 } from "@/components/card-styles";
 import { formatCardDate } from "@/lib/format";
@@ -287,8 +289,9 @@ export function CardEditor({
           // card-rouge, not the accent: since Task F, --color-accent is the
           // lilac wordmark colour, not a colour that reads as "something went
           // wrong". card-rouge is the card palette's own error token, already
-          // used this way in StudentAuthPanel.
-          <p role="alert" className="text-sm text-[var(--card-rouge)]">
+          // used this way in StudentAuthPanel. formErrorText is the same
+          // treatment every other form's alert uses.
+          <p role="alert" className={formErrorText}>
             {aiError}
           </p>
         )}
@@ -389,7 +392,10 @@ export function CardEditor({
                 type="button"
                 onClick={() => setConfirmingDelete(false)}
                 disabled={saving || deleting}
-                className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
+                className={cn(
+                  "inline-flex min-h-[44px] items-center rounded px-1 text-[var(--color-ink-muted)] underline transition-opacity duration-150 motion-reduce:transition-none disabled:opacity-50",
+                  cardFocusRing,
+                )}
               >
                 {strings.common.cancel}
               </button>
@@ -397,7 +403,10 @@ export function CardEditor({
                 type="button"
                 onClick={handleDelete}
                 disabled={saving || deleting}
-                className="font-medium text-[var(--card-rouge)] underline disabled:opacity-50"
+                className={cn(
+                  "inline-flex min-h-[44px] items-center rounded px-1 font-medium text-[var(--card-rouge)] underline transition-opacity duration-150 motion-reduce:transition-none disabled:opacity-50",
+                  cardFocusRing,
+                )}
               >
                 {deleting ? strings.common.deleting : strings.common.delete}
               </button>
@@ -406,7 +415,10 @@ export function CardEditor({
             <button
               type="button"
               onClick={() => setConfirmingDelete(true)}
-              className="mx-auto text-sm text-[var(--color-ink-muted)] underline"
+              className={cn(
+                "mx-auto inline-flex min-h-[44px] items-center rounded px-1 text-sm text-[var(--color-ink-muted)] underline transition-opacity duration-150 motion-reduce:transition-none",
+                cardFocusRing,
+              )}
             >
               {labels.deleteCard}
             </button>
@@ -420,7 +432,7 @@ export function CardEditor({
           </p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-[var(--card-rouge)]">
+          <p role="alert" className={formErrorText}>
             {error}
           </p>
         )}

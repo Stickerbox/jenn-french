@@ -2,6 +2,8 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useOverlayLock } from "@/components/ui/OverlayProvider";
+import { accentFocusRing } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
 
 // The modal a chosen form renders into. aria-modal here, unlike ChatWindow,
 // which deliberately is not one: a chat panel exists so the card stays readable
@@ -46,7 +48,12 @@ export function AddSheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 max-h-[85vh] w-full max-w-[480px] overflow-y-auto rounded-2xl border border-[var(--color-field-border)] bg-[var(--color-bg)] p-6 shadow-2xl"
+        // Same rise-on-mobile/pop-on-desktop pair as ChatPanel, and for the
+        // same reason: this sheet also arrives from the bottom below `sm`
+        // (items-end above) and floats centred above it (sm:items-center) —
+        // no new keyframe, just the two ChatPanel already uses, swapping at
+        // the same breakpoint this component's own layout swaps at.
+        className="relative z-10 max-h-[85vh] w-full max-w-[480px] animate-[panel-rise_320ms_ease-out] overflow-y-auto rounded-2xl border border-[var(--color-field-border)] bg-[var(--color-bg)] p-6 shadow-2xl motion-reduce:animate-none sm:animate-[panel-pop_220ms_ease-out]"
       >
         <div className="mb-5 flex items-center justify-between">
           <h2 className="font-[family-name:var(--font-display)] text-xl italic text-[var(--color-ink)]">
@@ -56,7 +63,10 @@ export function AddSheet({
             type="button"
             onClick={onClose}
             aria-label={closeLabel}
-            className="text-lg leading-none text-[var(--color-ink-muted)]"
+            className={cn(
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg leading-none text-[var(--color-ink-muted)] transition-colors duration-150 hover:bg-[var(--color-field)] hover:text-[var(--color-ink)] motion-reduce:transition-none",
+              accentFocusRing,
+            )}
           >
             ×
           </button>

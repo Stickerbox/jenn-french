@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
+import { accentFocusRing } from "@/components/ui/field";
 
 export type UnclaimedLabels = {
   notSignedUpLong: string;
@@ -67,7 +69,10 @@ export function UnclaimedNotice({
           <button
             type="button"
             onClick={copy}
-            className="shrink-0 text-xs text-[var(--color-ink-muted)] underline"
+            className={cn(
+              "inline-flex min-h-[44px] shrink-0 items-center rounded px-1 text-xs text-[var(--color-ink-muted)] underline transition-opacity duration-150 motion-reduce:transition-none",
+              accentFocusRing,
+            )}
           >
             {copied ? labels.copied : labels.copyInvite}
           </button>

@@ -110,7 +110,11 @@ export function PageEditOverlay({
       onClose={onClose}
     >
       {pending || !loaded ? (
-        <p className="py-4 text-center text-sm text-[var(--color-ink-muted)]">
+        // animate-pulse: a Tailwind built-in, not a fourth custom keyframe —
+        // the plan's "reuse the three existing keyframes" is about the
+        // bespoke panel-rise/panel-pop/bubble-in set in globals.css, and this
+        // loading state has no entrance to animate, only a wait to signal.
+        <p className="py-4 text-center text-sm text-[var(--color-ink-muted)] motion-safe:animate-pulse">
           {strings.admin.sheets.loading}
         </p>
       ) : (

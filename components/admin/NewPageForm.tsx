@@ -11,6 +11,8 @@ import {
   audiencePillChecked,
   audiencePillUnchecked,
   cardFieldSkin,
+  cardFocusRing,
+  formErrorText,
 } from "@/components/card-styles";
 import { MAX_PDF_BYTES } from "@/lib/page-pdf";
 import { getStrings } from "@/lib/strings";
@@ -310,7 +312,10 @@ export function NewPageForm({
                   thumbJob.current = null;
                 }}
                 disabled={saving}
-                className="text-sm font-normal text-[var(--color-ink-muted)] underline"
+                className={cn(
+                  "inline-flex min-h-[44px] items-center rounded px-1 text-sm font-normal text-[var(--color-ink-muted)] underline transition-opacity duration-150 motion-reduce:transition-none disabled:opacity-50",
+                  cardFocusRing,
+                )}
               >
                 {labels.remove}
               </button>
@@ -320,7 +325,7 @@ export function NewPageForm({
       </div>
 
       {error && (
-        <p role="alert" className="text-center text-sm text-[var(--card-rouge)]">
+        <p role="alert" className={formErrorText}>
           {error}
         </p>
       )}

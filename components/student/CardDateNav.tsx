@@ -13,6 +13,7 @@ import {
 } from "@/lib/week";
 import { toBCP47, type Locale } from "@/lib/i18n";
 import { getStrings } from "@/lib/strings";
+import { cardFocusRing } from "@/components/card-styles";
 import { cn } from "@/lib/utils";
 
 const utc = (value: string) => new Date(`${value}T00:00:00Z`);
@@ -159,7 +160,15 @@ export function CardDateNav({
   const weekdayLabels = weekdayNamesFor(locale);
 
   return (
-    <div ref={rootRef} className="relative mx-auto mb-8 max-w-[560px]">
+    <div
+      ref={rootRef}
+      // mb-[var(--space-5)] rather than mb-8: same 32px, but named as the
+      // page's own rhythm unit — see app/g/[slug]/page.tsx, which uses the
+      // same token for the header and the tab strip below it, so the three
+      // gaps between the page's major zones read as one decision rather than
+      // three numbers that happen to agree.
+      className="relative mx-auto mb-[var(--space-5)] max-w-[560px]"
+    >
       <div className="flex flex-col items-center gap-1.5">
         {/* The week range is the calendar's trigger now, rather than a static
             line above a strip that could not leave this week — so it is drawn
@@ -172,7 +181,7 @@ export function CardDateNav({
           aria-expanded={open}
           onClick={() => setOpen(!open)}
           className={cn(
-            "flex min-h-[44px] items-center gap-2 rounded-full border px-4 py-2 font-[family-name:var(--card-font-mono)] text-[12px] uppercase tracking-[2px] transition-colors",
+            "flex min-h-[44px] items-center gap-2 rounded-full border px-4 py-2 font-[family-name:var(--card-font-mono)] text-[12px] uppercase tracking-[2px] transition-colors duration-150 motion-reduce:transition-none",
             "border-[var(--card-line)] bg-[var(--card-paper)] text-[#8a7f6c] shadow-sm",
             "hover:border-[var(--card-bleu)] hover:bg-[var(--card-bleu-soft)] hover:text-[var(--card-bleu)]",
             "active:bg-[var(--card-bleu-soft)] active:text-[var(--card-bleu)]",
@@ -191,12 +200,20 @@ export function CardDateNav({
         {/* Disabled rather than hidden when they are already there, the pattern
             PageList's pin button uses for a control that is present but
             inapplicable — a control that vanishes is one they have to
-            rediscover. */}
+            rediscover.
+
+            inline-flex + min-h-[44px] rather than a bigger font or visible
+            padding: the touch target grows, the word "Aujourd'hui" does not —
+            padding alone would have pushed the underline away from the text
+            it sits under. */}
         <button
           type="button"
           onClick={() => go(latest)}
           disabled={selected === latest}
-          className="font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-bleu)] underline transition-opacity disabled:opacity-40 disabled:no-underline"
+          className={cn(
+            "inline-flex min-h-[44px] items-center rounded-md px-1 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-bleu)] underline transition-opacity duration-150 motion-reduce:transition-none disabled:opacity-40 disabled:no-underline",
+            cardFocusRing,
+          )}
         >
           {strings.common.today}
         </button>
@@ -245,7 +262,18 @@ export function CardDateNav({
               disabled={!enabled}
               onClick={() => go(dateStr)}
               className={cn(
-                "flex h-[34px] w-[34px] items-center justify-center rounded-full border-[1.5px] font-[family-name:var(--card-font-mono)] text-xs font-bold transition-all",
+                // The dot stays 32px — a 44px circle here would visibly
+                // outgrow the word "dot", and five of them plus four gaps
+                // would widen the row from 202px to 252px for no visual gain.
+                // `before:-inset-1.5` is the "grow the hit box, not the look"
+                // move the task asks for instead: an invisible pseudo-element
+                // 6px past the circle on every side, landing the real target
+                // at 44px without moving a pixel anyone can see. Two adjacent
+                // dots' invisible zones do meet in the middle of their 8px
+                // gap — a ~4px band where either button could catch the tap —
+                // which is the one accepted imprecision this trade makes.
+                "relative flex h-8 w-8 items-center justify-center rounded-full border-[1.5px] font-[family-name:var(--card-font-mono)] text-xs font-bold transition-all duration-150 before:absolute before:-inset-1.5 before:content-[''] motion-reduce:transition-none",
+                cardFocusRing,
                 // isSelected FIRST, so a selected day with no card still draws
                 // as selected. Reachable via Aujourd'hui on a weekday Jenn
                 // skipped, and via a hand-typed ?date=.

@@ -68,7 +68,7 @@ export function PageTile({
             target="_blank"
             rel="noopener noreferrer"
             onClick={onClick}
-            className="block truncate font-[family-name:var(--card-font-serif)] text-[15px] text-[var(--card-ink)] after:absolute after:inset-0"
+            className="block truncate font-[family-name:var(--card-font-serif)] text-[15px] text-[var(--card-ink)] after:absolute after:inset-0 focus-visible:outline-none"
           >
             {title}
           </a>
@@ -76,7 +76,7 @@ export function PageTile({
           <Link
             href={href}
             onClick={onClick}
-            className="block truncate font-[family-name:var(--card-font-serif)] text-[15px] text-[var(--card-ink)] after:absolute after:inset-0"
+            className="block truncate font-[family-name:var(--card-font-serif)] text-[15px] text-[var(--card-ink)] after:absolute after:inset-0 focus-visible:outline-none"
           >
             {title}
           </Link>

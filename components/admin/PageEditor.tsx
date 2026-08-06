@@ -11,6 +11,8 @@ import {
   audiencePillChecked,
   audiencePillUnchecked,
   cardFieldSkin,
+  cardFocusRing,
+  formErrorText,
 } from "@/components/card-styles";
 import { MAX_PDF_BYTES } from "@/lib/page-pdf";
 import type { PageKind } from "@/lib/page-kind";
@@ -310,7 +312,10 @@ export function PageEditor({
             type="button"
             onClick={handleDelete}
             disabled={saving || deleting}
-            className="text-sm text-[var(--color-ink-muted)] underline"
+            className={cn(
+              "inline-flex min-h-[44px] items-center rounded px-1 text-sm text-[var(--color-ink-muted)] underline transition-opacity duration-150 motion-reduce:transition-none disabled:opacity-50",
+              cardFocusRing,
+            )}
           >
             {deleting ? strings.common.deleting : labels.deleteLabel}
           </button>
@@ -321,7 +326,7 @@ export function PageEditor({
       </div>
 
       {error && (
-        <p role="alert" className="text-center text-sm text-[var(--card-rouge)]">
+        <p role="alert" className={formErrorText}>
           {error}
         </p>
       )}

@@ -23,7 +23,18 @@
   --font-display: var(--font-display-family), serif;
   --font-body: var(--font-body-family), sans-serif;
 
-  /* Spacing scale */
+  /* Spacing scale (Wave 5, Task J). Six steps, each a Tailwind default
+     numeric step in disguise (1/2/4/6/8/12 → 4/8/16/24/32/48px) so a class
+     like `mb-[var(--space-5)]` and a plain `mb-8` paint identically — the
+     token exists to NAME a step as a rhythm decision, not to introduce a
+     second numbering system next to Tailwind's. Used at the page-level
+     rhythm seams this task was asked to fix (header → tab strip → date nav
+     → content, on both /g/[slug] and /admin, and the sign-out rule at the
+     bottom of the student page) — the places a reader has to recognise as
+     "the same gap" for the page to read as one rhythm. Elsewhere, plain
+     Tailwind spacing utilities remain the norm; retrofitting every gap in
+     the codebase onto six values was judged not worth the churn against
+     spacing that was already locally consistent. */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 1rem;
@@ -116,3 +127,21 @@ body {
    override has to substring-match a generated class string, and it breaks
    silently the day a caller writes a different duration or Tailwind changes how
    it escapes brackets. The variant travels with the element that opted in. */
+
+/* Wave 5, Task J's motion pass. No fourth keyframe was added — every entrance
+   this task touched (AddSheet, the tile-footer icons' hover states) reuses
+   `panel-pop` or a plain colour/opacity transition, per the plan's own
+   instruction to reuse rather than invent.
+
+   Two durations only: the 150ms Tailwind's `transition-colors` /
+   `transition-opacity` utilities already carry by default for every hover and
+   focus state in the app (nothing here overrides it with a bespoke number),
+   and the 180-320ms band the three keyframes above already used before this
+   task. A control transitions OR animates, never both at once, so the two
+   bands never have to agree with each other.
+
+   `motion-reduce:transition-none` belongs beside every `transition-*` utility
+   for the same reason `motion-reduce:animate-none` belongs beside every
+   `animate-[…]` one — prefers-reduced-motion is a request to remove motion,
+   not just the keyframed kind — and both variants travel with the element
+   that opted in, for the reason given above. */

@@ -9,6 +9,7 @@ import {
 } from "react";
 import { MAX_MESSAGE_LENGTH } from "@/lib/chat-body";
 import { cn } from "@/lib/utils";
+import { accentFocusRing } from "@/components/ui/field";
 
 export function MessageInput({
   onSend,
@@ -81,17 +82,18 @@ export function MessageInput({
         maxLength={MAX_MESSAGE_LENGTH}
         // text-base, not smaller: iOS Safari zooms the whole page in on focus
         // of any field under 16px.
-        className="max-h-32 flex-1 resize-none overflow-y-auto rounded-xl border border-[var(--color-field-border)] bg-[var(--color-field)] px-3.5 py-2.5 text-base text-[var(--color-ink)] transition-shadow focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/35"
+        className="max-h-32 flex-1 resize-none overflow-y-auto rounded-xl border border-[var(--color-field-border)] bg-[var(--color-field)] px-3.5 py-2.5 text-base text-[var(--color-ink)] transition-shadow duration-150 focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/35 motion-reduce:transition-none"
       />
       <button
         type="submit"
         disabled={empty || sending}
         aria-label={sendLabel}
         className={cn(
-          "flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-95",
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-150 active:scale-95 motion-reduce:transition-none",
           empty || sending
             ? "bg-[var(--color-field)] text-[var(--color-ink-muted)]"
             : "bg-[var(--color-accent)] text-white hover:opacity-90",
+          accentFocusRing,
         )}
       >
         <svg

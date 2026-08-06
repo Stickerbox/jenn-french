@@ -5,7 +5,7 @@ import { CARD_COLORS, type CardColor } from "@/lib/inline-markup";
 import type { Emphasis, RangeMarks } from "@/lib/rich-text";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
-import { CARD_COLOR_VAR } from "@/components/card-styles";
+import { CARD_COLOR_VAR, cardFocusRing } from "@/components/card-styles";
 import { cn } from "@/lib/utils";
 
 export type PopoverAnchor = {
@@ -16,9 +16,16 @@ export type PopoverAnchor = {
   below: boolean;
 };
 
-const buttonClass =
-  "flex h-9 w-9 items-center justify-center rounded-md text-[15px] " +
-  "text-[var(--card-ink)] transition-colors hover:bg-[var(--card-line)]/40";
+// Not grown to 44px: this is a floating toolbar anchored to a text
+// selection, three buttons at gap-1 (4px) and five colour swatches at
+// gap-1.5 beneath them, the same crowded-row constraint tileActionClass
+// documents. It gets the two additions that cost nothing at this size —
+// a focus ring and a reduced-motion-safe transition.
+const buttonClass = cn(
+  "flex h-9 w-9 items-center justify-center rounded-md text-[15px]",
+  "text-[var(--card-ink)] transition-colors duration-150 hover:bg-[var(--card-line)]/40 motion-reduce:transition-none",
+  cardFocusRing,
+);
 
 const activeClass = "bg-[var(--card-line)]/60";
 
@@ -98,10 +105,11 @@ export function FormatPopover({
             // The ring rather than a border, so the swatch itself is the same
             // size whether or not it is the current colour.
             className={cn(
-              "h-6 w-6 rounded-full transition-shadow",
+              "h-6 w-6 rounded-full transition-shadow duration-150 motion-reduce:transition-none",
               marks.color === color
                 ? "ring-2 ring-[var(--card-ink)] ring-offset-2 ring-offset-[var(--card-paper)]"
                 : "ring-1 ring-black/15",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--card-bleu)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--card-paper)]",
             )}
             style={{ backgroundColor: `var(${CARD_COLOR_VAR[color]})` }}
           />

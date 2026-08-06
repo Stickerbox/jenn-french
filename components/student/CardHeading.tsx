@@ -23,7 +23,12 @@ export async function CardHeading() {
   const { student } = await currentStrings();
 
   return (
-    <div className="mx-auto mb-6 max-w-[560px] text-center">
+    // mb-[var(--space-4)]: 24px, one step tighter than the --space-5 (32px)
+    // gap between the page's own major zones (header, tab strip, date nav) —
+    // this eyebrow belongs to the date nav directly below it, not to a zone
+    // of its own, so it earns the smaller of the two named gaps rather than
+    // the same one repeated for a different reason.
+    <div className="mx-auto mb-[var(--space-4)] max-w-[560px] text-center">
       <div className="font-[family-name:var(--card-font-serif)] text-[13px] uppercase tracking-[6px] text-[var(--card-bleu)] opacity-80">
         {student.card.eyebrow}
       </div>

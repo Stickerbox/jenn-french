@@ -99,10 +99,16 @@ export function ConversationList({
                   onClick={() => onSelect(conversation.groupId)}
                   aria-current={selected ? "true" : undefined}
                   className={cn(
-                    "flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors",
+                    "flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors duration-150 motion-reduce:transition-none",
                     selected
                       ? "bg-[var(--color-accent-soft)]"
                       : "hover:bg-[var(--color-field)]",
+                    // -outline-offset-2 rather than the shared ring: this
+                    // button is already a full-width row with its own
+                    // background states, so an inset outline reads as
+                    // "this row" without the ring's 2px gap implying a
+                    // floating control the way it does on a round icon.
+                    "focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-accent)]",
                   )}
                 >
                   <span

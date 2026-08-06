@@ -18,9 +18,18 @@ import {
 import { credentialProblemLabel } from "@/lib/student-auth-labels";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
+import { cardFocusRing, formErrorText } from "@/components/card-styles";
 
-const linkButton =
-  "font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-bleu)] underline";
+// A known offender named directly in the Task J plan: this used to be bare
+// underlined text with no padding at all, a hit box closer to 20px tall than
+// 44. inline-flex + min-h-[44px] grows the box the tap has to land in without
+// growing the word inside it — the same trick CardDateNav's Aujourd'hui link
+// uses, and for the same reason: padding alone would push the underline away
+// from the text it belongs under.
+const linkButton = cn(
+  "inline-flex min-h-[44px] items-center rounded-md px-1 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-bleu)] underline transition-opacity duration-150 hover:opacity-80 motion-reduce:transition-none",
+  cardFocusRing,
+);
 
 export function StudentAuthPanel({
   slug,
@@ -101,7 +110,11 @@ export function StudentAuthPanel({
     // rule and generous top margin are what separate it from that content
     // rather than a heading of its own. See app/g/[slug]/page.tsx.
     return (
-      <div className="mx-auto mt-12 w-full max-w-[560px] border-t border-[var(--card-line)] pt-6 text-center">
+      // mt-[var(--space-6)]/pt-[var(--space-4)] rather than mt-12/pt-6: same
+      // 48px and 24px, but named — the same rhythm units app/g/[slug]/page.tsx
+      // and CardDateNav use, so "generous top margin" reads as a deliberate
+      // step in one scale rather than a number chosen to look about right.
+      <div className="mx-auto mt-[var(--space-6)] w-full max-w-[560px] border-t border-[var(--card-line)] pt-[var(--space-4)] text-center">
         <button type="button" onClick={handleSignOut} className={linkButton}>
           {auth.signOut}
         </button>
@@ -204,16 +217,16 @@ export function StudentAuthPanel({
       <button
         type="submit"
         disabled={busy}
-        className="w-full rounded-full bg-[var(--card-bleu)] px-5 py-2 font-[family-name:var(--card-font-serif)] text-sm text-white disabled:opacity-50"
+        className={cn(
+          "w-full min-h-[44px] rounded-full bg-[var(--card-bleu)] px-5 py-2 font-[family-name:var(--card-font-serif)] text-sm text-white transition-opacity duration-150 hover:opacity-90 motion-reduce:transition-none disabled:opacity-50",
+          cardFocusRing,
+        )}
       >
         {submitLabel}
       </button>
 
       {error && (
-        <p
-          role="alert"
-          className="mt-3 text-center text-sm text-[var(--card-rouge)]"
-        >
+        <p role="alert" className={cn("mt-3", formErrorText)}>
           {error}
         </p>
       )}

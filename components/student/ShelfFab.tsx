@@ -13,8 +13,18 @@ import { cn } from "@/lib/utils";
 import { fieldClassName } from "@/components/ui/field";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
+import { cardFocusRing, formErrorText } from "@/components/card-styles";
 
 type Open = null | "menu" | "link" | "page" | "pdf";
+
+// The Save button on each of the three sheets below — link, page, PDF — was
+// three copies of the same string. min-h-[44px] added on top of its existing
+// py-2.5 makes the tap target's floor explicit rather than trusting the text
+// size and padding to add up to it.
+const shelfSubmitButton = cn(
+  "min-h-[44px] rounded-full bg-[var(--card-bleu)] px-5 py-2.5 font-[family-name:var(--card-font-serif)] text-sm text-white transition-opacity duration-150 hover:opacity-90 motion-reduce:transition-none disabled:opacity-50",
+  cardFocusRing,
+);
 
 // The render starts at stagePdf, while a student is still reading the title
 // field — so this is a grace period, not the render's budget (that is
@@ -244,12 +254,12 @@ export function ShelfFab({
             <button
               type="submit"
               disabled={saving || url.trim() === ""}
-              className="rounded-full bg-[var(--card-bleu)] px-5 py-2.5 font-[family-name:var(--card-font-serif)] text-sm text-white disabled:opacity-50"
+              className={shelfSubmitButton}
             >
               {saving ? strings.common.saving : strings.common.save}
             </button>
             {error && (
-              <p role="alert" className="text-center text-sm text-[var(--card-rouge)]">
+              <p role="alert" className={formErrorText}>
                 {error}
               </p>
             )}
@@ -274,7 +284,7 @@ export function ShelfFab({
             errorFor={() => shelf.pasteNotHtml}
           />
           {error && (
-            <p role="alert" className="mt-2 text-center text-sm text-[var(--card-rouge)]">
+            <p role="alert" className={cn("mt-2", formErrorText)}>
               {error}
             </p>
           )}
@@ -319,13 +329,13 @@ export function ShelfFab({
             <button
               type="submit"
               disabled={saving || !pdfFile || pdfTitle.trim() === ""}
-              className="rounded-full bg-[var(--card-bleu)] px-5 py-2.5 font-[family-name:var(--card-font-serif)] text-sm text-white disabled:opacity-50"
+              className={shelfSubmitButton}
             >
               {saving ? strings.common.saving : strings.common.save}
             </button>
 
             {error && (
-              <p role="alert" className="text-center text-sm text-[var(--card-rouge)]">
+              <p role="alert" className={formErrorText}>
                 {error}
               </p>
             )}

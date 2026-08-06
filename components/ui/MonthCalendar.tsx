@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { monthWeekdayRows } from "@/lib/month-grid";
 import { cn } from "@/lib/utils";
+import { cardFocusRing } from "@/components/card-styles";
+import { accentFocusRing } from "@/components/ui/field";
 
 export type CalendarTone = "admin" | "card";
 
@@ -34,6 +36,7 @@ const TONES = {
     selected: "bg-[var(--color-accent)] font-semibold text-white",
     idle: "text-[var(--color-ink)] hover:bg-[var(--color-bg)]",
     today: "font-bold text-[var(--color-accent)]",
+    ring: accentFocusRing,
   },
   card: {
     panel: "border-[var(--card-line)] bg-[var(--card-paper)]",
@@ -44,6 +47,7 @@ const TONES = {
     selected: "bg-[var(--card-bleu)] font-semibold text-white",
     idle: "text-[var(--card-ink)] hover:bg-[var(--card-bleu-soft)]",
     today: "font-bold text-[var(--card-bleu)]",
+    ring: cardFocusRing,
   },
 } as const;
 
@@ -130,8 +134,9 @@ export function MonthCalendar({
           aria-label={labels.previousMonth}
           onClick={() => stepMonth(-1)}
           className={cn(
-            "rounded-full px-3 py-1 transition-colors",
+            "flex h-9 min-w-9 items-center justify-center rounded-full px-3 py-1 transition-colors duration-150 motion-reduce:transition-none",
             palette.step,
+            palette.ring,
           )}
         >
           ‹
@@ -149,8 +154,9 @@ export function MonthCalendar({
           aria-label={labels.nextMonth}
           onClick={() => stepMonth(1)}
           className={cn(
-            "rounded-full px-3 py-1 transition-colors",
+            "flex h-9 min-w-9 items-center justify-center rounded-full px-3 py-1 transition-colors duration-150 motion-reduce:transition-none",
             palette.step,
+            palette.ring,
           )}
         >
           ›
@@ -187,9 +193,16 @@ export function MonthCalendar({
               // calendar missing a Tuesday reads as a rendering fault.
               disabled={!enabled}
               onClick={() => onChoose(cell.date)}
+              // Not grown to 44px, unlike this task's other touch targets: a
+              // five-across grid of them already spans the popover's width,
+              // and a dense date grid is the one interactive pattern where
+              // WCAG's own guidance (2.5.5) accepts a smaller target because
+              // the control's neighbours are its equivalent alternatives —
+              // tapping the wrong day is a one-tap correction, not a dead end.
               className={cn(
-                "rounded-lg py-1.5 text-center text-sm transition-colors",
+                "rounded-lg py-1.5 text-center text-sm transition-colors duration-150 motion-reduce:transition-none",
                 palette.day,
+                palette.ring,
                 // isSelected FIRST, so a selected day with no card still draws
                 // as selected. The student page reaches that state two ways:
                 // Aujourd'hui on a day Jenn skipped, and a hand-typed ?date=.

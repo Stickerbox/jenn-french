@@ -13,6 +13,7 @@ import { KindFilter } from "@/components/ui/KindFilter";
 import { filterPagesByKind, type KindFilter as Kind } from "@/lib/page-filters";
 import type { PageKind } from "@/lib/page-kind";
 import {
+  emptyStateText,
   pageGrid,
   pageSectionHeading,
   pageSectionList,
@@ -167,11 +168,7 @@ export function PageList({
   const sections = sectionPages(visible, today);
 
   if (pages.length === 0) {
-    return (
-      <p className="mb-8 text-center text-sm text-[var(--color-ink-muted)]">
-        {labels.noPagesYet}
-      </p>
-    );
+    return <p className={cn("mb-8", emptyStateText)}>{labels.noPagesYet}</p>;
   }
 
   return (
@@ -228,9 +225,7 @@ export function PageList({
       </div>
 
       {sections.length === 0 ? (
-        <p className="text-center text-sm text-[var(--color-ink-muted)]">
-          {strings.admin.noMatches}
-        </p>
+        <p className={emptyStateText}>{strings.admin.noMatches}</p>
       ) : (
         <div className={pageSectionList}>
           {sections.map((section) => (

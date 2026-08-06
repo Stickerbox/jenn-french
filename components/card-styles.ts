@@ -52,6 +52,39 @@ export const cardCodeChip =
 
 export const cardProse = "whitespace-pre-line text-[15px] leading-relaxed";
 
+// Wave 5, Task J. The one focus ring every card-palette control shares, so a
+// keyboard user gets the same visible signal on a tile's pencil as on the
+// calendar trigger — before this only CardDateNav's own trigger drew one, and
+// most of this file's buttons and links drew nothing at all beyond the
+// browser default, which several of them had already suppressed with
+// `outline-none` on a parent. `--card-paper` is the offset colour on every
+// caller regardless of which card surface (paper, paper-back, section) it
+// actually sits on — those three are all near-white cream tones close enough
+// that the 2px gap between the control and the ring never reads as a colour
+// mismatch, and one constant here is worth more than three that would have to
+// agree with whatever background a caller happens to be on.
+export const cardFocusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--card-bleu)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--card-paper)]";
+
+// The shared treatment for "there is nothing here yet" and "nothing matches",
+// on both the student shelf and the admin's Pages/Students lists. Before this
+// the admin's own empty and no-match lines were --color-ink-muted in the
+// admin's sans body font while the student shelf's were --card-moss italic
+// serif — two forms for the same message, which is exactly the
+// each-surface-invents-its-own problem this task exists to close. The
+// student shelf's version already looked like this; the admin caught up to
+// it rather than the other way around, following Task I's own rule that a
+// page Jenn looks at should read the way her students' does.
+export const emptyStateText =
+  "text-center font-[family-name:var(--card-font-serif)] italic text-[var(--card-moss)]";
+
+// The shared treatment for a form's `role="alert"` failure line — every one
+// of them already agreed on `text-sm text-[var(--card-rouge)]`, which is what
+// made the handful that had drifted (a stray `mt-4`, one missing
+// `text-center`) visible as drift rather than as different designs. One
+// constant is what keeps the next one from drifting too.
+export const formErrorText = "text-center text-sm text-[var(--card-rouge)]";
+
 // The small caps label above a panel in the admin editor — "Front", "Back",
 // "As the student sees it". Lives here rather than in CardEditor because the
 // preview needs it too.
@@ -67,8 +100,17 @@ export const pageGrid = "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4";
 
 // `overflow-hidden` is not decoration: it is what clips the oversized preview
 // frame inside HtmlPreview to the tile.
+//
+// `has-[a:focus-visible]:ring-2` is what gives the tile a visible focus state
+// at all: the title link is stretched over the whole tile with
+// `after:absolute after:inset-0` (see PageTile), so the browser's own outline
+// draws around the small title text underneath that overlay rather than
+// around the card a sighted mouse user would call "the tile" — a keyboard
+// user tabbing through the grid would see nothing move. `has()` reaches
+// outside the anchor's own box to ring the tile that contains it instead,
+// without PageTile needing to know which of its children is the focusable one.
 export const pageTileFrame =
-  "relative flex h-full flex-col overflow-hidden rounded-[14px] border border-[var(--card-line)] bg-[var(--card-paper)] shadow-[var(--card-shadow)] transition-opacity hover:opacity-85";
+  "relative flex h-full flex-col overflow-hidden rounded-[14px] border border-[var(--card-line)] bg-[var(--card-paper)] shadow-[var(--card-shadow)] transition-opacity duration-150 hover:opacity-85 motion-reduce:transition-none has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-[var(--card-bleu)] has-[a:focus-visible]:ring-offset-2 has-[a:focus-visible]:ring-offset-[var(--card-paper)]";
 
 // The heading above a run of tiles. A rule runs from the words to the end of
 // the row so the sections read as bands across the grid rather than as words
@@ -89,8 +131,19 @@ export const pageSectionList = "space-y-8";
 // page, the invite/reset/delete on a student. Here rather than local to one list
 // because two lists render it and a second copy is a second thing to keep in
 // step.
+//
+// 36px, not the 44px WCAG minimum: this same class renders three icons in a
+// row (pencil, pin, delete) inside a page tile's footer, and a tile is as
+// narrow as ~140px on a two-column phone grid — three real 44px boxes plus
+// two gaps would not fit under the tile that holds them. 36px is the largest
+// square that still leaves the row room to breathe at that width; on
+// GroupList's roomier row tiles the same class has space to spare, but it
+// stays one constant rather than two so the pencil, the pin and the delete
+// icon are recognisably the same control on both screens. Compare
+// CardDateNav's day dots and StudentAuthPanel's text links, which sit alone
+// rather than three-across and do reach the full 44px hit box.
 export const tileActionClass =
-  "flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]";
+  "flex h-9 w-9 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors duration-150 hover:bg-[var(--card-bleu-soft)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--card-bleu)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--card-paper)]";
 
 // The audience picker's pill — a visually-hidden checkbox wrapped in a label —
 // duplicated identically in AddLinkForm, NewPageForm and PageEditor before
@@ -101,7 +154,7 @@ export const tileActionClass =
 // everywhere in the admin is that a control marking a live SELECTION stays
 // accent-coloured, and only its surrounding chrome moves to card tokens.
 export const audiencePill =
-  "cursor-pointer rounded-full border px-4 py-2 text-sm font-normal transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-accent)]/40";
+  "cursor-pointer rounded-full border px-4 py-2 text-sm font-normal transition-colors duration-150 motion-reduce:transition-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-accent)]/40";
 
 export const audiencePillChecked =
   "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--card-ink)]";

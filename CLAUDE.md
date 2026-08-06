@@ -1351,6 +1351,48 @@ the slot.
   whichever layer you're in: `group` in `lib/`, `prisma/`, and route
   segments; `student` in copy and in new code that has no reason to touch
   the model, like `lib/student-slug.ts` and `lib/student-tokens.ts`.
+- **Language follows the browser, on both surfaces.** This retires the rule that
+  stood here until 2026-08-06: "the admin renders English and a student's page
+  French". `pickLocale` (`lib/i18n.ts`) reads `Accept-Language`, parses its
+  q-values, and answers `"en"` only when English **strictly outranks** French;
+  a malformed q discards its entry rather than defaulting to 1, which is the
+  naive-parser trap. Everything else — a missing header, `*`, a language we do
+  not have — falls back to French, because this is a French tutor's site and an
+  unknown visitor should get the language the content is in.
+
+  There is **no switcher**, deliberately, and the cost is stated plainly: a
+  wrong browser setting cannot be corrected from inside the site. The
+  consequence to keep in mind is that *Admin* and *Hello Jenn!* are the English
+  **translations** of two strings, not fixed labels — Jenn on an `fr-CA` browser
+  correctly gets the French ones.
+
+  `lib/strings.ts` holds one `Strings` type and two objects **both annotated as
+  it**, so a key missing or mistyped on either side is a compile error naming
+  the key rather than an `undefined` a student eventually reads. Interpolating
+  values are **functions**, never placeholder templates: French and English
+  disagree about word order (*Marie's page* / *La page de Marie*), and a
+  placeholder scheme invites building sentences by concatenation.
+
+  **Those functions are why the LOCALE, and never the resolved object, crosses
+  into a client component.** React cannot serialize a function across the
+  server/client boundary. Passing the object threw a 500 on every affected page
+  while lint, `tsc`, the tests and the build all stayed green — a runtime-only
+  failure, which is exactly how it shipped. A client component takes
+  `locale: Locale` and calls `getStrings(locale)` itself; `lib/strings.ts` and
+  `lib/i18n.ts` import only types and are safe to reach from the browser, and
+  `lib/locale.ts` is the server-only half because it reads `headers()`. **Do not
+  reintroduce a resolved `Strings` prop, and do not flatten the functions to fix
+  it — the boundary was what was wrong.**
+
+  Reading `headers()` in the root layout opts the whole app into dynamic
+  rendering, so `/login` and `/signin` are no longer prerendered. Accepted: the
+  language is right on first paint rather than flickering after hydration.
+
+  `adminSectionLabel` and `studentSectionLabel` were two functions because the
+  admin said "This week" and the student "Cette semaine". Once both followed one
+  locale they became the same function and are merged into `sectionLabel`.
+  Jenn's UI being English is gone; the `Student`/`Group` naming convention above
+  is untouched and still holds.
 - **Styling:** Tailwind v4 via PostCSS, no `tailwind.config`. Design tokens are CSS
   custom properties in `app/globals.css`, and there are two distinct palettes: the
   general app (`--color-*`) and the Québec flashcard template (`--card-*`). The
@@ -1364,6 +1406,34 @@ the slot.
   in `components/card-styles.ts` — extend that rather than duplicating the
   strings. `tileActionClass` is one of them: the round icon button in a tile's
   action slot, rendered by both the page list and the student list.
+
+  **The two palettes stay two palettes**, but the admin uses much more of the
+  card one as of 2026-08-06 — paper, lines and ink on its panels, tiles, fields
+  and headings, keeping `--color-accent` for primary controls. That extends the
+  reason `Tile` and `PageTile` already gave: Jenn should see her pages the way
+  her students do. It is not a merge, and neither set may be deleted or renamed.
+  The admin now carries the student page's header block too — the wordmark, then
+  *Admin*, then *Hello Jenn!* — and the wordmark is **not a link on either
+  page**: with `/` redirecting a signed-in visitor straight back, it was a round
+  trip to nowhere.
+
+  `--color-accent` is a lilac, `#AC5395`, drawn from `--card-plum`'s hue and
+  lightened. The two are meant to stay in the same family, so change one and
+  look at the other. `#B05C9A` was the first cut and was rejected on
+  measurement: 4.34:1 against white, short of the 4.5:1 it needs as button and
+  chat-bubble text. The shipped value clears it at 4.75:1. **Measure before
+  moving it** — this variable carries white text.
+
+  `--space-1` … `--space-6` exist and are used for the **page-level rhythm
+  seams** — header, tab strip, date nav, content — on `/g/[slug]` and `/admin`,
+  which is what keeps those two pages agreeing. They are deliberately not
+  retrofitted onto every gap. Interactive controls on those two surfaces reach a
+  44px hit box, often through padding and a negative margin rather than by
+  growing the visible control; two documented exceptions state their reasons in
+  place (a tile's three action icons, and the month calendar's dense grid).
+  Anything that animates carries `motion-reduce:animate-none`, anything that
+  transitions carries `motion-reduce:transition-none`, and there are no
+  keyframes beyond the three in `app/globals.css`.
 - **Imports** use the `@/` alias for repo-root-relative paths.
 - Server actions call `revalidatePath` for the page they affect. Deletes use
   `deleteMany` so a double-click or stale tab is a no-op rather than a P2025.

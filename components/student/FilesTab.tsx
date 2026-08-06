@@ -12,9 +12,11 @@ import { KindFilter } from "@/components/ui/KindFilter";
 import { SearchField } from "@/components/admin/SearchField";
 import { VersionChooser } from "@/components/worksheet/VersionChooser";
 import {
+  emptyStateText,
   pageGrid,
   pageSectionHeading,
   pageSectionList,
+  tileActionClass,
 } from "@/components/card-styles";
 import { sectionPages } from "@/lib/page-sections";
 import { sectionLabel } from "@/lib/page-section-labels";
@@ -136,13 +138,9 @@ export function FilesTab({
       )}
 
       {pages.length === 0 ? (
-        <p className="text-center font-[family-name:var(--card-font-serif)] italic text-[var(--card-moss)]">
-          {strings.student.files.emptyShelf}
-        </p>
+        <p className={emptyStateText}>{strings.student.files.emptyShelf}</p>
       ) : sections.length === 0 ? (
-        <p className="text-center font-[family-name:var(--card-font-serif)] italic text-[var(--card-moss)]">
-          {strings.student.files.noMatches}
-        </p>
+        <p className={emptyStateText}>{strings.student.files.noMatches}</p>
       ) : (
         <div className={pageSectionList}>
           {sections.map((section) => (
@@ -246,7 +244,7 @@ export function FilesTab({
                                   href={`?tab=files&edit=${page.slug}`}
                                   aria-label={strings.student.files.edit(page.title)}
                                   title={strings.student.files.editTitle}
-                                  className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]"
+                                  className={tileActionClass}
                                 >
                                   <PencilIcon />
                                 </Link>
@@ -271,7 +269,7 @@ export function FilesTab({
                                       ? strings.student.files.unpinTitle
                                       : strings.student.files.pinTitle
                                   }
-                                  className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]"
+                                  className={tileActionClass}
                                 >
                                   <PinIcon filled={page.pinnedAt !== null} />
                                 </button>
@@ -293,7 +291,7 @@ export function FilesTab({
                                       type="submit"
                                       aria-label={strings.student.files.delete(page.title)}
                                       title={strings.student.files.deleteTitle}
-                                      className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-moss)] transition-colors hover:bg-[var(--card-bleu-soft)]"
+                                      className={cn(tileActionClass, "text-[var(--card-moss)]")}
                                     >
                                       ×
                                     </button>

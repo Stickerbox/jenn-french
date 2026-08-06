@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { cardFieldSkin } from "@/components/card-styles";
+import { cardFieldSkin, formErrorText } from "@/components/card-styles";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
 
@@ -58,7 +58,7 @@ export function NewGroupForm({
         {saving ? strings.common.adding : labels.addButton}
       </Button>
       {error && (
-        <p role="alert" className="text-sm text-[var(--card-rouge)]">
+        <p role="alert" className={formErrorText}>
           {error}
         </p>
       )}

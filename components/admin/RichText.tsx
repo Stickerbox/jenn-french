@@ -40,10 +40,20 @@ const NO_MARKS: Marks = {
   color: null,
 };
 
+// The dashed underline was the ONLY focus signal here — a border appearing
+// where none was before, which reads to a keyboard user as a colour/edge
+// change rather than a clear "you are here". This is a contenteditable
+// masquerading as the card's own printed text, so a heavy 2px ring would
+// fight the thing it is styled to look like; `outline` with `-offset-2`
+// keeps it a thin, low-contrast line that sits clear of the text's own
+// ascenders and descenders rather than boxing them, which is what a
+// same-colour `ring` (drawn tight, no offset option that reads well on
+// inline text) would have done.
 const baseClass =
-  "w-full whitespace-pre-wrap break-words rounded-sm border-0 bg-transparent p-0 outline-none transition-colors " +
+  "w-full whitespace-pre-wrap break-words rounded-sm border-0 bg-transparent p-0 outline-none transition-colors duration-150 motion-reduce:transition-none " +
   "hover:bg-[var(--card-line)]/25 " +
-  "focus:border-b focus:border-dashed focus:border-[var(--card-line)]";
+  "focus:border-b focus:border-dashed focus:border-[var(--card-line)] " +
+  "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--card-bleu)]";
 
 function escapeHtml(text: string) {
   return text

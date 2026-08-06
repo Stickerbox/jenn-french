@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { AdminTab } from "@/lib/admin-tab";
 import type { Strings } from "@/lib/strings";
+import { cardFocusRing } from "@/components/card-styles";
 
 // Every link carries the date, not only the daily word's: a link that drops
 // the param sends parseAdminDate back to today, so one detour through Students
@@ -33,7 +34,12 @@ export function AdminTabs({
     // arrow-key behaviour that browser navigation does not provide.
     <nav
       aria-label={strings.admin.nav.sectionsLabel}
-      className="mb-10 flex justify-center"
+      // mb-[var(--space-5)]: the same 32px named unit the header above it uses
+      // (app/admin/page.tsx) — this used to be mb-10 (40px), a number close
+      // enough to the student page's matching tab strip (mb-8, 32px) to look
+      // like a typo rather than a choice. Task I mirrored the two pages'
+      // header rhythm; this closes the one gap that mirroring missed.
+      className="mb-[var(--space-5)] flex justify-center"
     >
       {/* Container in the card palette's paper and line, matching the pill
           treatment CardDateNav gave the week-range trigger. The active tab
@@ -46,10 +52,11 @@ export function AdminTabs({
             href={tabHref(tab, date)}
             aria-current={tab === active ? "page" : undefined}
             className={cn(
-              "rounded-full px-5 py-2 font-[family-name:var(--font-body)] text-sm transition-colors",
+              "flex min-h-[44px] items-center rounded-full px-5 py-2 font-[family-name:var(--font-body)] text-sm transition-colors duration-150 motion-reduce:transition-none",
               tab === active
                 ? "bg-[var(--color-accent)] font-medium text-white"
                 : "text-[var(--color-ink-muted)] hover:text-[var(--card-ink)]",
+              cardFocusRing,
             )}
           >
             {label}

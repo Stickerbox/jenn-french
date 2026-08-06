@@ -34,6 +34,8 @@ import { TeacherInbox } from "@/components/chat/TeacherInbox";
 import { currentLocale } from "@/lib/locale";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
+import { cardFocusRing } from "@/components/card-styles";
+import { cn } from "@/lib/utils";
 
 export default async function AdminPage({
   searchParams,
@@ -88,7 +90,10 @@ export default async function AdminPage({
       <form action={logout} className="absolute right-4 top-4 z-10">
         <button
           type="submit"
-          className="rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-4 py-1.5 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)] transition-opacity hover:opacity-80"
+          className={cn(
+            "flex min-h-[44px] items-center rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-4 py-1.5 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)] transition-opacity duration-150 hover:opacity-80 motion-reduce:transition-none",
+            cardFocusRing,
+          )}
         >
           {strings.admin.header.logOut}
         </button>
@@ -101,8 +106,13 @@ export default async function AdminPage({
             French gets "Bonjour Jenn !" the same way a student's page does.
             Not a link, for the reason Task G removed the link on the student
             side: there is nowhere useful for Jenn to land pressing the site's
-            own name from inside her own admin. */}
-        <header className="mx-auto mb-7 max-w-[560px] text-center">
+            own name from inside her own admin.
+
+            mb-[var(--space-5)]: same named 32px unit as AdminTabs' own
+            margin below it — see that file's comment; the two pages'
+            headers now share one rhythm rather than two numbers that were
+            merely close. */}
+        <header className="mx-auto mb-[var(--space-5)] max-w-[560px] text-center">
           <h1
             className="mb-2.5 font-[family-name:var(--card-font-serif)] text-[var(--card-plum)]"
             style={{ fontSize: "clamp(30px, 5.5vw, 42px)", lineHeight: 1.15 }}

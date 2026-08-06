@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { accentFocusRing } from "@/components/ui/field";
 
 export type AddChoice = { key: string; label: string };
 
@@ -47,8 +48,11 @@ export function AddMenu({
 
       <div
         role="menu"
+        // panel-pop, the same keyframe ChatPanel and AddSheet use at desktop
+        // size — this popover arrives from the corner it opens against, the
+        // case that keyframe was named for.
         className={cn(
-          "fixed z-50 flex min-w-[180px] flex-col overflow-hidden rounded-2xl border border-[var(--color-field-border)] bg-[var(--color-bg)] shadow-2xl",
+          "fixed z-50 flex min-w-[180px] animate-[panel-pop_180ms_ease-out] flex-col overflow-hidden rounded-2xl border border-[var(--color-field-border)] bg-[var(--color-bg)] shadow-2xl motion-reduce:animate-none",
           className,
         )}
       >
@@ -58,7 +62,10 @@ export function AddMenu({
             type="button"
             role="menuitem"
             onClick={() => onChoose(choice.key)}
-            className="px-5 py-3 text-left font-[family-name:var(--font-body)] text-sm text-[var(--color-ink)] transition-colors hover:bg-[var(--color-field)]"
+            className={cn(
+              "px-5 py-3 text-left font-[family-name:var(--font-body)] text-sm text-[var(--color-ink)] transition-colors duration-150 hover:bg-[var(--color-field)] motion-reduce:transition-none",
+              accentFocusRing,
+            )}
           >
             {choice.label}
           </button>

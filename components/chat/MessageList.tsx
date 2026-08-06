@@ -7,6 +7,7 @@ import { dayHeading } from "@/lib/chat-stamp";
 import { formatTime, localDayKey } from "@/lib/chat-time";
 import type { ChatMessage } from "@/lib/chat-message";
 import { cn } from "@/lib/utils";
+import { accentFocusRing } from "@/components/ui/field";
 
 export type MessageListLabels = {
   empty: string;
@@ -139,7 +140,15 @@ export function MessageList({
                             type="button"
                             onClick={() => onDeleteMessage(message.id)}
                             aria-label={`${labels.deleteMessage}: ${message.body.slice(0, 40)}`}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm text-[var(--color-ink-muted)] opacity-0 transition-opacity hover:bg-[var(--color-field)] group-hover/msg:opacity-100 focus:opacity-100"
+                            // focus-visible, not focus: a mouse click already
+                            // reveals it via group-hover, and focus:opacity-100
+                            // meant a click that happened to focus the button
+                            // first left it stuck visible with no hover — the
+                            // same distinction accentFocusRing exists to draw.
+                            className={cn(
+                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm text-[var(--color-ink-muted)] opacity-0 transition-opacity duration-150 hover:bg-[var(--color-field)] group-hover/msg:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none",
+                              accentFocusRing,
+                            )}
                           >
                             ×
                           </button>

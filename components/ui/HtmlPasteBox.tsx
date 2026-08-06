@@ -4,20 +4,32 @@ import { useState, type ChangeEvent, type ClipboardEvent } from "react";
 import { cn } from "@/lib/utils";
 import { validatePageHtml, byteLength } from "@/lib/page-html";
 import { formatFileSize } from "@/lib/file-size";
+import { cardFocusRing } from "@/components/card-styles";
+import { accentFocusRing } from "@/components/ui/field";
 
 export type PasteTone = "admin" | "card";
 
 // Two skins for the two palettes, the same reason FilterChip has them.
-const TONES: Record<PasteTone, { box: string; text: string; error: string }> = {
+const TONES: Record<
+  PasteTone,
+  { box: string; text: string; error: string; focus: string; ring: string }
+> = {
   admin: {
     box: "border-[var(--color-field-border)] bg-[var(--color-field)]",
     text: "text-[var(--color-ink-muted)]",
     error: "text-[var(--color-accent)]",
+    focus: "focus:border-[var(--color-accent)]",
+    ring: accentFocusRing,
   },
   card: {
     box: "border-[var(--card-line)] bg-[var(--card-paper)]",
     text: "text-[var(--card-moss)]",
     error: "text-[var(--card-rouge)]",
+    // Was hard-coded to --color-accent regardless of tone, which put the
+    // admin's lilac focus border on the student shelf's own upload box —
+    // the one place this tone split exists specifically to prevent.
+    focus: "focus:border-[var(--card-bleu)]",
+    ring: cardFocusRing,
   },
 };
 
@@ -97,9 +109,11 @@ export function HtmlPasteBox({
         rows={3}
         // resize-none: it never holds text, so a drag handle offers nothing.
         className={cn(
-          "mt-1 block w-full resize-none rounded-xl border-2 border-dashed px-4 py-6 text-center font-[family-name:var(--font-body)] text-sm focus:border-[var(--color-accent)] focus:outline-none",
+          "mt-1 block w-full resize-none rounded-xl border-2 border-dashed px-4 py-6 text-center font-[family-name:var(--font-body)] text-sm transition-colors duration-150 focus:outline-none motion-reduce:transition-none",
           TONES[tone].box,
           TONES[tone].text,
+          TONES[tone].focus,
+          TONES[tone].ring,
         )}
         placeholder={labels.prompt}
         defaultValue=""

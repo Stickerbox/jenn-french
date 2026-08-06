@@ -59,11 +59,17 @@ export function FileDropZone({
       // No role="button": this is a label wrapping a real file input, so the
       // keyboard and screen-reader affordance is the input's own.
       className={cn(
-        "mt-1 flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-center text-sm font-normal transition-colors",
+        "mt-1 flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-center text-sm font-normal transition-colors duration-150 motion-reduce:transition-none",
         over
           ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)]"
           : "border-[var(--color-field-border)] bg-[var(--color-field)]",
         "text-[var(--color-ink-muted)]",
+        // has-[:focus-visible], not a ring on the label: the real interactive
+        // element is the visually-hidden file input inside it (`sr-only`
+        // below), the same shape audiencePill's checkbox uses, and a
+        // keyboard user tabbing to that input should see the drop zone
+        // itself light up rather than an invisible 1px input.
+        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-accent)] has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[var(--color-bg)]",
       )}
     >
       <input

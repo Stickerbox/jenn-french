@@ -9,6 +9,7 @@ import {
   audiencePillChecked,
   audiencePillUnchecked,
   cardFieldSkin,
+  formErrorText,
 } from "@/components/card-styles";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
@@ -128,7 +129,7 @@ export function AddLinkForm({
       </div>
 
       {error && (
-        <p role="alert" className="text-center text-sm text-[var(--card-rouge)]">
+        <p role="alert" className={formErrorText}>
           {error}
         </p>
       )}

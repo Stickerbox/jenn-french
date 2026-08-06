@@ -10,8 +10,23 @@ import { canDeleteGroup } from "@/lib/everyone";
 import { formatLongDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n";
 import { getStrings } from "@/lib/strings";
-import { cardFieldSkin, tileActionClass } from "@/components/card-styles";
+import {
+  cardFieldSkin,
+  cardFocusRing,
+  emptyStateText,
+  formErrorText,
+  tileActionClass,
+} from "@/components/card-styles";
 import { cn } from "@/lib/utils";
+
+// The four confirm/cancel text buttons below (delete and reset, each with a
+// cancel beside it) share this rather than repeating it: inline-flex +
+// min-h-[44px] grows the tap target without growing the word, the same trick
+// StudentAuthPanel's linkButton uses on the student side.
+const confirmActionButton = cn(
+  "inline-flex min-h-[44px] items-center rounded px-1 underline transition-opacity duration-150 motion-reduce:transition-none disabled:opacity-50",
+  cardFocusRing,
+);
 
 export type GroupSummary = {
   id: string;
@@ -117,11 +132,7 @@ export function GroupList({
   }
 
   if (groups.length === 0) {
-    return (
-      <p className="mb-8 text-center text-sm text-[var(--color-ink-muted)]">
-        {labels.noStudentsYet}
-      </p>
-    );
+    return <p className={cn("mb-8", emptyStateText)}>{labels.noStudentsYet}</p>;
   }
 
   return (
@@ -134,9 +145,7 @@ export function GroupList({
       />
 
       {visible.length === 0 ? (
-        <p className="text-center text-sm text-[var(--color-ink-muted)]">
-          {strings.admin.noMatches}
-        </p>
+        <p className={emptyStateText}>{strings.admin.noMatches}</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {visible.map((group) => {
@@ -237,7 +246,7 @@ export function GroupList({
                       type="button"
                       onClick={() => setConfirming(null)}
                       disabled={deleting !== null}
-                      className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
+                      className={cn(confirmActionButton, "text-[var(--color-ink-muted)]")}
                     >
                       {strings.common.cancel}
                     </button>
@@ -245,7 +254,7 @@ export function GroupList({
                       type="button"
                       onClick={() => handleDelete(group.id)}
                       disabled={deleting !== null}
-                      className="font-medium text-[var(--card-rouge)] underline disabled:opacity-50"
+                      className={cn(confirmActionButton, "font-medium text-[var(--card-rouge)]")}
                     >
                       {deleting === group.id ? strings.common.deleting : strings.common.delete}
                     </button>
@@ -283,6 +292,7 @@ export function GroupList({
                             className={cn(
                               "mt-1 w-full rounded border px-2 py-1 font-mono text-xs",
                               cardFieldSkin,
+                              cardFocusRing,
                             )}
                           />
                         </label>
@@ -300,7 +310,7 @@ export function GroupList({
                           type="button"
                           onClick={() => setConfirmingReset(null)}
                           disabled={resetting !== null}
-                          className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
+                          className={cn(confirmActionButton, "text-[var(--color-ink-muted)]")}
                         >
                           {strings.common.cancel}
                         </button>
@@ -308,7 +318,7 @@ export function GroupList({
                           type="button"
                           onClick={() => handleReset(group.id)}
                           disabled={resetting !== null}
-                          className="font-medium text-[var(--card-rouge)] underline disabled:opacity-50"
+                          className={cn(confirmActionButton, "font-medium text-[var(--card-rouge)]")}
                         >
                           {resetting === group.id ? labels.resetting : labels.reset}
                         </button>
@@ -323,7 +333,7 @@ export function GroupList({
       )}
 
       {error && (
-        <p role="alert" className="mt-4 text-center text-sm text-[var(--card-rouge)]">
+        <p role="alert" className={cn("mt-4", formErrorText)}>
           {error}
         </p>
       )}

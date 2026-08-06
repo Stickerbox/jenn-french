@@ -1,7 +1,7 @@
 "use client";
 
 import { fieldClassName } from "@/components/ui/field";
-import { cardFieldSkin } from "@/components/card-styles";
+import { cardFieldSkin, cardFocusRing } from "@/components/card-styles";
 import { cn } from "@/lib/utils";
 
 export function SearchField({
@@ -41,7 +41,10 @@ export function SearchField({
           <button
             type="button"
             onClick={() => onChange("")}
-            className="absolute inset-y-0 right-4 text-sm text-[var(--color-ink-muted)] underline"
+            className={cn(
+              "absolute inset-y-0 right-2 flex items-center rounded px-2 text-sm text-[var(--color-ink-muted)] underline transition-opacity duration-150 hover:opacity-80 motion-reduce:transition-none",
+              cardFocusRing,
+            )}
           >
             {clearLabel}
           </button>

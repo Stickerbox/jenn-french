@@ -9,15 +9,25 @@ import { toPlainText } from "@/lib/inline-markup";
 import { moveSection, type CardSection } from "@/lib/sections";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
+import { cardFocusRing } from "@/components/card-styles";
 import { cn } from "@/lib/utils";
 
 // 44px square: the controls sit side by side on a phone, and the one on the
 // end deletes. At the previous 24x18 a thumb aiming for the down arrow could
 // land on it instead.
-const controlClass =
-  "flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-sm " +
-  "text-[var(--color-ink-muted)] transition-colors " +
-  "hover:bg-[var(--card-line)]/30 disabled:opacity-25 disabled:hover:bg-transparent";
+const controlClass = cn(
+  "flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-sm",
+  "text-[var(--color-ink-muted)] transition-colors duration-150 motion-reduce:transition-none",
+  "hover:bg-[var(--card-line)]/30 disabled:opacity-25 disabled:hover:bg-transparent",
+  cardFocusRing,
+);
+
+// The confirm/cancel pair beside "delete this section?" — already 44px tall
+// (h-11) but with no focus ring of their own beyond the browser default.
+const confirmButtonClass = cn(
+  "flex h-11 items-center rounded px-2 underline transition-opacity duration-150 motion-reduce:transition-none",
+  cardFocusRing,
+);
 
 export function SectionEditor({
   sections,
@@ -99,7 +109,7 @@ export function SectionEditor({
                     <button
                       type="button"
                       onClick={() => setConfirmingDelete(null)}
-                      className="flex h-11 items-center px-2 text-[var(--color-ink-muted)] underline"
+                      className={cn(confirmButtonClass, "text-[var(--color-ink-muted)]")}
                     >
                       {strings.common.cancel}
                     </button>
@@ -109,7 +119,7 @@ export function SectionEditor({
                         onChange(sections.filter((_, i) => i !== index));
                         setConfirmingDelete(null);
                       }}
-                      className="flex h-11 items-center px-2 font-medium text-[var(--card-rouge)] underline"
+                      className={cn(confirmButtonClass, "font-medium text-[var(--card-rouge)]")}
                     >
                       {strings.common.delete}
                     </button>

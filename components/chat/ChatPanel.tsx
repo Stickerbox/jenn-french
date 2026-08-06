@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useOverlayLock } from "@/components/ui/OverlayProvider";
+import { accentFocusRing } from "@/components/ui/field";
 
 export type PanelLabels = { close: string; back: string };
 
@@ -127,7 +128,10 @@ export function ChatPanel({
               type="button"
               onClick={onBack}
               aria-label={labels.back}
-              className="-ml-2 flex min-h-11 flex-1 items-center gap-2 truncate rounded-lg py-2 pl-2 pr-3 text-left transition-colors hover:bg-[var(--color-accent-soft)] active:bg-[var(--color-accent-soft)] md:hidden"
+              className={cn(
+                "-ml-2 flex min-h-11 flex-1 items-center gap-2 truncate rounded-lg py-2 pl-2 pr-3 text-left transition-colors duration-150 hover:bg-[var(--color-accent-soft)] active:bg-[var(--color-accent-soft)] motion-reduce:transition-none md:hidden",
+                accentFocusRing,
+              )}
             >
               <span
                 aria-hidden="true"
@@ -159,7 +163,10 @@ export function ChatPanel({
           type="button"
           onClick={onClose}
           aria-label={labels.close}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl leading-none text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-ink)] active:bg-[var(--color-accent-soft)]"
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl leading-none text-[var(--color-ink-muted)] transition-colors duration-150 hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-ink)] active:bg-[var(--color-accent-soft)] motion-reduce:transition-none",
+            accentFocusRing,
+          )}
         >
           ×
         </button>

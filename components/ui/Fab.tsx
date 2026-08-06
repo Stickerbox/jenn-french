@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useOverlayCount } from "@/components/ui/OverlayProvider";
+import { accentFocusRing } from "@/components/ui/field";
 
 // The round button in the bottom-right corner. Extracted from ChatFab so the
 // chat bubble and the add button are one object rendered twice: they sit side
@@ -47,7 +48,8 @@ export function Fab({
       aria-expanded={expanded}
       aria-label={label}
       className={cn(
-        "fixed z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-accent)] text-white shadow-lg transition-opacity hover:opacity-90",
+        "fixed z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-accent)] text-white shadow-lg transition-opacity duration-150 hover:opacity-90 motion-reduce:transition-none",
+        accentFocusRing,
         overlayOpen && "hidden md:flex",
         className,
       )}

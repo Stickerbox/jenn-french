@@ -39,6 +39,8 @@ import {
 import { currentLocale } from "@/lib/locale";
 import { getStrings } from "@/lib/strings";
 import { toBCP47 } from "@/lib/i18n";
+import { cardFocusRing, emptyStateText } from "@/components/card-styles";
+import { cn } from "@/lib/utils";
 
 function parseDate(value: string | undefined, latest: Date): Date {
   if (!value) return latest;
@@ -203,7 +205,11 @@ export default async function GroupPage({
           {card ? (
             <Flashcard card={card} locale={locale} />
           ) : (
-            <p className="text-center font-[family-name:var(--font-body)] text-[var(--color-ink-muted)]">
+            // emptyStateText: the same treatment the shelf's own empty and
+            // no-match lines use — this is the card tab's version of "there is
+            // nothing here", and before this it was drawn in the ADMIN's
+            // --color-* palette on a page whose every other line is --card-*.
+            <p className={emptyStateText}>
               {strings.student.page.nothingPosted}
             </p>
           )}
@@ -274,13 +280,20 @@ export default async function GroupPage({
       {viewerIsTeacher && (
         <Link
           href="/admin?tab=groups"
-          className="absolute left-4 top-4 z-10 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-4 py-1.5 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)] transition-opacity hover:opacity-80"
+          className={cn(
+            "absolute left-4 top-4 z-10 flex min-h-[44px] items-center rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-4 py-1.5 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)] transition-opacity duration-150 hover:opacity-80 motion-reduce:transition-none",
+            cardFocusRing,
+          )}
         >
           {strings.student.page.backToAdmin}
         </Link>
       )}
 
-      <header className="mx-auto mb-7 max-w-[560px] text-center">
+      {/* mb-[var(--space-5)]: same 32px as the tab strip below it
+          (StudentTabs) and the date nav below that (CardDateNav) — three
+          zone-transitions on this page sharing one named gap instead of
+          mb-7/mb-8/mb-8, three numbers close enough to read as a mistake. */}
+      <header className="mx-auto mb-[var(--space-5)] max-w-[560px] text-center">
         {/* Not a link to "/" — the landing page redirects a signed-in student
             straight back here, so pressing the site's own name used to be a
             round trip to nowhere. */}
