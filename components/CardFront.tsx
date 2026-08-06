@@ -1,5 +1,7 @@
 import { formatCardDate } from "@/lib/format";
 import type { CardContent } from "@/lib/card-resolution";
+import type { Locale } from "@/lib/i18n";
+import type { Strings } from "@/lib/strings";
 import { cn } from "@/lib/utils";
 import { InlineMarkup } from "@/components/InlineMarkup";
 import { FIELD_STYLES } from "@/lib/field-styles";
@@ -16,18 +18,28 @@ import {
 // `className` is how the caller supplies its own layout: the flip container
 // passes backface and grid-cell classes, the admin preview passes a minimum
 // height. Neither belongs to the face itself.
+//
+// `strings` is the whole dictionary, not just common.card, following the same
+// convention components/student/* uses — this face renders on the student's
+// own page AND inside the admin's StudentPreview, so it takes the full object
+// rather than asking every caller to slice it first. `locale` is separate
+// because formatCardDate needs a BCP-47 tag, not the dictionary.
 export function CardFront({
   card,
+  strings,
+  locale,
   className,
 }: {
   card: CardContent;
+  strings: Strings;
+  locale: Locale;
   className?: string;
 }) {
   return (
     <div className={cn(cardPanel, className)}>
       <span className={accentBarClass} style={accentBarStyle} />
       <div className={cardHeaderRow}>
-        <span className={cardDateLabel}>{formatCardDate(card.date)}</span>
+        <span className={cardDateLabel}>{formatCardDate(card.date, locale)}</span>
         {card.subject && (
           <span className={cardSubjectPill}>
             <InlineMarkup text={card.subject} style={FIELD_STYLES.subject} />
@@ -39,7 +51,9 @@ export function CardFront({
           <InlineMarkup text={card.usage} style={FIELD_STYLES.usage} />
         </div>
       )}
-      <div className={cn("mb-2", cardEyebrow)}>Say it in French</div>
+      <div className={cn("mb-2", cardEyebrow)}>
+        {strings.common.card.sayItInFrench}
+      </div>
       <div className="flex-1">
         <p className="whitespace-pre-line font-[family-name:var(--card-font-serif)] text-2xl leading-snug">
           <InlineMarkup
@@ -54,7 +68,7 @@ export function CardFront({
         )}
       </div>
       <div className="mt-4 text-center font-[family-name:var(--card-font-serif)] text-xs italic text-[#b0a488]">
-        tap to reveal the answer
+        {strings.common.card.tapToReveal}
       </div>
     </div>
   );

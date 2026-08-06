@@ -14,6 +14,8 @@ import { NewGroupForm } from "@/components/admin/NewGroupForm";
 import { AddLinkForm } from "@/components/admin/AddLinkForm";
 import { NewPageForm } from "@/components/admin/NewPageForm";
 import { defaultGroupId } from "@/lib/default-audience";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 import type {
   LinkInput,
   NewPageInput,
@@ -47,6 +49,7 @@ export function AdminChrome({
   onCreateLink,
   onCreatePage,
   onCreatePdfPage,
+  locale,
   children,
 }: {
   groups: { id: string; name: string }[];
@@ -55,8 +58,14 @@ export function AdminChrome({
   onCreatePage: (input: NewPageInput) => Promise<PageSaveResult>;
   // Bytes, so a FormData rather than an input object — see createPdfPage.
   onCreatePdfPage: (formData: FormData) => Promise<unknown>;
+  // This is a client component reached directly from app/admin/page.tsx, so
+  // it takes `locale` rather than the resolved `strings` object — a
+  // `Strings` value holds functions and cannot cross that boundary. See
+  // lib/strings.ts.
+  locale: Locale;
   children: ReactNode;
 }) {
+  const strings = getStrings(locale);
   const router = useRouter();
   const [chip, setChip] = useState<string | null>(null);
   const [open, setOpen] = useState<Open>(null);
@@ -80,28 +89,38 @@ export function AdminChrome({
         <AddMenu
           className="bottom-24 right-4"
           choices={[
-            { key: "student", label: "Add a student" },
-            { key: "link", label: "Add a link" },
-            { key: "page", label: "Add a page" },
+            { key: "student", label: strings.admin.addMenu.addStudent },
+            { key: "link", label: strings.admin.addMenu.addLink },
+            { key: "page", label: strings.admin.addMenu.addPage },
           ]}
           onChoose={(key) => setOpen(key as Open)}
           onDismiss={() => setOpen(null)}
+          dismissLabel={strings.common.close}
         />
       )}
 
       {open === "student" && (
-        <AddSheet title="Add a student" closeLabel="Close" onClose={() => setOpen(null)}>
+        <AddSheet
+          title={strings.admin.sheets.addStudentTitle}
+          closeLabel={strings.common.close}
+          onClose={() => setOpen(null)}
+        >
           <NewGroupForm
             onSubmit={async (name) => {
               await onCreateStudent(name);
               done("groups");
             }}
+            locale={locale}
           />
         </AddSheet>
       )}
 
       {open === "link" && (
-        <AddSheet title="Add a link" closeLabel="Close" onClose={() => setOpen(null)}>
+        <AddSheet
+          title={strings.admin.sheets.addLinkTitle}
+          closeLabel={strings.common.close}
+          onClose={() => setOpen(null)}
+        >
           <AddLinkForm
             groups={groups}
             defaultGroupId={activeGroupId}
@@ -109,24 +128,30 @@ export function AdminChrome({
               await onCreateLink(input);
               done("pages");
             }}
+            locale={locale}
           />
         </AddSheet>
       )}
 
       {open === "page" && (
-        <AddSheet title="Add a page" closeLabel="Close" onClose={() => setOpen(null)}>
+        <AddSheet
+          title={strings.admin.sheets.addPageTitle}
+          closeLabel={strings.common.close}
+          onClose={() => setOpen(null)}
+        >
           <NewPageForm
             groups={groups}
             defaultGroupId={activeGroupId}
             onSubmit={onCreatePage}
             onSubmitPdf={onCreatePdfPage}
             onDone={() => done("pages")}
+            locale={locale}
           />
         </AddSheet>
       )}
 
       <Fab
-        label="Add"
+        label={strings.admin.fab.add}
         expanded={open === "menu"}
         onClick={() => setOpen(open === null ? "menu" : null)}
         // Left of the chat bubble, not underneath it. InboxFab is ALSO fixed at

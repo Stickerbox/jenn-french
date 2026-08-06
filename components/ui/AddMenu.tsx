@@ -15,11 +15,17 @@ export function AddMenu({
   choices,
   onChoose,
   onDismiss,
+  // Was a hardcoded "Fermer" — French unconditionally, on the assumption
+  // Jenn's UI was always English and this backdrop button was the one place
+  // that slipped through. Now a prop like every other dismiss control, so it
+  // follows the same word AddSheet's closeLabel uses.
+  dismissLabel,
   className,
 }: {
   choices: AddChoice[];
   onChoose: (key: string) => void;
   onDismiss: () => void;
+  dismissLabel: string;
   className?: string;
 }) {
   useEffect(() => {
@@ -34,7 +40,7 @@ export function AddMenu({
     <>
       <button
         type="button"
-        aria-label="Fermer"
+        aria-label={dismissLabel}
         onClick={onDismiss}
         className="fixed inset-0 z-40 cursor-default"
       />

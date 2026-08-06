@@ -15,10 +15,21 @@ import {
 import { chatBus } from "@/lib/chat-bus";
 import { studentSlug } from "@/lib/student-slug";
 import { deleteWhiteboardRow } from "@/lib/whiteboards";
+import { currentStrings } from "@/lib/locale";
 
+// Shown to Jenn verbatim wherever a caller's catch block falls back to
+// err.message — see CardAiError's own note in lib/card-ai.ts for why that
+// makes this sentence a translation target rather than an internal detail.
+// currentStrings() rather than a passed-in argument: every action below
+// already runs inside a "use server" request, so headers() is always in
+// scope, and threading a Strings argument through two dozen call sites would
+// buy nothing this doesn't already have for free.
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
-  if (!teacher) throw new Error("Unauthorized");
+  if (!teacher) {
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.unauthorized);
+  }
   return teacher;
 }
 
@@ -75,9 +86,10 @@ export async function upsertGlobalCard(input: CardInput) {
 
 export async function createGroup(name: string) {
   await requireTeacher();
+  const strings = await currentStrings();
 
   const trimmed = name.trim();
-  if (trimmed === "") throw new Error("A student needs a name.");
+  if (trimmed === "") throw new Error(strings.admin.actions.studentNameRequired);
 
   // Derived, never typed. The slug is a URL path segment and a cookie name,
   // and a hand-typed one could be neither — see lib/student-slug.ts.
@@ -100,7 +112,7 @@ export async function createGroup(name: string) {
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"
     ) {
-      throw new Error("That name is already taken — try adding a surname.");
+      throw new Error(strings.admin.actions.nameTaken);
     }
     throw err;
   }
@@ -119,7 +131,8 @@ export async function deleteGroup(groupId: string) {
     select: { isEveryone: true },
   });
   if (group && !canDeleteGroup(group)) {
-    throw new Error("Everyone can't be deleted.");
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.everyoneCannotBeDeleted);
   }
 
   await prisma.group.deleteMany({ where: { id: groupId } });

@@ -91,3 +91,29 @@ export const pageSectionList = "space-y-8";
 // step.
 export const tileActionClass =
   "flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]";
+
+// The audience picker's pill — a visually-hidden checkbox wrapped in a label —
+// duplicated identically in AddLinkForm, NewPageForm and PageEditor before
+// this existed. One constant is one place to recolour instead of three, which
+// is exactly what Wave 4 (Task I) needed: the unchecked chip now reads as the
+// card palette's paper and line rather than the admin's flatter field colours,
+// while a checked chip keeps the lilac accent — the rule Task I applies
+// everywhere in the admin is that a control marking a live SELECTION stays
+// accent-coloured, and only its surrounding chrome moves to card tokens.
+export const audiencePill =
+  "cursor-pointer rounded-full border px-4 py-2 text-sm font-normal transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-accent)]/40";
+
+export const audiencePillChecked =
+  "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--card-ink)]";
+
+export const audiencePillUnchecked =
+  "border-[var(--card-line)] bg-[var(--card-paper)] text-[var(--color-ink-muted)]";
+
+// Layered onto Input/Textarea's shared `fieldClassName` (components/ui/field.ts)
+// via cn, which twMerge dedupes against — the conflicting border/bg/text
+// utilities collapse to whichever is listed last, so this wins without editing
+// field.ts itself. That file stays untouched deliberately: it also renders
+// /login's passkey form, which Wave 4's own scope note leaves alone, and
+// editing it would recolour that page as a side effect of this one.
+export const cardFieldSkin =
+  "border-[var(--card-line)] bg-[var(--card-paper)] text-[var(--card-ink)] placeholder:text-[var(--color-ink-muted)]/60";

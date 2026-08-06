@@ -6,8 +6,13 @@
   --color-card-bg: #F5E6D3;
   --color-ink: #211C17;
   --color-ink-muted: #6B6259;
-  --color-accent: #A8462F;
-  --color-accent-soft: #EFD9C9;
+  /* Drawn from --card-plum (#9c4a86), one step lighter — the wordmark and the
+     primary control are meant to read as the same colour family. #B05C9A was
+     the first cut but only clears 4.336:1 against white, short of the 4.5:1
+     this carries as button and chat-bubble text; darkened to #AC5395
+     (4.745:1) to clear it. If you move --card-plum, look at this too. */
+  --color-accent: #AC5395;
+  --color-accent-soft: #F1E0EC;
   /* Form fields sit a step darker than the page, with a line dark enough to
      read as an edge rather than a shadow. White fields disappeared into the
      cream background. */

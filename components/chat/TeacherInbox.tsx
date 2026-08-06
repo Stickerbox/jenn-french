@@ -4,6 +4,9 @@ import { listConversations } from "@/lib/inbox";
 import { streamUrl } from "@/lib/stream-url";
 import { StreamProvider } from "@/components/StreamProvider";
 import { InboxFab } from "@/components/chat/InboxFab";
+import { currentLocale } from "@/lib/locale";
+import { getStrings } from "@/lib/strings";
+import { toBCP47 } from "@/lib/i18n";
 import {
   loadConversation,
   markChatRead,
@@ -11,38 +14,11 @@ import {
   inviteLink,
 } from "@/app/actions";
 
-// English throughout, matching the rest of the admin. On /g/marie that means a
-// French page with an English FAB, which is correct: the page is the student's
-// and the FAB is hers. Every string is a prop rather than inline copy so the
-// planned localisation is a map swap — see lib/page-section-labels.ts for the
-// pattern this follows.
-const LABELS = {
-  title: "Messages",
-  close: "Close",
-  back: "Back",
-  pickOne: "Pick a student to see your conversation.",
-  empty: "No messages yet.",
-  placeholder: "Write a message…",
-  send: "Send",
-  locale: "en-CA",
-  today: "Today",
-  yesterday: "Yesterday",
-  deleteMessage: "Delete",
-  search: "Search students",
-  noStudents: "No students yet.",
-  noMatch: "Nothing matches that.",
-  noMessages: "No messages yet",
-  you: "You: ",
-  unread: "Unread messages",
-  // Claim state (2026-08-03 student sign-in). Copy about a student stays
-  // gender-neutral, as that spec requires: Jenn's students are not all of one
-  // gender and the schema records a name, not a pronoun.
-  notSignedUp: "Hasn't signed up yet",
-  notSignedUpLong:
-    "{name} hasn't signed up yet, so there's nobody to receive a message. Share their invite link.",
-  copyInvite: "Copy invite",
-  copied: "Copied",
-};
+// Was a hardcoded English LABELS object, on the assumption Jenn's UI was
+// always English. That split is retired (see CLAUDE.md's Auth / language
+// note) — this now reads her own browser's Accept-Language, the same as every
+// other server component on this page. Built from the dictionary inside the
+// component below rather than at module scope, because it needs a request.
 
 // Owns the StreamProvider rather than sitting inside one, because on a student
 // page the provider has to wrap the page body as well — LiveBanner and BoardTab
@@ -67,13 +43,51 @@ export async function TeacherInbox({
   const selected =
     conversations.find((c) => c.slug === studentSlug)?.groupId ?? null;
 
+  const locale = await currentLocale();
+  const strings = getStrings(locale);
+  const chat = strings.admin.chat;
+
+  const labels = {
+    title: chat.title,
+    close: strings.common.close,
+    back: strings.chat.back,
+    pickOne: chat.pickOne,
+    empty: strings.chat.empty,
+    placeholder: strings.chat.placeholder,
+    send: strings.chat.send,
+    locale: toBCP47(locale),
+    today: strings.common.today,
+    yesterday: chat.yesterday,
+    deleteMessage: strings.chat.deleteMessage,
+    search: chat.search,
+    clear: strings.common.clear,
+    noStudents: chat.noStudents,
+    noMatch: chat.noMatch,
+    noMessages: chat.noMessages,
+    you: chat.you,
+    unread: chat.unread,
+    notSignedUp: chat.notSignedUp,
+    // UnclaimedNotice.tsx (a chat component this task does not own — see
+    // CLAUDE.md) substitutes the real student name into this string itself,
+    // with .replace("{name}", name), because one LABELS object is built once
+    // here for every student in the list, before any one of them is
+    // selected. Calling the dictionary's function with the literal token
+    // "{name}" is what keeps notSignedUpLong a FUNCTION in lib/strings.ts,
+    // per this project's interpolation rule, while still producing the
+    // template that call site needs — the function only ever places its
+    // argument verbatim, so handing it the token back out is exact.
+    notSignedUpLong: chat.notSignedUpLong("{name}"),
+    copyInvite: chat.copyInvite,
+    copied: chat.copied,
+  };
+
   return (
     <StreamProvider url={streamUrl({ isTeacher: true, slug: studentSlug })}>
       {children}
       <InboxFab
         conversations={conversations}
         initialSelectedId={selected}
-        labels={LABELS}
+        labels={labels}
         onLoadConversation={loadConversation}
         onMarkRead={markChatRead}
         onDeleteMessage={deleteMessage}

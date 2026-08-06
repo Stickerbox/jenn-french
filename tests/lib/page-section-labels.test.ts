@@ -1,46 +1,39 @@
 import { describe, it, expect } from "vitest";
-import {
-  adminSectionLabel,
-  studentSectionLabel,
-} from "@/lib/page-section-labels";
+import { sectionLabel } from "@/lib/page-section-labels";
 
-describe("adminSectionLabel", () => {
-  it("names the three fixed sections", () => {
-    expect(adminSectionLabel({ kind: "pinned" })).toBe("Pinned");
-    expect(adminSectionLabel({ kind: "thisWeek" })).toBe("This week");
-    expect(adminSectionLabel({ kind: "lastWeek" })).toBe("Last week");
+// Formerly two describe blocks, one per function — adminSectionLabel and
+// studentSectionLabel — before Task H2 collapsed them into one. See the
+// comment on sectionLabel for why: both surfaces now follow the visitor's
+// locale, which made the two implementations identical.
+describe("sectionLabel", () => {
+  it("names the three fixed sections in French", () => {
+    expect(sectionLabel({ kind: "pinned" }, "fr")).toBe("Épinglé");
+    expect(sectionLabel({ kind: "thisWeek" }, "fr")).toBe("Cette semaine");
+    expect(sectionLabel({ kind: "lastWeek" }, "fr")).toBe(
+      "La semaine dernière",
+    );
   });
 
-  // The year is always present: a shelf spanning a year boundary would
-  // otherwise show two headings both reading "JULY".
-  it("names a month with its year", () => {
-    expect(adminSectionLabel({ kind: "month", year: 2026, month: 6 })).toBe(
+  it("names the three fixed sections in English", () => {
+    expect(sectionLabel({ kind: "pinned" }, "en")).toBe("Pinned");
+    expect(sectionLabel({ kind: "thisWeek" }, "en")).toBe("This week");
+    expect(sectionLabel({ kind: "lastWeek" }, "en")).toBe("Last week");
+  });
+
+  it("names a month in French with its year", () => {
+    expect(sectionLabel({ kind: "month", year: 2026, month: 6 }, "fr")).toBe(
+      "JUILLET 2026",
+    );
+  });
+
+  it("names the same month in English with its year", () => {
+    expect(sectionLabel({ kind: "month", year: 2026, month: 6 }, "en")).toBe(
       "JULY 2026",
     );
   });
 
   it("names January, the month index most likely to be off by one", () => {
-    expect(adminSectionLabel({ kind: "month", year: 2026, month: 0 })).toBe(
-      "JANUARY 2026",
-    );
-  });
-});
-
-describe("studentSectionLabel", () => {
-  it("names the three fixed sections in French", () => {
-    expect(studentSectionLabel({ kind: "pinned" })).toBe("Épinglé");
-    expect(studentSectionLabel({ kind: "thisWeek" })).toBe("Cette semaine");
-    expect(studentSectionLabel({ kind: "lastWeek" })).toBe("La semaine dernière");
-  });
-
-  it("names a month in French with its year", () => {
-    expect(studentSectionLabel({ kind: "month", year: 2026, month: 6 })).toBe(
-      "JUILLET 2026",
-    );
-  });
-
-  it("names January, the month index most likely to be off by one", () => {
-    expect(studentSectionLabel({ kind: "month", year: 2026, month: 0 })).toBe(
+    expect(sectionLabel({ kind: "month", year: 2026, month: 0 }, "fr")).toBe(
       "JANVIER 2026",
     );
   });

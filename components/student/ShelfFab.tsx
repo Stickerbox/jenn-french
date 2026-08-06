@@ -11,6 +11,8 @@ import { renderPdfThumbnail } from "@/components/pdf-thumbnail";
 import { MAX_PDF_BYTES } from "@/lib/page-pdf";
 import { cn } from "@/lib/utils";
 import { fieldClassName } from "@/components/ui/field";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 
 type Open = null | "menu" | "link" | "page" | "pdf";
 
@@ -25,30 +27,19 @@ const THUMB_WAIT_MS = 3_000;
 
 export type ShelfRole = "student" | "teacher";
 
-// Two label sets, chosen by role, following the split this codebase keeps
-// everywhere: Jenn's UI is English and a student's is French.
-//
-// The student has no "add a page". Uploading a whole HTML document is Jenn's
-// again — "they can only upload a PDF, not a website" — and this is where that
-// narrowing happens. addShelfPage stays on the server with its guard and its
-// tests intact, because the guard is correct and what changed is which control
-// is drawn.
+// Every menu item's TEXT used to be chosen by role — two label sets, one
+// French and one English — because Jenn's UI was always English and a
+// student's always French. That reason is gone: both now read from the same
+// dictionary, chosen by the visitor's own locale. What role still decides is
+// which items exist at all, which is a different question and still a real
+// one: the student has no "add a page". Uploading a whole HTML document is
+// Jenn's again — "they can only upload a PDF, not a website" — and this is
+// where that narrowing happens. addShelfPage stays on the server with its
+// guard and its tests intact, because the guard is correct and what changed
+// is which control is drawn.
 //
 // "Add a student" is deliberately absent from Jenn's menu: creating a student
 // is an admin-level act and has no meaning inside one student's page.
-const LABELS = {
-  student: {
-    add: "Ajouter",
-    link: "Ajouter un lien",
-    pdf: "Ajouter un PDF",
-  },
-  teacher: {
-    add: "Add",
-    link: "Add a link",
-    page: "Add a page",
-    pdf: "Add a PDF",
-  },
-} as const;
 
 // The shelf's one add control, replacing the row of fields that used to sit
 // above the files list. It renders on EVERY tab, not just Files: it matches the
@@ -69,6 +60,7 @@ export function ShelfFab({
   onAddLink,
   onAddPage,
   onAddPdf,
+  locale,
 }: {
   role: ShelfRole;
   onAddLink: (input: { url: string }) => Promise<void>;
@@ -76,7 +68,14 @@ export function ShelfFab({
   // offer it, so a student page has nothing to pass.
   onAddPage?: (input: { html: string }) => Promise<void>;
   onAddPdf: (formData: FormData) => Promise<void>;
+  // This is a client component, so it cannot call headers() itself — the
+  // server component above it (app/g/[slug]/page.tsx) reads the locale once
+  // and hands it down; getStrings(locale) below rebuilds the dictionary here
+  // rather than taking the resolved object as a prop — see lib/strings.ts on
+  // why that object cannot cross the boundary.
+  locale: Locale;
 }) {
+  const strings = getStrings(locale);
   const router = useRouter();
   const [open, setOpen] = useState<Open>(null);
   const [url, setUrl] = useState("");
@@ -115,9 +114,10 @@ export function ShelfFab({
       await onAddLink({ url });
       done();
     } catch {
-      // The action's own messages are English and written for Jenn; a student
-      // gets one French sentence instead of a leaked internal string.
-      setError("Ce lien n'a pas pu être ajouté.");
+      // The action's own thrown messages are internal (English, written for a
+      // stack trace) and are deliberately discarded here: the visitor gets one
+      // sentence from the dictionary instead of a leaked internal string.
+      setError(strings.student.shelf.linkError);
     } finally {
       setSaving(false);
     }
@@ -133,7 +133,7 @@ export function ShelfFab({
       await onAddPage({ html });
       done();
     } catch {
-      setError("Cette page n'a pas pu être ajoutée.");
+      setError(strings.student.shelf.pageError);
     } finally {
       setSaving(false);
     }
@@ -144,10 +144,10 @@ export function ShelfFab({
   function stagePdf(file: File) {
     setError(null);
     // Checked again on the server, which is the authority. Telling them before
-    // a 3 MB upload rather than after — and in French, like every other message
-    // a student can reach.
+    // a 3 MB upload rather than after — and in whichever language the rest of
+    // this form is speaking.
     if (file.size > MAX_PDF_BYTES) {
-      setError("Ce PDF dépasse 3 Mo.");
+      setError(strings.student.shelf.pdfTooLarge);
       return;
     }
 
@@ -191,23 +191,25 @@ export function ShelfFab({
       await onAddPdf(formData);
       done();
     } catch {
-      setError("Ce PDF n'a pas pu être ajouté.");
+      setError(strings.student.shelf.pdfError);
     } finally {
       setSaving(false);
     }
   }
 
-  const labels = LABELS[role];
+  const shelf = strings.student.shelf;
+  // The role distinction that survives: WHICH items exist, not what language
+  // they are drawn in. "page" is teacher-only regardless of locale.
   const choices =
     role === "teacher"
       ? [
-          { key: "link", label: LABELS.teacher.link },
-          { key: "page", label: LABELS.teacher.page },
-          { key: "pdf", label: LABELS.teacher.pdf },
+          { key: "link", label: shelf.addLink },
+          { key: "page", label: shelf.addPage },
+          { key: "pdf", label: shelf.addPdf },
         ]
       : [
-          { key: "link", label: LABELS.student.link },
-          { key: "pdf", label: LABELS.student.pdf },
+          { key: "link", label: shelf.addLink },
+          { key: "pdf", label: shelf.addPdf },
         ];
 
   return (
@@ -218,13 +220,14 @@ export function ShelfFab({
           choices={choices}
           onChoose={(key) => setOpen(key as Open)}
           onDismiss={() => setOpen(null)}
+          dismissLabel={strings.common.close}
         />
       )}
 
       {open === "link" && (
         <AddSheet
-          title={labels.link}
-          closeLabel="Fermer"
+          title={shelf.addLink}
+          closeLabel={strings.common.close}
           onClose={() => setOpen(null)}
         >
           <form onSubmit={submitLink} className="flex flex-col gap-3">
@@ -232,7 +235,7 @@ export function ShelfFab({
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://…"
-              aria-label="Adresse du lien"
+              aria-label={shelf.linkUrlAriaLabel}
               required
               autoFocus
               className={cn(fieldClassName, "mt-0")}
@@ -243,7 +246,7 @@ export function ShelfFab({
               disabled={saving || url.trim() === ""}
               className="rounded-full bg-[var(--card-bleu)] px-5 py-2.5 font-[family-name:var(--card-font-serif)] text-sm text-white disabled:opacity-50"
             >
-              {saving ? "Ajout…" : "Enregistrer"}
+              {saving ? strings.common.saving : strings.common.save}
             </button>
             {error && (
               <p role="alert" className="text-center text-sm text-[var(--card-rouge)]">
@@ -256,19 +259,19 @@ export function ShelfFab({
 
       {open === "page" && onAddPage && (
         <AddSheet
-          title={LABELS.teacher.page}
-          closeLabel="Fermer"
+          title={shelf.addPage}
+          closeLabel={strings.common.close}
           onClose={() => setOpen(null)}
         >
           <HtmlPasteBox
             tone="card"
             labels={{
-              prompt: "Collez le code HTML ici (⌘V)",
-              accepted: (size) => `Page reçue — ${size}`,
-              ariaLabel: "Code HTML de la page",
+              prompt: shelf.pastePrompt,
+              accepted: shelf.pasteAccepted,
+              ariaLabel: shelf.pasteAriaLabel,
             }}
             onHtml={submitPage}
-            errorFor={() => "Ce n'est pas une page HTML."}
+            errorFor={() => shelf.pasteNotHtml}
           />
           {error && (
             <p role="alert" className="mt-2 text-center text-sm text-[var(--card-rouge)]">
@@ -280,8 +283,8 @@ export function ShelfFab({
 
       {open === "pdf" && (
         <AddSheet
-          title={labels.pdf}
-          closeLabel={role === "teacher" ? "Close" : "Fermer"}
+          title={shelf.addPdf}
+          closeLabel={strings.common.close}
           onClose={() => setOpen(null)}
         >
           <form onSubmit={submitPdf} className="flex flex-col gap-3">
@@ -294,12 +297,8 @@ export function ShelfFab({
               fileSize={pdfFile?.size ?? null}
               hasExisting={false}
               accept="application/pdf"
-              inputLabel={role === "teacher" ? "Choose a PDF" : "Choisir un PDF"}
-              emptyHint={
-                role === "teacher"
-                  ? "PDF, up to 3 MB"
-                  : "PDF, 3 Mo maximum"
-              }
+              inputLabel={shelf.choosePdf}
+              emptyHint={shelf.pdfHint}
               existingHint=""
               onFile={stagePdf}
             />
@@ -311,7 +310,7 @@ export function ShelfFab({
                   setTitleTouched(true);
                   setPdfTitle(e.target.value);
                 }}
-                aria-label={role === "teacher" ? "Title" : "Titre du document"}
+                aria-label={shelf.titleAriaLabel}
                 required
                 className={cn(fieldClassName, "mt-0")}
               />
@@ -322,13 +321,7 @@ export function ShelfFab({
               disabled={saving || !pdfFile || pdfTitle.trim() === ""}
               className="rounded-full bg-[var(--card-bleu)] px-5 py-2.5 font-[family-name:var(--card-font-serif)] text-sm text-white disabled:opacity-50"
             >
-              {saving
-                ? role === "teacher"
-                  ? "Saving…"
-                  : "Ajout…"
-                : role === "teacher"
-                  ? "Save"
-                  : "Enregistrer"}
+              {saving ? strings.common.saving : strings.common.save}
             </button>
 
             {error && (
@@ -341,7 +334,7 @@ export function ShelfFab({
       )}
 
       <Fab
-        label={labels.add}
+        label={shelf.add}
         expanded={open === "menu"}
         onClick={() => setOpen(open === null ? "menu" : null)}
         className="bottom-6 right-24"

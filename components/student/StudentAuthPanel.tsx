@@ -15,10 +15,9 @@ import {
   normaliseEmail,
   MIN_PASSWORD_LENGTH,
 } from "@/lib/student-credentials";
-import {
-  credentialProblemLabel,
-  GENERIC_FAILURE,
-} from "@/lib/student-auth-labels";
+import { credentialProblemLabel } from "@/lib/student-auth-labels";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 
 const linkButton =
   "font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-bleu)] underline";
@@ -26,10 +25,18 @@ const linkButton =
 export function StudentAuthPanel({
   slug,
   mode,
+  locale,
 }: {
   slug: string;
   mode: AuthPanelMode;
+  // This is a client component, so it cannot call headers() itself — the
+  // server component above it (app/g/[slug]/page.tsx) reads the locale once
+  // and hands it down; getStrings(locale) below rebuilds the dictionary here
+  // rather than taking the resolved object as a prop — see lib/strings.ts on
+  // why that object cannot cross the boundary.
+  locale: Locale;
 }) {
+  const strings = getStrings(locale);
   const router = useRouter();
   // Sign-up arrives on an invite and came to do exactly one thing, so its form
   // is open. Sign-in collapses to one line, which is what keeps the public
@@ -40,6 +47,8 @@ export function StudentAuthPanel({
   const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const auth = strings.student.auth;
 
   async function handleSignOut() {
     await signOutStudent(slug);
@@ -54,12 +63,12 @@ export function StudentAuthPanel({
     // trip. This is a convenience: the action re-checks, because a disabled
     // button is not a guard.
     if (normaliseEmail(email) === null) {
-      setError(credentialProblemLabel("bad-email"));
+      setError(credentialProblemLabel("bad-email", strings));
       return;
     }
     const problem = checkPassword(password);
     if (problem !== null) {
-      setError(credentialProblemLabel(problem));
+      setError(credentialProblemLabel(problem, strings));
       return;
     }
 
@@ -76,20 +85,25 @@ export function StudentAuthPanel({
       setPassword("");
       router.refresh();
     } catch {
-      // The action's failures already arrive as French sentences; this is the
-      // network or a crash, and the student still gets one French sentence
-      // rather than a leaked internal string.
-      setError(GENERIC_FAILURE);
+      // The action's failures already arrive as sentences in the visitor's own
+      // language; this is the network or a crash, and the student still gets
+      // one sentence from the dictionary rather than a leaked internal string.
+      setError(auth.genericFailure);
     } finally {
       setBusy(false);
     }
   }
 
   if (mode === "signed-in") {
+    // Rendered by the caller after the tab content, not up here beside
+    // signup/login: a sign-out control is the last thing on the page, not
+    // the first thing above everything the student came for. The hairline
+    // rule and generous top margin are what separate it from that content
+    // rather than a heading of its own. See app/g/[slug]/page.tsx.
     return (
-      <div className="mx-auto mb-6 flex w-full max-w-[560px] justify-end">
+      <div className="mx-auto mt-12 w-full max-w-[560px] border-t border-[var(--card-line)] pt-6 text-center">
         <button type="button" onClick={handleSignOut} className={linkButton}>
-          Se déconnecter
+          {auth.signOut}
         </button>
       </div>
     );
@@ -103,7 +117,7 @@ export function StudentAuthPanel({
           onClick={() => setOpen(true)}
           className={linkButton}
         >
-          Vous avez un compte ? Se connecter
+          {auth.haveAccount}
         </button>
       </div>
     );
@@ -112,11 +126,11 @@ export function StudentAuthPanel({
   const submitLabel =
     mode === "signup"
       ? busy
-        ? "Création…"
-        : "Créer mon compte"
+        ? auth.creating
+        : auth.createAccount
       : busy
-        ? "Connexion…"
-        : "Se connecter";
+        ? auth.signingIn
+        : auth.signIn;
 
   return (
     <form
@@ -124,9 +138,7 @@ export function StudentAuthPanel({
       className="mx-auto mb-8 w-full max-w-[560px] rounded-2xl border border-[var(--card-line)] bg-[var(--card-paper-back)] p-5"
     >
       <p className="mb-3 font-[family-name:var(--card-font-serif)] text-[15px] text-[var(--card-ink)]">
-        {mode === "signup"
-          ? "Créez votre compte pour accéder à vos documents et au clavardage."
-          : "Connectez-vous pour accéder à vos documents et au clavardage."}
+        {mode === "signup" ? auth.signUpIntro : auth.signInIntro}
       </p>
 
       {/* Both fields in ONE form, submitted together. This is the whole of
@@ -137,7 +149,7 @@ export function StudentAuthPanel({
         htmlFor="student-email"
         className="block font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-ink)]"
       >
-        Courriel
+        {auth.emailLabel}
       </label>
       <input
         id="student-email"
@@ -154,7 +166,7 @@ export function StudentAuthPanel({
         htmlFor="student-password"
         className="block font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-ink)]"
       >
-        Mot de passe
+        {auth.passwordLabel}
       </label>
       <input
         id="student-password"
@@ -176,7 +188,7 @@ export function StudentAuthPanel({
           onClick={() => setReveal(!reveal)}
           className={linkButton}
         >
-          {reveal ? "Masquer" : "Afficher"} le mot de passe
+          {reveal ? auth.hidePassword : auth.showPassword}
         </button>
         {mode === "login" && (
           <button
@@ -184,7 +196,7 @@ export function StudentAuthPanel({
             onClick={() => setOpen(false)}
             className={linkButton}
           >
-            Annuler
+            {strings.common.cancel}
           </button>
         )}
       </div>

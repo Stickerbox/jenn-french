@@ -15,6 +15,7 @@ import {
   toggleEmphasis,
 } from "@/lib/rich-text";
 import { applyFieldStyle, type FieldStyle } from "@/lib/field-styles";
+import type { Locale } from "@/lib/i18n";
 import { CARD_COLOR_VAR } from "@/components/card-styles";
 import {
   FormatPopover,
@@ -196,6 +197,12 @@ export type RichTextProps = {
   className?: string;
   multiline?: boolean;
   ariaLabel: string;
+  // The formatting toolbar's own labels are built from this rather than taken
+  // as a resolved object: `colorLabel` in Strings["admin"]["formatPopover"] is
+  // a function, and a `Strings` value — resolved or sliced — cannot cross a
+  // server/client boundary. Every caller already has `locale` in scope. See
+  // lib/strings.ts.
+  locale: Locale;
 };
 
 export function RichText({
@@ -206,6 +213,7 @@ export function RichText({
   className,
   multiline = false,
   ariaLabel,
+  locale,
 }: RichTextProps) {
   const ref = useRef<HTMLDivElement>(null);
   // Where to put the caret after the next redraw. Set by any edit this
@@ -402,6 +410,7 @@ export function RichText({
             onColor={(color) =>
               commit(setColor(markup, range.start, range.end, color), range)
             }
+            locale={locale}
           />,
           document.body,
         )}

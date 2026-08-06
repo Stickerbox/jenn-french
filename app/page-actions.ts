@@ -23,10 +23,24 @@ import { titleFromUrl } from "@/lib/link-title";
 import { titleFromHtml } from "@/lib/page-title";
 import { inlinePage, type SkippedRef } from "@/lib/page-inline";
 import { readWorksheetField } from "@/lib/worksheet-field";
+import { currentStrings } from "@/lib/locale";
 
+// currentStrings() rather than a threaded argument, the same choice
+// app/actions.ts makes and for the same reason: every action below already
+// runs inside a "use server" request, so headers() is always in scope.
+//
+// These "Unauthorized" throws are reachable from BOTH audiences — Jenn's own
+// admin forms, where they surface via err.message, and a student's ShelfFab,
+// which discards err.message entirely and always shows its own static
+// dictionary sentence (strings.student.shelf.*). Translating this string
+// costs nothing on the student path and fixes the teacher one, so it is
+// translated regardless of which caller happens to reach it today.
 async function requireTeacher() {
   const teacher = await getCurrentTeacher();
-  if (!teacher) throw new Error("Unauthorized");
+  if (!teacher) {
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.unauthorized);
+  }
   return teacher;
 }
 
@@ -38,7 +52,10 @@ async function requireShelfRole(groupId: string): Promise<ShelfRole> {
     where: { id: groupId },
     select: { slug: true, isEveryone: true, chatToken: true },
   });
-  if (!group) throw new Error("Unauthorized");
+  if (!group) {
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.unauthorized);
+  }
 
   const teacher = await getCurrentTeacher();
   const cookieStore = await cookies();
@@ -51,7 +68,10 @@ async function requireShelfRole(groupId: string): Promise<ShelfRole> {
       cookieStore.get(cookieNameFor(group.slug))?.value,
     ),
   });
-  if (!role) throw new Error("Unauthorized");
+  if (!role) {
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.unauthorized);
+  }
   return role;
 }
 
@@ -80,14 +100,17 @@ export type LinkInput = {
   groupIds: string[];
 };
 
-function requireTitle(value: string): string {
+async function requireTitle(value: string): Promise<string> {
   const title = value.trim();
-  if (!title) throw new Error("A title is required.");
+  if (!title) {
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.titleRequired);
+  }
   return title;
 }
 
-function validatePage(input: PageInput) {
-  const title = requireTitle(input.title);
+async function validatePage(input: PageInput) {
+  const title = await requireTitle(input.title);
   const html = validatePageHtml(input.html);
   if (!html.ok) throw new Error(html.error);
   return { title, html: html.html };
@@ -140,9 +163,8 @@ async function saveOrExplain(input: SavePageInput): Promise<string> {
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2003"
     ) {
-      throw new Error(
-        "One of those groups was just deleted — reload the page and try again.",
-      );
+      const strings = await currentStrings();
+      throw new Error(strings.admin.actions.groupDeletedMidEdit);
     }
     throw err;
   }
@@ -170,7 +192,7 @@ export async function updatePage(
   input: PageInput,
 ): Promise<PageSaveResult> {
   await requireTeacher();
-  const { title, html } = validatePage(input);
+  const { title, html } = await validatePage(input);
   const inlined = await inlinePage(html);
 
   await saveOrExplain({
@@ -204,7 +226,7 @@ export async function updatePage(
 async function readPdfForm(
   formData: FormData,
 ): Promise<{ title: string; bytes: Uint8Array | null }> {
-  const title = requireTitle(String(formData.get("title") ?? ""));
+  const title = await requireTitle(String(formData.get("title") ?? ""));
 
   const file = formData.get("pdf");
   // Size and not presence: an untouched file input serialises as an empty File
@@ -247,7 +269,10 @@ function readGroupIds(formData: FormData): string[] {
 export async function createPdfPage(formData: FormData): Promise<string> {
   await requireTeacher();
   const { title, bytes } = await readPdfForm(formData);
-  if (!bytes) throw new Error("A PDF file is required.");
+  if (!bytes) {
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.pdfRequired);
+  }
 
   const slug = await saveOrExplain({
     slug: null,
@@ -424,7 +449,10 @@ export async function addShelfPdf(
   const role = await requireShelfRole(groupId);
 
   const { title, bytes } = await readPdfForm(formData);
-  if (!bytes) throw new Error("A PDF file is required.");
+  if (!bytes) {
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.pdfRequired);
+  }
 
   const slug = await saveOrExplain({
     slug: null,
@@ -510,7 +538,10 @@ export async function deleteShelfLink(
       },
       groupId,
     );
-    if (!allowed) throw new Error("Unauthorized");
+    if (!allowed) {
+      const strings = await currentStrings();
+      throw new Error(strings.admin.actions.unauthorized);
+    }
   }
 
   await prisma.page.deleteMany({ where: { id: page.id } });

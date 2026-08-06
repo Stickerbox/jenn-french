@@ -4,6 +4,14 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import {
+  audiencePill,
+  audiencePillChecked,
+  audiencePillUnchecked,
+  cardFieldSkin,
+} from "@/components/card-styles";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { LinkInput } from "@/app/page-actions";
 
@@ -16,11 +24,17 @@ export function AddLinkForm({
   groups,
   defaultGroupId,
   onSubmit,
+  locale,
 }: {
   groups: { id: string; name: string }[];
   defaultGroupId: string | null;
   onSubmit: (input: LinkInput) => Promise<unknown>;
+  // This is a client component reached directly from AdminChrome, so it
+  // takes `locale` rather than the resolved `strings` object — a `Strings`
+  // value holds functions and cannot cross that boundary. See lib/strings.ts.
+  locale: Locale;
 }) {
+  const strings = getStrings(locale);
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [groupIds, setGroupIds] = useState<string[]>(
@@ -59,7 +73,7 @@ export function AddLinkForm({
       setUrl("");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not add that link");
+      setError(err instanceof Error ? err.message : strings.admin.addLinkForm.error);
     } finally {
       setSaving(false);
     }
@@ -67,11 +81,11 @@ export function AddLinkForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <fieldset className="text-sm font-medium text-[var(--color-ink)]">
-        <legend className="mb-2">Students</legend>
+      <fieldset className="text-sm font-medium text-[var(--card-ink)]">
+        <legend className="mb-2">{strings.admin.pageForm.studentsLegend}</legend>
         {groups.length === 0 ? (
           <p className="text-sm font-normal text-[var(--color-ink-muted)]">
-            No students yet.
+            {strings.admin.pageForm.noStudentsYet}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -81,10 +95,8 @@ export function AddLinkForm({
                 <label
                   key={group.id}
                   className={cn(
-                    "cursor-pointer rounded-full border px-4 py-2 text-sm font-normal transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-accent)]/40",
-                    checked
-                      ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-ink)]"
-                      : "border-[var(--color-field-border)] bg-[var(--color-field)] text-[var(--color-ink-muted)]",
+                    audiencePill,
+                    checked ? audiencePillChecked : audiencePillUnchecked,
                   )}
                 >
                   <input
@@ -106,16 +118,17 @@ export function AddLinkForm({
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://docs.google.com/…"
-          aria-label="Link address"
+          aria-label={strings.admin.addLinkForm.urlAriaLabel}
           required
+          className={cardFieldSkin}
         />
         <Button type="submit" disabled={saving || url.trim() === ""}>
-          {saving ? "Adding..." : "Add link"}
+          {saving ? strings.common.adding : strings.admin.addLinkForm.addButton}
         </Button>
       </div>
 
       {error && (
-        <p role="alert" className="text-center text-sm text-[var(--color-accent)]">
+        <p role="alert" className="text-center text-sm text-[var(--card-rouge)]">
           {error}
         </p>
       )}

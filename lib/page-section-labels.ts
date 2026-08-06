@@ -1,33 +1,28 @@
 import type { SectionKey } from "@/lib/page-sections";
-import { MONTHS } from "@/lib/week";
+import { toBCP47, type Locale } from "@/lib/i18n";
 
-export function adminSectionLabel(key: SectionKey): string {
+// Used to be two functions, adminSectionLabel() and studentSectionLabel(key,
+// locale) — the admin unconditionally in English, the student's own dictionary
+// keyed by locale, because Jenn's UI was English and a student's was French.
+// Wave 3 (Task H2, 2026-08-06) puts both surfaces on the same rule — follow
+// Accept-Language, French as the fallback — which made the two function
+// bodies identical but for which literal each `switch` arm returned. At that
+// point they were not two things any more, so they are collapsed into one.
+// Both callers (components/admin/PageList.tsx and
+// components/student/FilesTab.tsx) now pass their own locale in.
+export function sectionLabel(key: SectionKey, locale: Locale): string {
   switch (key.kind) {
     case "pinned":
-      return "Pinned";
+      return locale === "en" ? "Pinned" : "Épinglé";
     case "thisWeek":
-      return "This week";
+      return locale === "en" ? "This week" : "Cette semaine";
     case "lastWeek":
-      return "Last week";
+      return locale === "en" ? "Last week" : "La semaine dernière";
     case "month":
-      // MONTHS is already uppercase and 0-indexed, like key.month.
-      return `${MONTHS[key.month]} ${key.year}`;
-  }
-}
-
-export function studentSectionLabel(key: SectionKey): string {
-  switch (key.kind) {
-    case "pinned":
-      return "Épinglé";
-    case "thisWeek":
-      return "Cette semaine";
-    case "lastWeek":
-      return "La semaine dernière";
-    case "month":
-      // Built through the same fr-CA/UTC path the student's dates already take,
-      // rather than a second hand-written month table to keep in step.
+      // Built through the UTC Intl path so there is no second hand-written
+      // month table for this one label to drift from lib/week.ts's own.
       return new Date(Date.UTC(key.year, key.month, 1))
-        .toLocaleDateString("fr-CA", {
+        .toLocaleDateString(toBCP47(locale), {
           month: "long",
           year: "numeric",
           timeZone: "UTC",

@@ -36,6 +36,9 @@ import {
   setShelfPin,
   deleteShelfLink,
 } from "@/app/page-actions";
+import { currentLocale } from "@/lib/locale";
+import { getStrings } from "@/lib/strings";
+import { toBCP47 } from "@/lib/i18n";
 
 function parseDate(value: string | undefined, latest: Date): Date {
   if (!value) return latest;
@@ -56,6 +59,13 @@ export default async function GroupPage({
 }) {
   const { slug } = await params;
   const { date, tab: tab_, edit } = await searchParams;
+
+  // Read once, at the top, and threaded through everything below. This is a
+  // server component, so headers() is in scope, and every branch on this page
+  // — the student's card and files, the teacher's notices, the chat labels —
+  // needs the same dictionary.
+  const locale = await currentLocale();
+  const strings = getStrings(locale);
 
   // An explicit select rather than the whole row, because one of these columns
   // is a password hash and this file renders into a client tree. It is read for
@@ -145,14 +155,17 @@ export default async function GroupPage({
   // not run this query at all.
   const cardDates = tab === "card" ? await listCardDates(latest) : [];
 
-  // Her line, not theirs. English for Jenn and French for the student, following
-  // the split this codebase keeps everywhere else — and still nothing at all on
-  // the everyone group, which is named "Everyone" and is nobody's page.
+  // Whoever is looking at the page, not "her line vs. theirs" — that used to
+  // mean English for Jenn and French for the student because the whole app
+  // split that way. It is retired: BOTH now read from `locale`, which is the
+  // same value for either party on a given request, because it comes from
+  // whoever's browser is asking. Still nothing at all on the everyone group,
+  // which is named "Everyone" and is nobody's page.
   const headerLine = group.isEveryone
     ? null
     : viewerIsTeacher
-      ? teacherPageLabel(group.name)
-      : greeting(group.name);
+      ? teacherPageLabel(group.name, locale)
+      : greeting(group.name, locale);
 
   // Extracted so the same tab body can render inside StreamProvider when the
   // visitor is unlocked and bare when they are not. Anything in here that calls
@@ -185,12 +198,13 @@ export default async function GroupPage({
             today={todayStr}
             latest={latest.toISOString().slice(0, 10)}
             cardDates={cardDates}
+            locale={locale}
           />
           {card ? (
-            <Flashcard card={card} />
+            <Flashcard card={card} locale={locale} />
           ) : (
             <p className="text-center font-[family-name:var(--font-body)] text-[var(--color-ink-muted)]">
-              Nothing posted yet — check back soon!
+              {strings.student.page.nothingPosted}
             </p>
           )}
         </>
@@ -212,6 +226,7 @@ export default async function GroupPage({
           studentName={group.name}
           onTogglePin={setShelfPin.bind(null, group.id)}
           onDeleteLink={deleteShelfLink.bind(null, group.id)}
+          locale={locale}
         />
       ) : (
         <BoardTab
@@ -249,7 +264,11 @@ export default async function GroupPage({
           requireTeacher(). Mounted here rather than inside FilesTab so it
           survives a tab change while open. */}
       {viewerIsTeacher && (
-        <PageEditOverlay slug={edit ?? null} closeTo="?tab=files" />
+        <PageEditOverlay
+          slug={edit ?? null}
+          closeTo="?tab=files"
+          locale={locale}
+        />
       )}
 
       {viewerIsTeacher && (
@@ -257,21 +276,22 @@ export default async function GroupPage({
           href="/admin?tab=groups"
           className="absolute left-4 top-4 z-10 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-4 py-1.5 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)] transition-opacity hover:opacity-80"
         >
-          ← Back to admin
+          {strings.student.page.backToAdmin}
         </Link>
       )}
 
       <header className="mx-auto mb-7 max-w-[560px] text-center">
+        {/* Not a link to "/" — the landing page redirects a signed-in student
+            straight back here, so pressing the site's own name used to be a
+            round trip to nowhere. */}
         <h1
           className="mb-2.5 font-[family-name:var(--card-font-serif)] text-[var(--card-plum)]"
           style={{ fontSize: "clamp(30px, 5.5vw, 42px)", lineHeight: 1.15 }}
         >
-          <Link href="/" className="transition-opacity hover:opacity-75">
-            Français Avec Jenn
-          </Link>
+          {strings.student.brand.wordmark}
         </h1>
         <div className="font-[family-name:var(--card-font-serif)] text-[15px] italic text-[var(--card-moss)]">
-          Un jour, une carte — Québec-flavoured
+          {strings.student.brand.tagline}
         </div>
         {/* Suppressed on the everyone group, whose name is literally "Everyone".
             The greeting is shown to untokened visitors too: /g/marie already
@@ -297,18 +317,27 @@ export default async function GroupPage({
         />
       )}
 
-      {panelMode && <StudentAuthPanel slug={slug} mode={panelMode} />}
+      {/* signup/login only — signed-in renders after the tab content, at the
+          very bottom of the page body. These two are the reason the student
+          is on the page, and pushing them below the fold would hide the only
+          thing they can act on. */}
+      {panelMode && panelMode !== "signed-in" && (
+        <StudentAuthPanel slug={slug} mode={panelMode} locale={locale} />
+      )}
 
-      {/* Teacher-facing, and therefore English and static — no client component
-          needed. Rendered here rather than inside StudentAuthPanel because both
-          notices name the STUDENT, and the student's name is deliberately
-          absent from the public page. Keeping it on a teacher-only branch is
-          what stops a public visitor's HTML from ever containing it. */}
+      {/* Teacher-facing. Used to be English and static, on the assumption
+          Jenn's UI was always English — it now follows `locale` like
+          everything else on this page, which is why this is no longer a bare
+          string. Still no client component needed: the text is server-
+          rendered same as before. Rendered here rather than inside
+          StudentAuthPanel because both notices name the STUDENT, and the
+          student's name is deliberately absent from the public page. Keeping
+          it on a teacher-only branch is what stops a public visitor's HTML
+          from ever containing it. */}
       {gate === "unclaimed" && (
         <div className="mx-auto mb-8 w-full max-w-[560px] rounded-2xl border border-[var(--card-line)] bg-[var(--card-paper-back)] p-5 text-sm text-[var(--card-ink)]">
           <p className="mb-2">
-            {group.name} hasn&apos;t signed up yet. Share this link once — it
-            lets them create their account:
+            {strings.student.page.unclaimedNotice(group.name)}
           </p>
           <code className="break-all text-xs">
             /g/{slug}?k={group.chatToken}
@@ -318,9 +347,7 @@ export default async function GroupPage({
 
       {gate === "teacher-stale" && (
         <div className="mx-auto mb-8 w-full max-w-[560px] rounded-2xl border border-[var(--card-line)] bg-[var(--card-paper-back)] p-5 text-sm text-[var(--card-ink)]">
-          Your link for {group.name} is out of date — {group.name} has signed up
-          since, which changes it. Open this student from the admin Students tab
-          to unlock the chat and boards.
+          {strings.student.page.staleNotice(group.name)}
         </div>
       )}
 
@@ -349,6 +376,7 @@ export default async function GroupPage({
               onAddLink={addShelfLink.bind(null, group.id)}
               onAddPage={addShelfPage.bind(null, group.id)}
               onAddPdf={addShelfPdf.bind(null, group.id)}
+              locale={locale}
             />
           )}
         </TeacherInbox>
@@ -358,18 +386,18 @@ export default async function GroupPage({
           <ChatFab
             slug={slug}
             labels={{
-              title: "Clavardage",
-              empty: "Aucun message pour l'instant.",
-              placeholder: "Écrivez un message…",
-              send: "Envoyer",
-              close: "Fermer",
+              title: strings.chat.title,
+              empty: strings.chat.empty,
+              placeholder: strings.chat.placeholder,
+              send: strings.chat.send,
+              close: strings.common.close,
               // Never shown — a student has no list to go back to — but the
               // panel's label type asks for it.
-              back: "Retour",
-              locale: "fr-CA",
-              today: "Aujourd'hui",
+              back: strings.chat.back,
+              locale: toBCP47(locale),
+              today: strings.common.today,
               // Never shown either: onDeleteMessage is not passed here.
-              deleteMessage: "Supprimer",
+              deleteMessage: strings.chat.deleteMessage,
             }}
           />
           {/* No onAddPage: a student uploads a PDF or adds a link, not a
@@ -379,10 +407,21 @@ export default async function GroupPage({
             role="student"
             onAddLink={addShelfLink.bind(null, group.id)}
             onAddPdf={addShelfPdf.bind(null, group.id)}
+            locale={locale}
           />
         </StreamProvider>
       ) : (
         body
+      )}
+
+      {/* Signed-in only, and only reachable here: panelMode is "signed-in"
+          exclusively for an unlocked, non-teacher visitor (authPanelMode
+          returns null for the teacher in every state), which is exactly the
+          StreamProvider branch above. Rendered after all of it — the tab
+          content, the chat, the shelf FAB — so a sign-out control sits below
+          everything the student came for rather than above it. */}
+      {panelMode === "signed-in" && (
+        <StudentAuthPanel slug={slug} mode={panelMode} locale={locale} />
       )}
     </main>
   );

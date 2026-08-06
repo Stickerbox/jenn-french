@@ -3,18 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MonthCalendar } from "@/components/ui/MonthCalendar";
-import { MONTHS } from "@/lib/week";
+import { monthNamesFor, weekdayNamesFor } from "@/lib/week";
+import { toBCP47, type Locale } from "@/lib/i18n";
+import { getStrings } from "@/lib/strings";
 import { fieldClassName } from "@/components/ui/field";
+import { cardFieldSkin } from "@/components/card-styles";
 import { cn } from "@/lib/utils";
-
-// Full names so React has a distinct key per column — two of the five initials
-// are "M".
-const WEEKDAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
 
 const utc = (value: string) => new Date(`${value}T00:00:00Z`);
 
-function formatFull(value: string): string {
-  return utc(value).toLocaleDateString("en-CA", {
+function formatFull(value: string, locale: string): string {
+  return utc(value).toLocaleDateString(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -27,11 +26,18 @@ export function AdminDatePicker({
   basePath,
   selected,
   today,
+  locale,
 }: {
   basePath: string;
   selected: string;
   today: string;
+  // This is a client component reached directly from app/admin/page.tsx, so
+  // it takes `locale` rather than the resolved `strings` object — a
+  // `Strings` value holds functions and cannot cross that boundary. See
+  // lib/strings.ts.
+  locale: Locale;
 }) {
+  const strings = getStrings(locale);
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -75,9 +81,9 @@ export function AdminDatePicker({
     <div ref={rootRef} className="relative mx-auto w-full max-w-[560px]">
       <span
         id="admin-date-label"
-        className="block text-sm font-medium text-[var(--color-ink)]"
+        className="block text-sm font-medium text-[var(--card-ink)]"
       >
-        Date
+        {strings.admin.datePicker.label}
       </span>
       <button
         ref={triggerRef}
@@ -92,13 +98,16 @@ export function AdminDatePicker({
         onClick={() => setOpen(!open)}
         // Capped rather than full-width: a date field needs about 260px, and
         // stretching it the whole width of the card made it the widest thing
-        // on the page on a phone.
+        // on the page on a phone. cardFieldSkin layers the card palette's
+        // paper and line over fieldClassName's own --color-* ones — see its
+        // comment in card-styles.ts for why field.ts itself stays untouched.
         className={cn(
           fieldClassName,
+          cardFieldSkin,
           "max-w-[260px] whitespace-nowrap text-left",
         )}
       >
-        {formatFull(selected)}
+        {formatFull(selected, toBCP47(locale))}
       </button>
 
       {open && (
@@ -106,17 +115,22 @@ export function AdminDatePicker({
         // ahead is Jenn's workflow, and a bound would make those days
         // unreachable from /admin — the same reason parseAdminDate does not
         // clamp future dates the way the student page's parseDate does.
+        //
+        // tone="card", not "admin": Task I moves the admin's chrome into the
+        // flashcard palette, and MonthCalendar already had both skins built —
+        // CardDateNav has used "card" on the student side since Task G. This
+        // is a caller-side flip, not a change to MonthCalendar itself.
         <MonthCalendar
           selected={selected}
           today={today}
-          locale="en-CA"
-          tone="admin"
+          locale={toBCP47(locale)}
+          tone="card"
           labels={{
-            dialog: "Choose a date",
-            previousMonth: "Previous month",
-            nextMonth: "Next month",
-            monthNames: MONTHS,
-            weekdays: WEEKDAYS,
+            dialog: strings.admin.datePicker.dialog,
+            previousMonth: strings.admin.datePicker.previousMonth,
+            nextMonth: strings.admin.datePicker.nextMonth,
+            monthNames: monthNamesFor(locale),
+            weekdays: weekdayNamesFor(locale),
           }}
           onChoose={choose}
           className="left-0"

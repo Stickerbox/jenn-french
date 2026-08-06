@@ -3,10 +3,23 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import type { CardContent } from "@/lib/card-resolution";
+import type { Locale } from "@/lib/i18n";
+import { getStrings } from "@/lib/strings";
 import { CardFront } from "@/components/CardFront";
 import { CardBack } from "@/components/CardBack";
 
-export function Flashcard({ card }: { card: CardContent }) {
+export function Flashcard({
+  card,
+  locale,
+}: {
+  card: CardContent;
+  // This is a client component, so it cannot call headers() itself — the
+  // server component above it (app/g/[slug]/page.tsx) hands down the locale
+  // rather than the resolved dictionary. See lib/strings.ts: a `Strings`
+  // object holds ~105 functions and cannot cross the server/client boundary.
+  locale: Locale;
+}) {
+  const strings = getStrings(locale);
   const [flipped, setFlipped] = useState(false);
 
   return (
@@ -23,10 +36,14 @@ export function Flashcard({ card }: { card: CardContent }) {
         >
           <CardFront
             card={card}
+            strings={strings}
+            locale={locale}
             className="col-start-1 row-start-1 [backface-visibility:hidden]"
           />
           <CardBack
             card={card}
+            strings={strings}
+            locale={locale}
             className="col-start-1 row-start-1 [backface-visibility:hidden] [transform:rotateY(180deg)]"
           />
         </motion.div>
@@ -40,7 +57,7 @@ export function Flashcard({ card }: { card: CardContent }) {
           }}
           className="rounded-full border border-[var(--card-bleu)] bg-[var(--card-bleu)] px-6 py-2.5 font-[family-name:var(--card-font-serif)] text-sm text-white transition-colors hover:bg-[#0d3f6b]"
         >
-          Flip card
+          {strings.common.card.flip}
         </button>
       </div>
     </div>

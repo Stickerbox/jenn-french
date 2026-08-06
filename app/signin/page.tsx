@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SignInForm } from "@/components/student/SignInForm";
+import { currentLocale } from "@/lib/locale";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 
 // Every student surface carries this, and this one earns it twice over: the
 // page exists to be typed into by someone who has lost their link, and an
@@ -23,25 +26,34 @@ export const metadata: Metadata = {
 //
 // signInStudent is untouched: /g/marie keeps its own form and the invite flow
 // is unchanged, so a student who still has their link never comes here.
-export default function SignInPage() {
+//
+// Not in Task H1's own file list, but necessary plumbing: this is the only
+// caller of SignInForm (components/student/SignInForm.tsx), which is now a
+// client component that takes `locale` as a prop rather than reading it
+// itself — and takes `locale`, not the resolved `strings` object, because a
+// `Strings` value cannot cross the server/client boundary. See lib/strings.ts.
+export default async function SignInPage() {
+  const locale: Locale = await currentLocale();
+  const strings = getStrings(locale);
+  const { student } = strings;
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-[var(--card-paper)] px-4 py-12">
       <div className="w-full max-w-[420px]">
         <h1 className="mb-2 text-center font-[family-name:var(--card-font-serif)] text-3xl italic text-[var(--card-ink)]">
-          Français avec Jenn
+          {student.brand.wordmark}
         </h1>
         <p className="mb-8 text-center font-[family-name:var(--card-font-serif)] text-[15px] text-[var(--card-moss)]">
-          Connectez-vous pour retrouver votre page.
+          {student.signInPage.subtitle}
         </p>
 
-        <SignInForm />
+        <SignInForm locale={locale} />
 
         {/* There is no password reset and nothing here sends email — the cure
             is Jenn pressing Reset sign-in — so the only honest recovery
             instruction is to write to her. */}
         <p className="mt-6 text-center font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)]">
-          Mot de passe oublié ? Écrivez à Jenn et elle vous enverra un nouveau
-          lien.
+          {student.signInPage.forgotPassword}
         </p>
 
         <p className="mt-8 text-center">
@@ -49,7 +61,7 @@ export default function SignInPage() {
             href="/"
             className="font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-bleu)] underline"
           >
-            ← Retour à l&apos;accueil
+            {student.signInPage.backToHome}
           </Link>
         </p>
       </div>

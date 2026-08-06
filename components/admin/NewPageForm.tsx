@@ -6,7 +6,15 @@ import { HtmlPasteBox } from "@/components/ui/HtmlPasteBox";
 import { FileDropZone } from "@/components/ui/FileDropZone";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import {
+  audiencePill,
+  audiencePillChecked,
+  audiencePillUnchecked,
+  cardFieldSkin,
+} from "@/components/card-styles";
 import { MAX_PDF_BYTES } from "@/lib/page-pdf";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { NewPageInput, PageSaveResult } from "@/app/page-actions";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
@@ -27,6 +35,7 @@ export function NewPageForm({
   onSubmit,
   onSubmitPdf,
   onDone,
+  locale,
 }: {
   groups: { id: string; name: string }[];
   // The Pages tab's active student chip. A new page defaults to whoever is
@@ -37,7 +46,13 @@ export function NewPageForm({
   // shape: a document is a string and a PDF is bytes in FormData.
   onSubmitPdf: (formData: FormData) => Promise<unknown>;
   onDone: () => void;
+  // This is a client component reached directly from AdminChrome, so it
+  // takes `locale` rather than the resolved `strings` object — a `Strings`
+  // value holds functions and cannot cross that boundary. See lib/strings.ts.
+  locale: Locale;
 }) {
+  const strings = getStrings(locale);
+  const labels = strings.admin.newPageForm;
   const router = useRouter();
   const [groupIds, setGroupIds] = useState<string[]>(
     defaultGroupId ? [defaultGroupId] : [],
@@ -116,7 +131,7 @@ export function NewPageForm({
       }
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : strings.admin.genericError);
     } finally {
       setSaving(false);
     }
@@ -130,7 +145,7 @@ export function NewPageForm({
     // Checked again on the server, which is the authority. Telling her before a
     // 3 MB upload rather than after.
     if (file.size > MAX_PDF_BYTES) {
-      setError("That PDF is larger than 3 MB.");
+      setError(strings.admin.pdfTooLarge);
       return;
     }
 
@@ -178,7 +193,7 @@ export function NewPageForm({
       router.refresh();
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : strings.admin.genericError);
     } finally {
       setSaving(false);
     }
@@ -186,11 +201,11 @@ export function NewPageForm({
 
   return (
     <div className="flex flex-col gap-5">
-      <fieldset className="text-sm font-medium text-[var(--color-ink)]">
-        <legend className="mb-2">Students</legend>
+      <fieldset className="text-sm font-medium text-[var(--card-ink)]">
+        <legend className="mb-2">{strings.admin.pageForm.studentsLegend}</legend>
         {groups.length === 0 ? (
           <p className="text-sm font-normal text-[var(--color-ink-muted)]">
-            No students yet.
+            {strings.admin.pageForm.noStudentsYet}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -200,10 +215,8 @@ export function NewPageForm({
                 <label
                   key={group.id}
                   className={cn(
-                    "cursor-pointer rounded-full border px-4 py-2 text-sm font-normal transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-accent)]/40",
-                    checked
-                      ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-ink)]"
-                      : "border-[var(--color-field-border)] bg-[var(--color-field)] text-[var(--color-ink-muted)]",
+                    audiencePill,
+                    checked ? audiencePillChecked : audiencePillUnchecked,
                   )}
                 >
                   <input
@@ -220,52 +233,52 @@ export function NewPageForm({
         )}
       </fieldset>
 
-      <div className="text-sm font-medium text-[var(--color-ink)]">
-        Page
+      <div className="text-sm font-medium text-[var(--card-ink)]">
+        {labels.pageLabel}
+        {/* tone="card": HtmlPasteBox already had both skins (see its own
+            comment) — the student shelf's upload uses "card" too, so this is
+            a caller-side flip, not a new capability. */}
         <HtmlPasteBox
-          tone="admin"
+          tone="card"
           labels={{
-            prompt: saving
-              ? "Publishing…"
-              : "Paste the page's HTML here (⌘V) — it publishes straight away",
-            accepted: (size) => `Published — ${size}`,
-            ariaLabel: "HTML of the page to publish",
+            prompt: saving ? labels.publishing : labels.pastePrompt,
+            accepted: labels.pasteAccepted,
+            ariaLabel: labels.pasteAriaLabel,
           }}
           onHtml={handleHtml}
         />
         <p className="mt-2 text-sm font-normal text-[var(--color-ink-muted)]">
-          The title comes from the document. You can rename it afterwards; the
-          link it gets is permanent.
+          {labels.titleFromDocumentNote}
         </p>
       </div>
 
-      <div className="text-sm font-medium text-[var(--color-ink)]">
-        PDF
+      <div className="text-sm font-medium text-[var(--card-ink)]">
+        {labels.pdfLabel}
         <FileDropZone
           fileName={pdfFile?.name ?? null}
           fileSize={pdfFile?.size ?? null}
           hasExisting={pdfFile !== null}
           accept=".pdf,application/pdf"
-          inputLabel="PDF to publish"
-          emptyHint="Drop a PDF here, or click to choose one"
-          existingHint="Drop another to replace it."
+          inputLabel={labels.pdfInputLabel}
+          emptyHint={labels.pdfEmptyHint}
+          existingHint={labels.pdfExistingHint}
           onFile={handlePdf}
         />
         {preparing && (
           <p className="mt-1 text-xs font-normal text-[var(--color-ink-muted)]">
-            Preparing preview…
+            {strings.admin.preparingPreview}
           </p>
         )}
         <p className="mt-2 text-sm font-normal text-[var(--color-ink-muted)]">
-          The title comes from the filename. Up to 3 MB.
+          {labels.titleFromFilenameNote}
         </p>
 
         {/* Only once something is staged. Until then this half of the sheet is
             one control, exactly as it was. */}
         {pdfFile && (
           <div className="mt-3 flex flex-col gap-3">
-            <label className="text-sm font-medium text-[var(--color-ink)]">
-              Title
+            <label className="text-sm font-medium text-[var(--card-ink)]">
+              {strings.admin.titleLabel}
               <Input
                 value={pdfTitle}
                 onChange={(e) => {
@@ -273,6 +286,7 @@ export function NewPageForm({
                   setPdfTitle(e.target.value);
                 }}
                 required
+                className={cardFieldSkin}
               />
             </label>
 
@@ -284,7 +298,7 @@ export function NewPageForm({
                 // cannot save: the submit awaits the job anyway.
                 disabled={saving || pdfTitle.trim() === ""}
               >
-                {saving ? "Publishing…" : "Publish PDF"}
+                {saving ? labels.publishing : labels.publishPdf}
               </Button>
               <button
                 type="button"
@@ -298,7 +312,7 @@ export function NewPageForm({
                 disabled={saving}
                 className="text-sm font-normal text-[var(--color-ink-muted)] underline"
               >
-                Remove
+                {labels.remove}
               </button>
             </div>
           </div>
@@ -306,12 +320,12 @@ export function NewPageForm({
       </div>
 
       {error && (
-        <p role="alert" className="text-center text-sm text-[var(--color-accent)]">
+        <p role="alert" className="text-center text-sm text-[var(--card-rouge)]">
           {error}
         </p>
       )}
 
-      <SkippedAssets skipped={skipped} />
+      <SkippedAssets skipped={skipped} strings={strings} />
     </div>
   );
 }

@@ -20,6 +20,9 @@ function initials(name: string): string {
 
 export type ConversationListLabels = {
   search: string;
+  // SearchField's dismiss control gained a required label (Task H2) — see
+  // components/admin/SearchField.tsx.
+  clear: string;
   noStudents: string;
   noMatch: string;
   noMessages: string;
@@ -72,7 +75,12 @@ export function ConversationList({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 px-3 pt-3">
-        <SearchField label={labels.search} value={query} onChange={setQuery} />
+        <SearchField
+          label={labels.search}
+          value={query}
+          onChange={setQuery}
+          clearLabel={labels.clear}
+        />
       </div>
 
       {visible.length === 0 ? (

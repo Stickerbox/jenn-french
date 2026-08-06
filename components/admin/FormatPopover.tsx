@@ -3,6 +3,8 @@
 import { Bold, Code, Italic } from "lucide-react";
 import { CARD_COLORS, type CardColor } from "@/lib/inline-markup";
 import type { Emphasis, RangeMarks } from "@/lib/rich-text";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 import { CARD_COLOR_VAR } from "@/components/card-styles";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +18,7 @@ export type PopoverAnchor = {
 
 const buttonClass =
   "flex h-9 w-9 items-center justify-center rounded-md text-[15px] " +
-  "text-[var(--color-ink)] transition-colors hover:bg-[var(--card-line)]/40";
+  "text-[var(--card-ink)] transition-colors hover:bg-[var(--card-line)]/40";
 
 const activeClass = "bg-[var(--card-line)]/60";
 
@@ -25,16 +27,23 @@ export function FormatPopover({
   anchor,
   onEmphasis,
   onColor,
+  locale,
 }: {
   marks: RangeMarks;
   anchor: PopoverAnchor;
   onEmphasis: (mark: Emphasis) => void;
   onColor: (color: CardColor) => void;
+  // `colorLabel` below is a function, so this takes `locale` rather than a
+  // resolved (or sliced) `Strings` object — see lib/strings.ts on why that
+  // value cannot cross a server/client boundary. RichText, its only caller,
+  // already has `locale` in scope.
+  locale: Locale;
 }) {
+  const labels = getStrings(locale).admin.formatPopover;
   return (
     <div
       role="toolbar"
-      aria-label="Text formatting"
+      aria-label={labels.textFormatting}
       // The selection is lost the moment the field blurs, and mousedown is
       // what blurs it — so the press never reaches the browser's default at
       // all. click still fires, and by then the selection is still intact.
@@ -49,7 +58,7 @@ export function FormatPopover({
       <div className="flex justify-center gap-1">
         <button
           type="button"
-          aria-label="Bold"
+          aria-label={labels.bold}
           aria-pressed={marks.bold}
           onClick={() => onEmphasis("bold")}
           className={cn(buttonClass, marks.bold && activeClass)}
@@ -58,7 +67,7 @@ export function FormatPopover({
         </button>
         <button
           type="button"
-          aria-label="Italic"
+          aria-label={labels.italic}
           aria-pressed={marks.italic}
           onClick={() => onEmphasis("italic")}
           className={cn(buttonClass, marks.italic && activeClass)}
@@ -69,7 +78,7 @@ export function FormatPopover({
             every pronunciation section and had been typing backticks for. */}
         <button
           type="button"
-          aria-label="Phonetic"
+          aria-label={labels.phonetic}
           aria-pressed={marks.code}
           onClick={() => onEmphasis("code")}
           className={cn(buttonClass, marks.code && activeClass)}
@@ -83,7 +92,7 @@ export function FormatPopover({
           <button
             key={color}
             type="button"
-            aria-label={`${color} text`}
+            aria-label={labels.colorLabel(color)}
             aria-pressed={marks.color === color}
             onClick={() => onColor(color)}
             // The ring rather than a border, so the swatch itself is the same
@@ -91,7 +100,7 @@ export function FormatPopover({
             className={cn(
               "h-6 w-6 rounded-full transition-shadow",
               marks.color === color
-                ? "ring-2 ring-[var(--color-ink)] ring-offset-2 ring-offset-[var(--card-paper)]"
+                ? "ring-2 ring-[var(--card-ink)] ring-offset-2 ring-offset-[var(--card-paper)]"
                 : "ring-1 ring-black/15",
             )}
             style={{ backgroundColor: `var(${CARD_COLOR_VAR[color]})` }}

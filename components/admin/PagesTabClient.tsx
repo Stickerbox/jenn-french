@@ -4,6 +4,7 @@ import { PageList, type PageSummary } from "@/components/admin/PageList";
 import { PageEditOverlay } from "@/components/admin/PageEditOverlay";
 import { useAdminChip } from "@/components/admin/AdminChrome";
 import { defaultGroupId } from "@/lib/default-audience";
+import type { Locale } from "@/lib/i18n";
 
 type AdminPage = Omit<PageSummary, "pinnedAt"> & {
   pins: { groupId: string; pinnedAt: Date }[];
@@ -21,6 +22,7 @@ export function PagesTabClient({
   onTogglePin,
   onDelete,
   edit,
+  locale,
 }: {
   pages: AdminPage[];
   groups: { id: string; name: string; slug: string; isEveryone: boolean }[];
@@ -35,6 +37,10 @@ export function PagesTabClient({
   onDelete: (slug: string) => Promise<void>;
   // The slug whose editor is open, from ?edit= on the server.
   edit: string | null;
+  // This is a client component reached directly from app/admin/page.tsx, so
+  // it takes `locale` rather than the resolved `strings` object — a `Strings`
+  // value holds functions and cannot cross that boundary. See lib/strings.ts.
+  locale: Locale;
 }) {
   const { chip, setChip } = useAdminChip();
   const activeGroupId = defaultGroupId(chip, groups);
@@ -70,12 +76,13 @@ export function PagesTabClient({
         }
         onDelete={onDelete}
         today={today}
+        locale={locale}
       />
 
       {/* Closing navigates back to the same URL without ?edit=, which keeps the
           chip and the search text — they live in this component's state, and it
           stays mounted because the overlay is a sibling rather than a route. */}
-      <PageEditOverlay slug={edit} closeTo="?tab=pages" />
+      <PageEditOverlay slug={edit} closeTo="?tab=pages" locale={locale} />
     </div>
   );
 }

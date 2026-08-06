@@ -8,7 +8,10 @@ import { SearchField } from "@/components/admin/SearchField";
 import { filterGroups } from "@/lib/admin-search";
 import { canDeleteGroup } from "@/lib/everyone";
 import { formatLongDate } from "@/lib/format";
-import { tileActionClass } from "@/components/card-styles";
+import type { Locale } from "@/lib/i18n";
+import { getStrings } from "@/lib/strings";
+import { cardFieldSkin, tileActionClass } from "@/components/card-styles";
+import { cn } from "@/lib/utils";
 
 export type GroupSummary = {
   id: string;
@@ -27,11 +30,19 @@ export function GroupList({
   groups,
   onDelete,
   onReset,
+  locale,
 }: {
   groups: GroupSummary[];
   onDelete: (groupId: string) => Promise<void>;
   onReset: (groupId: string) => Promise<void>;
+  // This is a client component reached directly from app/admin/page.tsx, so
+  // it takes `locale` rather than the resolved `strings` object — a
+  // `Strings` value holds functions and cannot cross that boundary. See
+  // lib/strings.ts.
+  locale: Locale;
 }) {
+  const strings = getStrings(locale);
+  const labels = strings.admin.groups;
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -85,7 +96,7 @@ export function GroupList({
       setConfirming(null);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete the student");
+      setError(err instanceof Error ? err.message : labels.couldNotDelete);
     } finally {
       setDeleting(null);
     }
@@ -99,9 +110,7 @@ export function GroupList({
       setConfirmingReset(null);
       router.refresh();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not reset that sign-in",
-      );
+      setError(err instanceof Error ? err.message : labels.couldNotReset);
     } finally {
       setResetting(null);
     }
@@ -110,18 +119,23 @@ export function GroupList({
   if (groups.length === 0) {
     return (
       <p className="mb-8 text-center text-sm text-[var(--color-ink-muted)]">
-        No students yet.
+        {labels.noStudentsYet}
       </p>
     );
   }
 
   return (
     <div className="mb-10">
-      <SearchField label="Search students" value={query} onChange={setQuery} />
+      <SearchField
+        label={labels.searchLabel}
+        value={query}
+        onChange={setQuery}
+        clearLabel={strings.common.clear}
+      />
 
       {visible.length === 0 ? (
         <p className="text-center text-sm text-[var(--color-ink-muted)]">
-          Nothing matches that.
+          {strings.admin.noMatches}
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
@@ -133,7 +147,7 @@ export function GroupList({
                   href={`/g/${group.slug}?k=${group.chatToken ?? ""}`}
                   title={group.name}
                   eyebrow={`/g/${group.slug}${
-                    group.unread > 0 ? ` · ${group.unread} unread` : ""
+                    group.unread > 0 ? ` · ${labels.unreadCount(group.unread)}` : ""
                   }`}
                   action={
                     canDeleteGroup(group) ? (
@@ -147,11 +161,13 @@ export function GroupList({
                             onClick={() => void handleCopyInvite(group)}
                             aria-label={
                               copied === group.id
-                                ? `Invite link for ${group.name} copied`
-                                : `Copy invite link for ${group.name}`
+                                ? labels.inviteCopiedAria(group.name)
+                                : labels.copyInviteAria(group.name)
                             }
                             title={
-                              copied === group.id ? "Copied" : "Copy invite link"
+                              copied === group.id
+                                ? labels.copiedTitle
+                                : labels.copyInviteTitle
                             }
                             className={tileActionClass}
                           >
@@ -178,10 +194,10 @@ export function GroupList({
                             }}
                             aria-label={
                               claimed
-                                ? `Reset sign-in for ${group.name}`
-                                : `New invite link for ${group.name}`
+                                ? labels.resetAria(group.name)
+                                : labels.newInviteAria(group.name)
                             }
-                            title={claimed ? "Reset sign-in" : "New invite link"}
+                            title={claimed ? labels.resetTitle : labels.newInviteTitle}
                             className={tileActionClass}
                           >
                             <KeyRound size={18} aria-hidden />
@@ -194,8 +210,8 @@ export function GroupList({
                             setError(null);
                             setConfirming(group.id);
                           }}
-                          aria-label={`Delete ${group.name}`}
-                          title="Delete"
+                          aria-label={labels.deleteAria(group.name)}
+                          title={strings.common.delete}
                           className={tileActionClass}
                         >
                           <Trash2 size={18} aria-hidden />
@@ -206,7 +222,7 @@ export function GroupList({
                       // chatToken, and it can never be claimed — so it has nothing
                       // any of the three icons act on.
                       <span className="text-sm text-[var(--color-ink-muted)]">
-                        everyone
+                        {labels.everyoneLabel}
                       </span>
                     )
                   }
@@ -215,7 +231,7 @@ export function GroupList({
                 {confirming === group.id && (
                   <div className="mt-2 flex flex-wrap items-baseline justify-center gap-3 text-sm">
                     <span className="text-[var(--color-ink-muted)]">
-                      Delete {group.name}?
+                      {labels.deleteConfirm(group.name)}
                     </span>
                     <button
                       type="button"
@@ -223,15 +239,15 @@ export function GroupList({
                       disabled={deleting !== null}
                       className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
                     >
-                      Cancel
+                      {strings.common.cancel}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(group.id)}
                       disabled={deleting !== null}
-                      className="font-medium text-[var(--color-accent)] underline disabled:opacity-50"
+                      className="font-medium text-[var(--card-rouge)] underline disabled:opacity-50"
                     >
-                      {deleting === group.id ? "Deleting…" : "Delete"}
+                      {deleting === group.id ? strings.common.deleting : strings.common.delete}
                     </button>
                   </div>
                 )}
@@ -244,13 +260,13 @@ export function GroupList({
                         had no origin. The link icon copies an absolute one. */}
                     {group.email === null ? (
                       <p className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
-                        Invitation not used yet
+                        {labels.invitationNotUsed}
                       </p>
                     ) : (
                       <p className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
                         <span className="break-all">{group.email}</span>
                         {group.claimedAt !== null && (
-                          <> · signed up {formatLongDate(group.claimedAt)}</>
+                          <>{labels.signedUp(formatLongDate(group.claimedAt, locale))}</>
                         )}
                       </p>
                     )}
@@ -258,13 +274,16 @@ export function GroupList({
                     {copyFallback?.id === group.id && (
                       <div className="mt-2 px-5">
                         <label className="block text-xs text-[var(--color-ink-muted)]">
-                          Copy this link
+                          {labels.copyThisLink}
                           <input
                             readOnly
                             value={copyFallback.url}
                             autoFocus
                             onFocus={(event) => event.currentTarget.select()}
-                            className="mt-1 w-full rounded border border-[var(--card-line)] px-2 py-1 font-mono text-xs"
+                            className={cn(
+                              "mt-1 w-full rounded border px-2 py-1 font-mono text-xs",
+                              cardFieldSkin,
+                            )}
                           />
                         </label>
                       </div>
@@ -274,8 +293,8 @@ export function GroupList({
                       <div className="mt-2 flex flex-wrap items-baseline gap-3 text-sm">
                         <span>
                           {group.email === null
-                            ? `Make a new invite link for ${group.name}? The old one stops working.`
-                            : `Reset sign-in for ${group.name}? Their email and password are cleared and their old links stop working. Their pages, chat and boards stay.`}
+                            ? labels.makeNewInviteConfirm(group.name)
+                            : labels.resetSignInConfirm(group.name)}
                         </span>
                         <button
                           type="button"
@@ -283,15 +302,15 @@ export function GroupList({
                           disabled={resetting !== null}
                           className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
                         >
-                          Cancel
+                          {strings.common.cancel}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleReset(group.id)}
                           disabled={resetting !== null}
-                          className="font-medium text-[var(--color-accent)] underline disabled:opacity-50"
+                          className="font-medium text-[var(--card-rouge)] underline disabled:opacity-50"
                         >
-                          {resetting === group.id ? "Resetting…" : "Reset"}
+                          {resetting === group.id ? labels.resetting : labels.reset}
                         </button>
                       </div>
                     )}
@@ -304,7 +323,7 @@ export function GroupList({
       )}
 
       {error && (
-        <p role="alert" className="mt-4 text-center text-sm text-[var(--color-accent)]">
+        <p role="alert" className="mt-4 text-center text-sm text-[var(--card-rouge)]">
           {error}
         </p>
       )}

@@ -2,50 +2,28 @@ import {
   MIN_PASSWORD_LENGTH,
   type CredentialProblem,
 } from "@/lib/student-credentials";
+import type { Strings } from "@/lib/strings";
 
-// French, because the student reads these. Kept beside the rules rather than
-// inside them for the reason lib/page-section-labels.ts exists: the rule is one
-// thing and the language it is announced in is another.
-
-export function credentialProblemLabel(problem: CredentialProblem): string {
+// Used to be hardcoded French, because the student was always French. It now
+// takes the resolved dictionary instead of picking a language itself: the
+// server actions in app/student-auth-actions.ts read their own locale and
+// call getStrings once, and this client-reachable pre-check
+// (StudentAuthPanel's convenience validation, run before the action) is handed
+// the same object as a prop rather than re-deriving it — a client component
+// cannot call headers().
+export function credentialProblemLabel(
+  problem: CredentialProblem,
+  strings: Strings,
+): string {
+  const auth = strings.student.auth;
   switch (problem) {
     case "bad-email":
-      return "Ce courriel ne semble pas valide.";
+      return auth.badEmail;
     case "too-short":
-      // Interpolated rather than written out, so raising the minimum cannot
-      // leave the sentence claiming the old one.
-      return `Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères.`;
+      // Interpolated rather than written into either sentence, so raising the
+      // minimum cannot leave one language claiming the old one.
+      return auth.tooShort(MIN_PASSWORD_LENGTH);
     case "too-long":
-      return "Ce mot de passe est trop long.";
+      return auth.tooLong;
   }
 }
-
-// One message for every sign-in failure — wrong courriel, wrong mot de passe, or
-// a student who has no account at all. Naming both halves is the point: it
-// cannot reveal which one was wrong, and so cannot tell someone guessing slugs
-// which students exist.
-export const SIGN_IN_FAILED =
-  "Le courriel ou le mot de passe ne correspond pas.";
-
-export const TOO_MANY_TRIES =
-  "Trop d'essais. Réessayez dans quinze minutes ou écrivez à Jenn.";
-
-// Shown when an invite has already been spent. Jenn is named because she is the
-// only recovery — nothing here sends email.
-export const INVITE_USED =
-  "Ce lien a déjà été utilisé. Écrivez à Jenn pour en recevoir un nouveau.";
-
-// Shown when a second student tries to claim an account with an address that is
-// already in use. Group.email is unique, so this is a real constraint and not a
-// guess.
-//
-// THE ONE SPECIFIC MESSAGE in an area whose whole design is uniform failures,
-// and the distinction holds: the uniform ones are about SIGN-IN, where naming
-// which half was wrong tells someone guessing slugs which students exist. A
-// claim is already authorised by a single-use invite issued for a named
-// student, so there is nothing left to enumerate — and "your address is already
-// in use" is the only thing that lets the family act.
-export const EMAIL_TAKEN =
-  "Ce courriel est déjà utilisé par un autre élève. Utilisez une autre adresse ou écrivez à Jenn.";
-
-export const GENERIC_FAILURE = "Une erreur est survenue. Réessayez.";

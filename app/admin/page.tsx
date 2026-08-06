@@ -31,6 +31,9 @@ import { ThumbBackfill } from "@/components/admin/ThumbBackfill";
 import { readPageKind } from "@/lib/page-kind";
 import { pageVersion } from "@/lib/page-version";
 import { TeacherInbox } from "@/components/chat/TeacherInbox";
+import { currentLocale } from "@/lib/locale";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 
 export default async function AdminPage({
   searchParams,
@@ -39,6 +42,13 @@ export default async function AdminPage({
 }) {
   const teacher = await getCurrentTeacher();
   if (!teacher) redirect("/login");
+
+  // Read once, at the top, and threaded through every tab below — the same
+  // pattern app/g/[slug]/page.tsx uses. Jenn's own browser locale, not a fixed
+  // English: the admin used to be English unconditionally, and that split is
+  // retired (see CLAUDE.md's Auth / language note).
+  const locale = await currentLocale();
+  const strings = getStrings(locale);
 
   const { date, tab, edit } = await searchParams;
   const today = new Date().toISOString().slice(0, 10);
@@ -62,25 +72,52 @@ export default async function AdminPage({
   });
 
   return (
-    <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
+    // relative + the card page's own gradient, matching /g/[slug]: Task I
+    // brings the admin's chrome into the flashcard palette Jenn's students
+    // already see, on the theory that she should see her own pages the way
+    // they do (see components/ui/Tile.tsx and PageTile.tsx, the precedent).
+    <main
+      className="relative min-h-screen px-4 py-12"
+      style={{ background: "var(--card-page-bg)" }}
+    >
+      {/* Positioned against `main`, not the header below — the header is
+          capped at 560px to match /g/[slug]'s rhythm, and anchoring to it
+          would have pulled this pill in from the page's actual right edge.
+          Mirrors the "← Back to admin" pill /g/[slug] shows a teacher,
+          reflected to the opposite corner. */}
+      <form action={logout} className="absolute right-4 top-4 z-10">
+        <button
+          type="submit"
+          className="rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-4 py-1.5 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)] transition-opacity hover:opacity-80"
+        >
+          {strings.admin.header.logOut}
+        </button>
+      </form>
+
       <div className="mx-auto max-w-xl lg:max-w-[1152px]">
-        <header className="relative mb-8 text-center">
-          <h1 className="font-[family-name:var(--font-display)] text-3xl italic text-[var(--color-ink)]">
-            Français avec Jenn
+        {/* Same three lines /g/[slug] opens with, in the same order: the
+            wordmark, then who this is (Admin), then who is looking (Hello
+            Jenn!) — both drawn from the dictionary, so a browser set to
+            French gets "Bonjour Jenn !" the same way a student's page does.
+            Not a link, for the reason Task G removed the link on the student
+            side: there is nowhere useful for Jenn to land pressing the site's
+            own name from inside her own admin. */}
+        <header className="mx-auto mb-7 max-w-[560px] text-center">
+          <h1
+            className="mb-2.5 font-[family-name:var(--card-font-serif)] text-[var(--card-plum)]"
+            style={{ fontSize: "clamp(30px, 5.5vw, 42px)", lineHeight: 1.15 }}
+          >
+            {strings.student.brand.wordmark}
           </h1>
-          {/* Absolute rather than a flex row, so the title centres on the
-              page instead of on the space the Log out button leaves it. */}
-          <form action={logout} className="absolute right-0 top-1">
-            <button
-              type="submit"
-              className="font-[family-name:var(--font-body)] text-sm text-[var(--color-ink-muted)] underline"
-            >
-              Log out
-            </button>
-          </form>
+          <div className="font-[family-name:var(--card-font-serif)] text-[15px] italic text-[var(--card-moss)]">
+            {strings.admin.header.title}
+          </div>
+          <div className="mt-3 font-[family-name:var(--card-font-serif)] text-[19px] text-[var(--card-moss)]">
+            {strings.admin.header.greeting}
+          </div>
         </header>
 
-        <AdminTabs active={active} date={selected} />
+        <AdminTabs active={active} date={selected} strings={strings} />
 
         <AdminChrome
           groups={groups.map((g) => ({ id: g.id, name: g.name }))}
@@ -88,10 +125,23 @@ export default async function AdminPage({
           onCreateLink={createLink}
           onCreatePage={createPage}
           onCreatePdfPage={createPdfPage}
+          locale={locale}
         >
-          {active === "daily" && <DailyWordTab selected={selected} today={today} />}
-          {active === "groups" && <GroupsTab />}
-          {active === "pages" && <PagesTab groups={groups} edit={edit ?? null} />}
+          {active === "daily" && (
+            <DailyWordTab
+              selected={selected}
+              today={today}
+              locale={locale}
+            />
+          )}
+          {active === "groups" && <GroupsTab locale={locale} />}
+          {active === "pages" && (
+            <PagesTab
+              groups={groups}
+              edit={edit ?? null}
+              locale={locale}
+            />
+          )}
         </AdminChrome>
       </div>
 
@@ -106,9 +156,11 @@ export default async function AdminPage({
 async function DailyWordTab({
   selected,
   today,
+  locale,
 }: {
   selected: string;
   today: string;
+  locale: Locale;
 }) {
   const existingCard = await prisma.globalCard.findUnique({
     where: { date: new Date(`${selected}T00:00:00Z`) },
@@ -124,10 +176,16 @@ async function DailyWordTab({
         initialDate={selected}
         initialValues={toCardFormValues(existingCard)}
         datePicker={
-          <AdminDatePicker basePath="/admin" selected={selected} today={today} />
+          <AdminDatePicker
+            basePath="/admin"
+            selected={selected}
+            today={today}
+            locale={locale}
+          />
         }
         onSubmit={upsertGlobalCard}
         onDelete={deleteGlobalCard}
+        locale={locale}
       />
     </>
   );
@@ -135,7 +193,7 @@ async function DailyWordTab({
 
 // Each tab runs its own queries, apart from the group list the FAB above needs
 // on all three.
-async function GroupsTab() {
+async function GroupsTab({ locale }: { locale: Locale }) {
   // The group query stays as it is — including its email/claimedAt selection —
   // because this list includes the everyone row, which has no conversation and
   // so is absent from listConversations.
@@ -160,6 +218,7 @@ async function GroupsTab() {
         }))}
         onDelete={deleteGroup}
         onReset={resetStudentSignIn}
+        locale={locale}
       />
     </div>
   );
@@ -170,11 +229,13 @@ async function GroupsTab() {
 async function PagesTab({
   groups,
   edit,
+  locale,
 }: {
   groups: { id: string; name: string; slug: string; isEveryone: boolean }[];
   // The slug whose editor is open, from ?edit=. Read here and handed down
   // rather than held in client state: see the pencil's comment in PageList.
   edit: string | null;
+  locale: Locale;
 }) {
   const pages = await listPagesForAdmin();
 
@@ -228,6 +289,7 @@ async function PagesTab({
         onTogglePin={setShelfPin}
         onDelete={deletePage}
         edit={edit}
+        locale={locale}
       />
     </>
   );

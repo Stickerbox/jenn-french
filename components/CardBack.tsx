@@ -1,5 +1,7 @@
 import { formatCardDate } from "@/lib/format";
 import type { CardContent } from "@/lib/card-resolution";
+import type { Locale } from "@/lib/i18n";
+import type { Strings } from "@/lib/strings";
 import { cn } from "@/lib/utils";
 import { InlineMarkup } from "@/components/InlineMarkup";
 import { splitIdiom } from "@/lib/idiom";
@@ -43,23 +45,27 @@ function IdiomBox({ body }: { body: string }) {
 
 export function CardBack({
   card,
+  strings,
+  locale,
   className,
 }: {
   card: CardContent;
+  strings: Strings;
+  locale: Locale;
   className?: string;
 }) {
   return (
     <div className={cn(cardPanelBack, className)}>
       <span className={accentBarClass} style={accentBarStyle} />
       <div className={cardHeaderRow}>
-        <span className={cardDateLabel}>{formatCardDate(card.date)}</span>
+        <span className={cardDateLabel}>{formatCardDate(card.date, locale)}</span>
         {card.subject && (
           <span className={cardSubjectPill}>
             <InlineMarkup text={card.subject} style={FIELD_STYLES.subject} />
           </span>
         )}
       </div>
-      <div className={cn("mb-1", cardEyebrow)}>The answer</div>
+      <div className={cn("mb-1", cardEyebrow)}>{strings.common.card.answer}</div>
       <p className="mb-5 whitespace-pre-line font-[family-name:var(--card-font-serif)] text-2xl leading-snug">
         <InlineMarkup
           text={card.frenchAnswer}

@@ -1,12 +1,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { AdminTab } from "@/lib/admin-tab";
-
-const TABS: { tab: AdminTab; label: string }[] = [
-  { tab: "daily", label: "Daily word" },
-  { tab: "groups", label: "Students" },
-  { tab: "pages", label: "Pages" },
-];
+import type { Strings } from "@/lib/strings";
 
 // Every link carries the date, not only the daily word's: a link that drops
 // the param sends parseAdminDate back to today, so one detour through Students
@@ -17,13 +12,34 @@ function tabHref(tab: AdminTab, date: string): string {
     : `/admin?tab=${tab}&date=${date}`;
 }
 
-export function AdminTabs({ active, date }: { active: AdminTab; date: string }) {
+export function AdminTabs({
+  active,
+  date,
+  strings,
+}: {
+  active: AdminTab;
+  date: string;
+  strings: Strings;
+}) {
+  const TABS: { tab: AdminTab; label: string }[] = [
+    { tab: "daily", label: strings.admin.nav.daily },
+    { tab: "groups", label: strings.admin.nav.students },
+    { tab: "pages", label: strings.admin.nav.pages },
+  ];
+
   return (
     // A nav of links, not an ARIA tablist: these are navigations to distinct
     // URLs, not panels swapped in place, and role="tab" would promise
     // arrow-key behaviour that browser navigation does not provide.
-    <nav aria-label="Admin sections" className="mb-10 flex justify-center">
-      <div className="flex gap-1 rounded-full border border-[var(--color-field-border)] bg-[var(--color-field)] p-1">
+    <nav
+      aria-label={strings.admin.nav.sectionsLabel}
+      className="mb-10 flex justify-center"
+    >
+      {/* Container in the card palette's paper and line, matching the pill
+          treatment CardDateNav gave the week-range trigger. The active tab
+          keeps the lilac accent — a primary control, per Task I's rule — and
+          only the surrounding chrome and the inactive state moved. */}
+      <div className="flex gap-1 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1">
         {TABS.map(({ tab, label }) => (
           <Link
             key={tab}
@@ -33,7 +49,7 @@ export function AdminTabs({ active, date }: { active: AdminTab; date: string }) 
               "rounded-full px-5 py-2 font-[family-name:var(--font-body)] text-sm transition-colors",
               tab === active
                 ? "bg-[var(--color-accent)] font-medium text-white"
-                : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]",
+                : "text-[var(--color-ink-muted)] hover:text-[var(--card-ink)]",
             )}
           >
             {label}

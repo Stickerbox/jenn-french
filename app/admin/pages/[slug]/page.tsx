@@ -6,6 +6,8 @@ import { getPageForAdmin } from "@/lib/pages";
 import { updatePage, updatePdfPage, deletePage } from "@/app/page-actions";
 import { PageEditor } from "@/components/admin/PageEditor";
 import { TeacherInbox } from "@/components/chat/TeacherInbox";
+import { currentLocale } from "@/lib/locale";
+import { getStrings } from "@/lib/strings";
 
 export default async function AdminPageEditor({
   params,
@@ -14,6 +16,13 @@ export default async function AdminPageEditor({
 }) {
   const teacher = await getCurrentTeacher();
   if (!teacher) redirect("/login");
+
+  // `strings` is for this page's own server-rendered text; `locale` is the
+  // prop PageEditor (a client component) actually takes — a resolved
+  // `Strings` object cannot cross the server/client boundary, see
+  // lib/strings.ts.
+  const locale = await currentLocale();
+  const strings = getStrings(locale);
 
   const { slug } = await params;
   const page = await getPageForAdmin(slug);
@@ -28,23 +37,28 @@ export default async function AdminPageEditor({
   });
 
   return (
-    <main className="min-h-screen bg-[var(--color-bg)] px-4 py-12">
+    // The same card-page background every other admin surface now uses —
+    // see app/admin/page.tsx's header comment for why.
+    <main
+      className="relative min-h-screen px-4 py-12"
+      style={{ background: "var(--card-page-bg)" }}
+    >
       <div className="mx-auto w-full max-w-[560px]">
         <Link
           href="/admin?tab=pages"
           className="mb-6 inline-block text-sm text-[var(--color-ink-muted)] underline"
         >
-          ← Pages
+          {strings.admin.standalonePage.backToPages}
         </Link>
 
-        <h1 className="mb-2 text-center font-[family-name:var(--font-display)] text-3xl italic text-[var(--color-ink)]">
+        <h1 className="mb-2 text-center font-[family-name:var(--font-display)] text-3xl italic text-[var(--card-ink)]">
           {page.title}
         </h1>
         <p className="mb-8 text-center text-sm text-[var(--color-ink-muted)]">
           <a href={`/p/${page.slug}`} className="underline">
             /p/{page.slug}
           </a>{" "}
-          — the link stays the same when you rename the page.
+          {strings.admin.standalonePage.linkNote}
         </p>
 
         <PageEditor
@@ -59,10 +73,11 @@ export default async function AdminPageEditor({
             pdfSize: page.pdfSize,
             worksheet: page.worksheet,
           }}
-          submitLabel="Save page"
+          submitLabel={strings.admin.standalonePage.saveLabel}
           onSubmit={updatePage.bind(null, page.slug)}
           onSubmitPdf={updatePdfPage.bind(null, page.slug)}
           onDelete={deletePage.bind(null, page.slug)}
+          locale={locale}
         />
       </div>
 

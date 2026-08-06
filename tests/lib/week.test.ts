@@ -5,6 +5,8 @@ import {
   latestViewableDate,
   mondayOf,
   weekDates,
+  monthNamesFor,
+  weekdayNamesFor,
 } from "@/lib/week";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00Z`);
@@ -150,20 +152,70 @@ describe("latestViewableDate", () => {
 });
 
 describe("formatWeekRange", () => {
-  it("formats a week spanning two months with one year", () => {
+  it("formats a week spanning two months with one year, in English", () => {
     const { start, end } = weekRange(utc("2026-08-31"));
-    expect(formatWeekRange(start, end)).toBe("AUGUST 31 → SEPTEMBER 4, 2026");
+    expect(formatWeekRange(start, end, "en")).toBe(
+      "AUGUST 31 → SEPTEMBER 4, 2026",
+    );
   });
 
-  it("formats a week inside a single month", () => {
+  it("formats a week inside a single month, in English", () => {
     const { start, end } = weekRange(utc("2026-07-08"));
-    expect(formatWeekRange(start, end)).toBe("JULY 6 → JULY 10, 2026");
+    expect(formatWeekRange(start, end, "en")).toBe("JULY 6 → JULY 10, 2026");
   });
 
-  it("shows both years when the week straddles New Year", () => {
+  it("shows both years when the week straddles New Year, in English", () => {
     const { start, end } = weekRange(utc("2026-12-31"));
-    expect(formatWeekRange(start, end)).toBe(
+    expect(formatWeekRange(start, end, "en")).toBe(
       "DECEMBER 28, 2026 → JANUARY 1, 2027",
     );
+  });
+
+  it("formats the same week in French", () => {
+    const { start, end } = weekRange(utc("2026-08-31"));
+    expect(formatWeekRange(start, end, "fr")).toBe(
+      "AOÛT 31 → SEPTEMBRE 4, 2026",
+    );
+  });
+
+  it("shows both years across New Year in French too", () => {
+    const { start, end } = weekRange(utc("2026-12-31"));
+    expect(formatWeekRange(start, end, "fr")).toBe(
+      "DÉCEMBRE 28, 2026 → JANVIER 1, 2027",
+    );
+  });
+});
+
+describe("monthNamesFor", () => {
+  it("gives twelve English months, matching MONTHS' own casing", () => {
+    expect(monthNamesFor("en")[0]).toBe("JANUARY");
+    expect(monthNamesFor("en")[11]).toBe("DECEMBER");
+  });
+
+  it("gives twelve French months in the same ALL-CAPS convention", () => {
+    expect(monthNamesFor("fr")[0]).toBe("JANVIER");
+    expect(monthNamesFor("fr")[11]).toBe("DÉCEMBRE");
+  });
+});
+
+describe("weekdayNamesFor", () => {
+  it("gives the five teaching days, Monday first, in English", () => {
+    expect(weekdayNamesFor("en")).toEqual([
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+    ]);
+  });
+
+  it("gives the five teaching days, Monday first, in French", () => {
+    expect(weekdayNamesFor("fr")).toEqual([
+      "Lundi",
+      "Mardi",
+      "Mercredi",
+      "Jeudi",
+      "Vendredi",
+    ]);
   });
 });

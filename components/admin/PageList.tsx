@@ -19,7 +19,7 @@ import {
   tileActionClass,
 } from "@/components/card-styles";
 import { sectionPages } from "@/lib/page-sections";
-import { adminSectionLabel } from "@/lib/page-section-labels";
+import { sectionLabel } from "@/lib/page-section-labels";
 import { pageAudienceLabel } from "@/lib/page-tile";
 import { pageTarget } from "@/lib/page-target";
 import { SearchField } from "@/components/admin/SearchField";
@@ -30,6 +30,8 @@ import {
 } from "@/lib/admin-search";
 import { formatLongDate } from "@/lib/format";
 import { pageVersion } from "@/lib/page-version";
+import type { Locale } from "@/lib/i18n";
+import { getStrings } from "@/lib/strings";
 import { cn } from "@/lib/utils";
 
 export type PageSummary = {
@@ -107,6 +109,7 @@ export function PageList({
   onTogglePin,
   onDelete,
   today,
+  locale,
 }: {
   pages: PageSummary[];
   // Read from the flagged row rather than from a constant: the name is the
@@ -138,7 +141,14 @@ export function PageList({
   // for the same list — a hydration mismatch that would appear once a week, at
   // midnight, and be unreproducible by daylight.
   today: Date;
+  // This is a client component reached directly from PagesTabClient, which is
+  // itself reached from app/admin/page.tsx, so it takes `locale` rather than
+  // the resolved `strings` object — a `Strings` value holds functions and
+  // cannot cross that boundary. See lib/strings.ts.
+  locale: Locale;
 }) {
+  const strings = getStrings(locale);
+  const labels = strings.admin.pageList;
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind>("all");
 
@@ -159,7 +169,7 @@ export function PageList({
   if (pages.length === 0) {
     return (
       <p className="mb-8 text-center text-sm text-[var(--color-ink-muted)]">
-        No pages yet.
+        {labels.noPagesYet}
       </p>
     );
   }
@@ -171,38 +181,40 @@ export function PageList({
           tiles reads as a page-wide banner rather than a control, and the
           tiles are the thing worth the room. */}
       <div className="mx-auto w-full max-w-[560px]">
-        <SearchField label="Search pages" value={query} onChange={setQuery} />
+        <SearchField
+          label={labels.searchLabel}
+          value={query}
+          onChange={setQuery}
+          clearLabel={strings.common.clear}
+        />
 
+        {/* tone="card": KindFilter/FilterChip already had both skins (see
+            FilterChip's own comment) — the student shelf's kind filter uses
+            "card" too, so this is a caller-side flip, not a new capability. */}
         <KindFilter
           value={kind}
           onChange={setKind}
-          tone="admin"
-          labels={{
-            group: "Filter by kind",
-            all: "All",
-            html: "Pages",
-            link: "Links",
-            pdf: "PDFs",
-          }}
+          tone="card"
+          labels={labels.kindFilter}
         />
 
         {groupNames.length > 0 && (
           <div
             role="group"
-            aria-label="Filter by student"
+            aria-label={labels.filterByStudentAria}
             className="mb-5 flex flex-wrap justify-center gap-2"
           >
             <FilterChip
-              tone="admin"
+              tone="card"
               active={group === null}
               onClick={() => onGroup(null)}
             >
-              All
+              {labels.allChip}
             </FilterChip>
             {groupNames.map((name) => (
               <FilterChip
                 key={name}
-                tone="admin"
+                tone="card"
                 active={group === name}
                 // Clicking the active chip clears it, so the row never becomes
                 // a trap she has to find "All" to escape.
@@ -217,16 +229,16 @@ export function PageList({
 
       {sections.length === 0 ? (
         <p className="text-center text-sm text-[var(--color-ink-muted)]">
-          Nothing matches that.
+          {strings.admin.noMatches}
         </p>
       ) : (
         <div className={pageSectionList}>
           {sections.map((section) => (
             <section
-              key={`${section.key.kind}-${adminSectionLabel(section.key)}`}
+              key={`${section.key.kind}-${sectionLabel(section.key, locale)}`}
             >
             <h3 className={pageSectionHeading}>
-              {adminSectionLabel(section.key)}
+              {sectionLabel(section.key, locale)}
             </h3>
 
             <ul className={pageGrid}>
@@ -252,8 +264,8 @@ export function PageList({
                       href={target.href}
                       newTab={target.newTab}
                       title={page.title}
-                      eyebrow={`${formatLongDate(page.createdAt)} · ${pageAudienceLabel(page)}${
-                        page.addedByStudent ? " · added by student" : ""
+                      eyebrow={`${formatLongDate(page.createdAt, locale)} · ${pageAudienceLabel(page, locale)}${
+                        page.addedByStudent ? ` · ${labels.addedByStudent}` : ""
                       }`}
                       preview={
                         page.kind === "link" && page.url ? (
@@ -294,8 +306,8 @@ export function PageList({
                             <form action={onDelete.bind(null, page.slug)}>
                               <button
                                 type="submit"
-                                aria-label={`Delete ${page.title}`}
-                                title="Delete"
+                                aria-label={labels.deleteAria(page.title)}
+                                title={strings.common.delete}
                                 className={tileActionClass}
                               >
                                 <TrashIcon />
@@ -326,8 +338,8 @@ export function PageList({
                                   link on the student shelf relies on it. */}
                               <Link
                                 href={`?tab=pages&edit=${page.slug}`}
-                                aria-label={`Edit ${page.title}`}
-                                title="Edit"
+                                aria-label={labels.editAria(page.title)}
+                                title={strings.common.edit}
                                 className={tileActionClass}
                               >
                                 <PencilIcon />
@@ -345,8 +357,8 @@ export function PageList({
                                     : `/p/${page.slug}/raw`
                                 }
                                 download={`${page.slug}.${page.kind === "pdf" ? "pdf" : "html"}`}
-                                aria-label={`Download ${page.title}`}
-                                title="Download"
+                                aria-label={labels.downloadAria(page.title)}
+                                title={strings.common.download}
                                 className={tileActionClass}
                               >
                                 <DownloadIcon />
@@ -370,16 +382,16 @@ export function PageList({
                               aria-label={
                                 canPin
                                   ? page.pinnedAt
-                                    ? `Unpin ${page.title}`
-                                    : `Pin ${page.title}`
-                                  : "Pick a student to pin for"
+                                    ? labels.unpinAria(page.title)
+                                    : labels.pinAria(page.title)
+                                  : labels.pinDisabled
                               }
                               title={
                                 canPin
                                   ? page.pinnedAt
-                                    ? "Unpin"
-                                    : "Pin"
-                                  : "Pick a student to pin for"
+                                    ? strings.common.unpin
+                                    : strings.common.pin
+                                  : labels.pinDisabled
                               }
                               className={cn(tileActionClass, "disabled:opacity-40")}
                             >

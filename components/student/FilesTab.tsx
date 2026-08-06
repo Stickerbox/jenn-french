@@ -17,7 +17,7 @@ import {
   pageSectionList,
 } from "@/components/card-styles";
 import { sectionPages } from "@/lib/page-sections";
-import { studentSectionLabel } from "@/lib/page-section-labels";
+import { sectionLabel } from "@/lib/page-section-labels";
 import { filterPages } from "@/lib/admin-search";
 import { filterPagesByKind, type KindFilter as Kind } from "@/lib/page-filters";
 import type { PageKind } from "@/lib/page-kind";
@@ -26,6 +26,8 @@ import { versionCount } from "@/lib/page-versions";
 import { formatLongDate } from "@/lib/format";
 import { pageVersion } from "@/lib/page-version";
 import { cn } from "@/lib/utils";
+import type { Locale } from "@/lib/i18n";
+import { getStrings } from "@/lib/strings";
 
 export type ShelfPage = {
   id: string;
@@ -54,6 +56,7 @@ export function FilesTab({
   studentName = "",
   onTogglePin,
   onDeleteLink,
+  locale,
 }: {
   pages: ShelfPage[];
   // Passed in, never read as `new Date()` here. This component renders on both
@@ -92,7 +95,14 @@ export function FilesTab({
   studentName?: string;
   onTogglePin?: (slug: string, pinned: boolean) => Promise<void>;
   onDeleteLink?: (slug: string) => Promise<void>;
+  // This is a client component, so it cannot call headers() itself — both
+  // server callers (app/g/[slug]/page.tsx and app/f/[token]/page.tsx) read
+  // the locale once and hand it down; getStrings(locale) below rebuilds the
+  // dictionary here rather than taking the resolved object as a prop — see
+  // lib/strings.ts on why that object cannot cross the boundary.
+  locale: Locale;
 }) {
+  const strings = getStrings(locale);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind>("all");
   const [chooserPage, setChooserPage] = useState<ShelfPage | null>(null);
@@ -110,36 +120,37 @@ export function FilesTab({
     <div className={cn("mx-auto max-w-[1152px]")}>
       {pages.length > 0 && (
         <div className="mx-auto w-full max-w-[560px]">
-          <SearchField label="Chercher" value={query} onChange={setQuery} />
+          <SearchField
+            label={strings.student.files.searchLabel}
+            value={query}
+            onChange={setQuery}
+            clearLabel={strings.common.clear}
+          />
           <KindFilter
             value={kind}
             onChange={setKind}
             tone="card"
-            labels={{
-              group: "Filtrer par type",
-              all: "Tout",
-              html: "Les pages",
-              link: "Les liens",
-              pdf: "Les PDF",
-            }}
+            labels={strings.student.files.kindFilter}
           />
         </div>
       )}
 
       {pages.length === 0 ? (
         <p className="text-center font-[family-name:var(--card-font-serif)] italic text-[var(--card-moss)]">
-          Rien ici pour l&apos;instant.
+          {strings.student.files.emptyShelf}
         </p>
       ) : sections.length === 0 ? (
         <p className="text-center font-[family-name:var(--card-font-serif)] italic text-[var(--card-moss)]">
-          Rien ne correspond.
+          {strings.student.files.noMatches}
         </p>
       ) : (
         <div className={pageSectionList}>
           {sections.map((section) => (
-            <section key={`${section.key.kind}-${studentSectionLabel(section.key)}`}>
+            <section
+              key={`${section.key.kind}-${sectionLabel(section.key, locale)}`}
+            >
               <h2 className={pageSectionHeading}>
-                {studentSectionLabel(section.key)}
+                {sectionLabel(section.key, locale)}
               </h2>
 
               <ul className={pageGrid}>
@@ -167,7 +178,7 @@ export function FilesTab({
                         href={target.href}
                         newTab={target.newTab}
                         title={page.title}
-                        eyebrow={formatLongDate(page.createdAt)}
+                        eyebrow={formatLongDate(page.createdAt, locale)}
                         onClick={
                           dialogDue
                             ? (event) => {
@@ -233,8 +244,8 @@ export function FilesTab({
                               {canEdit && page.kind !== "link" && (
                                 <Link
                                   href={`?tab=files&edit=${page.slug}`}
-                                  aria-label={`Edit ${page.title}`}
-                                  title="Edit"
+                                  aria-label={strings.student.files.edit(page.title)}
+                                  title={strings.student.files.editTitle}
                                   className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]"
                                 >
                                   <PencilIcon />
@@ -252,10 +263,14 @@ export function FilesTab({
                                   type="submit"
                                   aria-label={
                                     page.pinnedAt
-                                      ? `Désépingler ${page.title}`
-                                      : `Épingler ${page.title}`
+                                      ? strings.student.files.unpin(page.title)
+                                      : strings.student.files.pin(page.title)
                                   }
-                                  title={page.pinnedAt ? "Désépingler" : "Épingler"}
+                                  title={
+                                    page.pinnedAt
+                                      ? strings.student.files.unpinTitle
+                                      : strings.student.files.pinTitle
+                                  }
                                   className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-bleu)] transition-colors hover:bg-[var(--card-bleu-soft)]"
                                 >
                                   <PinIcon filled={page.pinnedAt !== null} />
@@ -276,8 +291,8 @@ export function FilesTab({
                                   <form action={onDeleteLink.bind(null, page.slug)}>
                                     <button
                                       type="submit"
-                                      aria-label={`Supprimer ${page.title}`}
-                                      title="Supprimer"
+                                      aria-label={strings.student.files.delete(page.title)}
+                                      title={strings.student.files.deleteTitle}
                                       className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--card-moss)] transition-colors hover:bg-[var(--card-bleu-soft)]"
                                     >
                                       ×

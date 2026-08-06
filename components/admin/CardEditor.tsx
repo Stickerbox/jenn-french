@@ -12,6 +12,7 @@ import {
   accentBarStyle,
   cardDateLabel,
   cardEyebrow,
+  cardFieldSkin,
   cardHeaderRow,
   cardPanel,
   cardPanelBack,
@@ -19,6 +20,8 @@ import {
   panelLabel,
 } from "@/components/card-styles";
 import { formatCardDate } from "@/lib/format";
+import type { Locale } from "@/lib/i18n";
+import { getStrings } from "@/lib/strings";
 import { cn } from "@/lib/utils";
 import type { CardInput } from "@/app/actions";
 import { suggestCardFields } from "@/app/ai-actions";
@@ -33,6 +36,7 @@ export function CardEditor({
   datePicker,
   onSubmit,
   onDelete,
+  locale,
 }: {
   initialDate: string;
   initialValues?: Partial<CardInput>;
@@ -43,7 +47,14 @@ export function CardEditor({
   datePicker?: ReactNode;
   onSubmit: (input: CardInput) => Promise<void>;
   onDelete?: (date: string) => Promise<void>;
+  // This is a client component reached directly from app/admin/page.tsx, so
+  // it takes `locale` rather than the resolved `strings` object — a
+  // `Strings` value holds functions and cannot cross that boundary. See
+  // lib/strings.ts.
+  locale: Locale;
 }) {
+  const strings = getStrings(locale);
+  const labels = strings.admin.cardEditor;
   const router = useRouter();
   // A card written before the formatting toolbar existed has its styling in
   // the stylesheet rather than in its text. Seeding it here is what makes that
@@ -98,7 +109,7 @@ export function CardEditor({
         subject: values.subject,
       });
     } catch {
-      setAiError("Claude couldn't be reached. Try again.");
+      setAiError(strings.admin.cardAi.unreachable);
       setStage("compose");
       return;
     }
@@ -134,7 +145,7 @@ export function CardEditor({
       toPlainText(values.englishPrompt).trim() === "" ||
       toPlainText(values.frenchAnswer).trim() === ""
     ) {
-      setError("The English sentence and the French answer are both needed.");
+      setError(labels.requiredFields);
       return;
     }
 
@@ -146,7 +157,7 @@ export function CardEditor({
       setSavedAt(Date.now());
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : strings.admin.genericError);
     } finally {
       setSaving(false);
     }
@@ -175,14 +186,14 @@ export function CardEditor({
       setStage("compose");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete the card");
+      setError(err instanceof Error ? err.message : labels.deleteError);
     } finally {
       setDeleting(false);
     }
   }
 
   const dateLabel = values.date
-    ? formatCardDate(new Date(`${values.date}T00:00:00Z`))
+    ? formatCardDate(new Date(`${values.date}T00:00:00Z`), locale)
     : "—";
 
   const cardHeader = (
@@ -191,9 +202,10 @@ export function CardEditor({
       <RichText
         value={values.subject}
         onChange={(v) => update("subject", v)}
-        placeholder="Subject"
-        ariaLabel="Subject"
+        placeholder={labels.subjectPillLabel}
+        ariaLabel={labels.subjectPillLabel}
         style={FIELD_STYLES.subject}
+        locale={locale}
         className={cn(cardSubjectPill, "w-auto max-w-[45%] text-base text-right sm:text-[11px]")}
       />
     </div>
@@ -213,36 +225,47 @@ export function CardEditor({
       <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6">
         {datePicker}
 
-        <label className="text-sm font-medium text-[var(--color-ink)]">
-          English phrase *
+        <label className="text-sm font-medium text-[var(--card-ink)]">
+          {labels.englishPhraseLabel}
+          {/* The example text stays literally English — it demonstrates what
+              this field holds (an English sentence), not a UI instruction, so
+              it is not part of the dictionary and does not follow locale. */}
           <Input
             value={values.englishPrompt}
             onChange={(e) => update("englishPrompt", e.target.value)}
             placeholder="I used to pack a lunch every day"
             disabled={busy}
             required
+            className={cardFieldSkin}
           />
         </label>
 
-        <label className="text-sm font-medium text-[var(--color-ink)]">
-          French phrase *
+        <label className="text-sm font-medium text-[var(--card-ink)]">
+          {labels.frenchPhraseLabel}
+          {/* Same reasoning as above, in reverse: this field holds a French
+              sentence, so its example stays French regardless of locale. */}
           <Input
             value={values.frenchAnswer}
             onChange={(e) => update("frenchAnswer", e.target.value)}
             placeholder="Je faisais un lunch chaque jour"
             disabled={busy}
             required
+            className={cardFieldSkin}
           />
         </label>
 
-        <label className="text-sm font-medium text-[var(--color-ink)]">
-          Subject *
+        <label className="text-sm font-medium text-[var(--card-ink)]">
+          {labels.subjectLabel}
+          {/* "Imparfait" is the grammar term itself, not UI chrome — it names
+              what the subject field commonly holds and stays fixed for the
+              same reason the two examples above do. */}
           <Input
             value={values.subject}
             onChange={(e) => update("subject", e.target.value)}
             placeholder="Imparfait"
             disabled={busy}
             required
+            className={cardFieldSkin}
           />
         </label>
 
@@ -253,15 +276,19 @@ export function CardEditor({
                 className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
                 aria-hidden="true"
               />
-              Generating…
+              {labels.generating}
             </span>
           ) : (
-            "Generate"
+            labels.generate
           )}
         </Button>
 
         {aiError && (
-          <p role="alert" className="text-sm text-[var(--color-accent)]">
+          // card-rouge, not the accent: since Task F, --color-accent is the
+          // lilac wordmark colour, not a colour that reads as "something went
+          // wrong". card-rouge is the card palette's own error token, already
+          // used this way in StudentAuthPanel.
+          <p role="alert" className="text-sm text-[var(--card-rouge)]">
             {aiError}
           </p>
         )}
@@ -282,72 +309,81 @@ export function CardEditor({
         {datePicker}
 
         <div>
-          <div className={panelLabel}>Front</div>
+          <div className={panelLabel}>{labels.front}</div>
           <div className={cardPanel}>
             <span className={accentBarClass} style={accentBarStyle} />
             {cardHeader}
             <RichText
               value={values.usage}
               onChange={(v) => update("usage", v)}
-              placeholder="Usage — e.g. Habits of the past"
-              ariaLabel="Usage"
+              placeholder={labels.usagePlaceholder}
+              ariaLabel={labels.usageAriaLabel}
               style={FIELD_STYLES.usage}
+              locale={locale}
               className="mb-1.5 font-[family-name:var(--card-font-serif)] text-base tracking-[0.3px] sm:text-xs"
             />
-            <div className={cn("mb-2", cardEyebrow)}>Say it in French *</div>
+            <div className={cn("mb-2", cardEyebrow)}>
+              {labels.sayItInFrenchRequired}
+            </div>
             <RichText
               value={values.englishPrompt}
               onChange={(v) => update("englishPrompt", v)}
-              placeholder="English sentence to translate"
-              ariaLabel="English sentence to translate"
+              placeholder={labels.englishSentence}
+              ariaLabel={labels.englishSentence}
               multiline
               style={FIELD_STYLES.englishPrompt}
+              locale={locale}
               className="font-[family-name:var(--card-font-serif)] text-2xl leading-snug"
             />
             <RichText
               value={values.hint}
               onChange={(v) => update("hint", v)}
-              placeholder="Hint (optional)"
-              ariaLabel="Hint"
+              placeholder={labels.hintPlaceholder}
+              ariaLabel={labels.hintAriaLabel}
               multiline
               style={FIELD_STYLES.hint}
+              locale={locale}
               className="mt-4 font-[family-name:var(--card-font-serif)] text-base sm:text-sm"
             />
           </div>
         </div>
 
         <div>
-          <div className={panelLabel}>Back</div>
+          <div className={panelLabel}>{labels.back}</div>
           <div className={cardPanelBack}>
             <span className={accentBarClass} style={accentBarStyle} />
             {cardHeader}
-            <div className={cn("mb-1", cardEyebrow)}>The answer *</div>
+            <div className={cn("mb-1", cardEyebrow)}>
+              {labels.theAnswerRequired}
+            </div>
             <RichText
               value={values.frenchAnswer}
               onChange={(v) => update("frenchAnswer", v)}
-              placeholder="French answer"
-              ariaLabel="French answer"
+              placeholder={labels.frenchAnswer}
+              ariaLabel={labels.frenchAnswer}
               multiline
               style={FIELD_STYLES.frenchAnswer}
+              locale={locale}
               className="mb-5 font-[family-name:var(--card-font-serif)] text-2xl leading-snug"
             />
 
             <SectionEditor
               sections={values.sections}
               onChange={(sections) => update("sections", sections)}
+              locale={locale}
             />
           </div>
         </div>
 
         <Button type="submit" disabled={saving || deleting}>
-          {saving ? "Saving..." : "Save card"}
+          {saving ? strings.common.saving : labels.saveCard}
         </Button>
         {onDelete &&
           hasSavedCard &&
           (confirmingDelete ? (
             <div className="flex items-center justify-center gap-4 text-sm">
               <span className="text-[var(--color-ink-muted)]">
-                Delete this card?
+                {labels.deleteConfirm}
               </span>
               <button
                 type="button"
@@ -355,15 +391,15 @@ export function CardEditor({
                 disabled={saving || deleting}
                 className="text-[var(--color-ink-muted)] underline disabled:opacity-50"
               >
-                Cancel
+                {strings.common.cancel}
               </button>
               <button
                 type="button"
                 onClick={handleDelete}
                 disabled={saving || deleting}
-                className="font-medium text-[var(--color-accent)] underline disabled:opacity-50"
+                className="font-medium text-[var(--card-rouge)] underline disabled:opacity-50"
               >
-                {deleting ? "Deleting…" : "Delete"}
+                {deleting ? strings.common.deleting : strings.common.delete}
               </button>
             </div>
           ) : (
@@ -372,7 +408,7 @@ export function CardEditor({
               onClick={() => setConfirmingDelete(true)}
               className="mx-auto text-sm text-[var(--color-ink-muted)] underline"
             >
-              Delete card
+              {labels.deleteCard}
             </button>
           ))}
         {savedAt > 0 && !error && (
@@ -380,17 +416,17 @@ export function CardEditor({
             role="status"
             className="text-center text-sm text-[var(--card-moss)]"
           >
-            Card saved
+            {labels.cardSaved}
           </p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-[var(--color-accent)]">
+          <p role="alert" className="text-sm text-[var(--card-rouge)]">
             {error}
           </p>
         )}
       </form>
 
-      <StudentPreview values={values} />
+      <StudentPreview values={values} strings={strings} locale={locale} />
     </div>
   );
 }

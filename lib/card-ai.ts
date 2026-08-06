@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { CardSuggestion } from "@/lib/card-suggestions";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import { getStrings } from "@/lib/strings";
 
 export const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 2000;
@@ -65,19 +67,30 @@ const SUGGESTION_SCHEMA = {
 
 let client: Anthropic | null = null;
 
-function getClient(): Anthropic {
+function getClient(strings: ReturnType<typeof getStrings>): Anthropic {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    throw new CardAiError("Claude isn't configured on this server.");
+    throw new CardAiError(strings.admin.cardAi.unavailable);
   }
   if (!client) client = new Anthropic({ apiKey });
   return client;
 }
 
+// `locale` is a plain argument rather than a headers() read in here, keeping
+// this module a function of its arguments — app/ai-actions.ts, the one "use
+// server" caller, is where a request is actually in scope. Defaulted to
+// DEFAULT_LOCALE, matching lib/format.ts's formatCardDate and
+// formatLongDate, so a future caller that forgets the argument still
+// compiles and still answers in French, this project's fallback — there is
+// no unit test here to keep in step; this module calls a live API and is
+// untested by the project's own convention, the same as the rest of lib/
+// that is impure.
 export async function generateCardSuggestion(
   input: SuggestionInput,
+  locale: Locale = DEFAULT_LOCALE,
 ): Promise<CardSuggestion> {
-  const anthropic = getClient();
+  const strings = getStrings(locale);
+  const anthropic = getClient(strings);
 
   let response;
   try {
@@ -108,37 +121,37 @@ export async function generateCardSuggestion(
   } catch (err) {
     // Most specific first: both of these extend APIError.
     if (err instanceof Anthropic.AuthenticationError) {
-      throw new CardAiError("Claude rejected the API key.");
+      throw new CardAiError(strings.admin.cardAi.badKey);
     }
     if (err instanceof Anthropic.RateLimitError) {
-      throw new CardAiError("Claude is rate limited — try again in a moment.");
+      throw new CardAiError(strings.admin.cardAi.rateLimited);
     }
     if (err instanceof Anthropic.APIError) {
-      throw new CardAiError("Claude couldn't be reached. Try again.");
+      throw new CardAiError(strings.admin.cardAi.unreachable);
     }
-    throw new CardAiError("Claude couldn't be reached. Try again.");
+    throw new CardAiError(strings.admin.cardAi.unreachable);
   }
 
   // A refusal is HTTP 200 with empty content, so this has to come before any
   // indexing into content.
   if (response.stop_reason === "refusal") {
-    throw new CardAiError("Claude declined to answer this one.");
+    throw new CardAiError(strings.admin.cardAi.refused);
   }
 
   // A max_tokens stop means the JSON may have been cut off mid-object; parsing
   // it would either throw a raw SyntaxError or silently succeed on garbage.
   if (response.stop_reason === "max_tokens") {
-    throw new CardAiError("Claude couldn't be reached. Try again.");
+    throw new CardAiError(strings.admin.cardAi.unreachable);
   }
 
   const block = response.content.find((b) => b.type === "text");
   if (!block || block.type !== "text") {
-    throw new CardAiError("Claude couldn't be reached. Try again.");
+    throw new CardAiError(strings.admin.cardAi.unreachable);
   }
 
   try {
     return JSON.parse(block.text) as CardSuggestion;
   } catch {
-    throw new CardAiError("Claude couldn't be reached. Try again.");
+    throw new CardAiError(strings.admin.cardAi.unreachable);
   }
 }

@@ -1,3 +1,9 @@
+import type { Locale } from "@/lib/i18n";
+
+// Left exported under its original name for monthNamesFor's English branch
+// below and for the one test that pins its casing. Task H2 (2026-08-06)
+// converted every direct importer in components/admin/** to monthNamesFor
+// instead — this array itself is no longer imported anywhere but here.
 export const MONTHS = [
   "JANUARY",
   "FEBRUARY",
@@ -12,6 +18,44 @@ export const MONTHS = [
   "NOVEMBER",
   "DECEMBER",
 ];
+
+// The French counterpart, same ALL-CAPS convention. Added once the student
+// page's week-range button and the calendar behind it began following the
+// visitor's locale instead of borrowing MONTHS — English — to visually match
+// a trigger that had no other reason to be English either. See the comment
+// CardDateNav used to carry, replaced along with the code it explained.
+const MONTHS_FR = [
+  "JANVIER",
+  "FÉVRIER",
+  "MARS",
+  "AVRIL",
+  "MAI",
+  "JUIN",
+  "JUILLET",
+  "AOÛT",
+  "SEPTEMBRE",
+  "OCTOBRE",
+  "NOVEMBRE",
+  "DÉCEMBRE",
+];
+
+export function monthNamesFor(locale: Locale): readonly string[] {
+  return locale === "fr" ? MONTHS_FR : MONTHS;
+}
+
+// Full weekday names, Monday to Friday — kept as full names rather than
+// initials in BOTH languages, for the reason CardDateNav's comment used to
+// give only for French: React needs a distinct key per column, and the day
+// strip renders one button per weekday. The reason holds in English too —
+// Tuesday and Thursday share a first letter — just not for the same pair, so a
+// stored "letter" per language would be one more table to keep in step.
+// Callers derive the initial from the first character instead.
+const WEEKDAYS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
+const WEEKDAYS_EN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+export function weekdayNamesFor(locale: Locale): readonly string[] {
+  return locale === "fr" ? WEEKDAYS_FR : WEEKDAYS_EN;
+}
 
 // The Monday of the week containing `date`. A Sunday counts back six days, not
 // none: the teaching week runs Monday to Friday and a Sunday belongs to the
@@ -72,9 +116,12 @@ export function latestViewableDate(today: Date): Date {
   return friday;
 }
 
-export function formatWeekRange(start: Date, end: Date): string {
-  const from = `${MONTHS[start.getUTCMonth()]} ${start.getUTCDate()}`;
-  const to = `${MONTHS[end.getUTCMonth()]} ${end.getUTCDate()}`;
+// locale has no default: its one caller (CardDateNav) always has one to hand,
+// and a default would let a future call site silently render English.
+export function formatWeekRange(start: Date, end: Date, locale: Locale): string {
+  const months = monthNamesFor(locale);
+  const from = `${months[start.getUTCMonth()]} ${start.getUTCDate()}`;
+  const to = `${months[end.getUTCMonth()]} ${end.getUTCDate()}`;
 
   // A week straddling New Year needs both years or the range reads as though
   // it runs backwards.

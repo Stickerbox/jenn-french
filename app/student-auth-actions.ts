@@ -6,16 +6,10 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { cookieNameFor, newToken } from "@/lib/student-tokens";
 import { checkPassword, normaliseEmail } from "@/lib/student-credentials";
-import {
-  credentialProblemLabel,
-  EMAIL_TAKEN,
-  GENERIC_FAILURE,
-  INVITE_USED,
-  SIGN_IN_FAILED,
-  TOO_MANY_TRIES,
-} from "@/lib/student-auth-labels";
+import { credentialProblemLabel } from "@/lib/student-auth-labels";
 import { hashPassword, verifyPassword } from "@/lib/password-hash";
 import { clearAttempts, isLockedFor, noteFailure } from "@/lib/login-throttle";
+import { currentStrings } from "@/lib/locale";
 
 // A year, matching what middleware.ts sets when it moves ?k= into a cookie.
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
@@ -53,30 +47,40 @@ export async function claimStudent(
   email: string,
   password: string,
 ): Promise<AuthResult> {
+  // Read once and threaded through: this is a "use server" action, so
+  // headers() is in scope, but every early return below needs the same
+  // dictionary and there is no reason to re-derive it per branch.
+  const strings = await currentStrings();
+  const auth = strings.student.auth;
+
   // Before any hashing: hashing is expensive on purpose, so an unthrottled
   // endpoint that hashes attacker input is a CPU-exhaustion vector against a
   // two-core box.
-  if (isLockedFor(slugKey(slug))) return { error: TOO_MANY_TRIES };
+  if (isLockedFor(slugKey(slug))) return { error: auth.tooManyTries };
 
   const normalised = normaliseEmail(email);
-  if (normalised === null) return { error: credentialProblemLabel("bad-email") };
+  if (normalised === null) {
+    return { error: credentialProblemLabel("bad-email", strings) };
+  }
 
   const problem = checkPassword(password);
-  if (problem !== null) return { error: credentialProblemLabel(problem) };
+  if (problem !== null) {
+    return { error: credentialProblemLabel(problem, strings) };
+  }
 
   const group = await prisma.group.findUnique({
     where: { slug },
     select: { id: true, isEveryone: true, chatToken: true },
   });
   if (!group || group.isEveryone || group.chatToken === null) {
-    return { error: GENERIC_FAILURE };
+    return { error: auth.genericFailure };
   }
 
   const store = await cookies();
   const presented = store.get(cookieNameFor(slug))?.value ?? null;
   if (presented !== group.chatToken) {
     noteFailure(slugKey(slug));
-    return { error: INVITE_USED };
+    return { error: auth.inviteUsed };
   }
 
   // Rotating the token is what SPENDS the invitation, and it is load-bearing
@@ -108,11 +112,11 @@ export async function claimStudent(
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"
     ) {
-      return { error: EMAIL_TAKEN };
+      return { error: auth.emailTaken };
     }
     throw err;
   }
-  if (count !== 1) return { error: INVITE_USED };
+  if (count !== 1) return { error: auth.inviteUsed };
 
   await setStudentCookie(slug, freshToken);
   clearAttempts(slugKey(slug));
@@ -132,7 +136,10 @@ export async function signInStudent(
   email: string,
   password: string,
 ): Promise<AuthResult> {
-  if (isLockedFor(slugKey(slug))) return { error: TOO_MANY_TRIES };
+  const strings = await currentStrings();
+  const auth = strings.student.auth;
+
+  if (isLockedFor(slugKey(slug))) return { error: auth.tooManyTries };
 
   const normalised = normaliseEmail(email);
 
@@ -147,7 +154,7 @@ export async function signInStudent(
   });
   if (!group || group.isEveryone || group.chatToken === null) {
     noteFailure(slugKey(slug));
-    return { error: SIGN_IN_FAILED };
+    return { error: auth.signInFailed };
   }
 
   // Both checks are computed BEFORE the branch below, so a wrong email cannot
@@ -168,7 +175,7 @@ export async function signInStudent(
   if (!emailOk || !passwordOk) {
     noteFailure(slugKey(slug));
     // One message for every failure. Never which half was wrong.
-    return { error: SIGN_IN_FAILED };
+    return { error: auth.signInFailed };
   }
 
   await setStudentCookie(slug, group.chatToken);
@@ -193,6 +200,8 @@ export async function signInByEmail(
   email: string,
   password: string,
 ): Promise<EmailSignInResult> {
+  const auth = (await currentStrings()).student.auth;
+
   // Normalised first because it is pure and cheap, and because the throttle key
   // has to be the same string every time or the counter never accumulates. A
   // malformed address still gets a key — from the raw input — so hammering this
@@ -204,7 +213,7 @@ export async function signInByEmail(
   // endpoint that hashes attacker input is a CPU-exhaustion vector against a
   // two-core box — and this one takes no slug, so it needs no guessing at all
   // to reach.
-  if (isLockedFor(key)) return { error: TOO_MANY_TRIES };
+  if (isLockedFor(key)) return { error: auth.tooManyTries };
 
   const group =
     normalised === null
@@ -231,12 +240,12 @@ export async function signInByEmail(
   ) {
     await hashPassword(password);
     noteFailure(key);
-    return { error: SIGN_IN_FAILED };
+    return { error: auth.signInFailed };
   }
 
   if (!(await verifyPassword(password, group.passwordHash))) {
     noteFailure(key);
-    return { error: SIGN_IN_FAILED };
+    return { error: auth.signInFailed };
   }
 
   await setStudentCookie(group.slug, group.chatToken);

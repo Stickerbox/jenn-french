@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import { fieldClassName } from "@/components/ui/field";
 import { signInByEmail } from "@/app/student-auth-actions";
 import { MIN_PASSWORD_LENGTH } from "@/lib/student-credentials";
-import { GENERIC_FAILURE } from "@/lib/student-auth-labels";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 
 const linkButton =
   "font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-bleu)] underline";
@@ -16,13 +17,20 @@ const linkButton =
 // sign-up, sign-in and sign-out for THAT student. This one knows no slug at all
 // — the address is what finds the student — so sharing the component would mean
 // making `slug` optional in a thing whose every branch uses it.
-export function SignInForm() {
+// This is a client component, so it cannot call headers() itself — the
+// server component above it (app/signin/page.tsx) hands down the locale
+// rather than the resolved dictionary. See lib/strings.ts: a `Strings`
+// object holds functions and cannot cross the server/client boundary.
+export function SignInForm({ locale }: { locale: Locale }) {
+  const strings = getStrings(locale);
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const auth = strings.student.auth;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -43,7 +51,7 @@ export function SignInForm() {
       }
       router.push(`/g/${result.slug}`);
     } catch {
-      setError(GENERIC_FAILURE);
+      setError(auth.genericFailure);
     } finally {
       setBusy(false);
     }
@@ -58,7 +66,7 @@ export function SignInForm() {
         htmlFor="signin-email"
         className="block font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-ink)]"
       >
-        Courriel
+        {auth.emailLabel}
       </label>
       <input
         id="signin-email"
@@ -76,7 +84,7 @@ export function SignInForm() {
         htmlFor="signin-password"
         className="block font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-ink)]"
       >
-        Mot de passe
+        {auth.passwordLabel}
       </label>
       <input
         id="signin-password"
@@ -99,7 +107,7 @@ export function SignInForm() {
           onClick={() => setReveal(!reveal)}
           className={linkButton}
         >
-          {reveal ? "Masquer" : "Afficher"} le mot de passe
+          {reveal ? auth.hidePassword : auth.showPassword}
         </button>
       </div>
 
@@ -108,7 +116,7 @@ export function SignInForm() {
         disabled={busy}
         className="w-full rounded-full bg-[var(--card-bleu)] px-5 py-2 font-[family-name:var(--card-font-serif)] text-sm text-white disabled:opacity-50"
       >
-        {busy ? "Connexion…" : "Se connecter"}
+        {busy ? auth.signingIn : auth.signIn}
       </button>
 
       {error && (

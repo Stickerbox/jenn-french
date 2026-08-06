@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 import { OverlayProvider } from "@/components/ui/OverlayProvider";
+import { currentLocale } from "@/lib/locale";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -20,13 +21,21 @@ export const metadata: Metadata = {
   description: "Daily French vocabulary flashcards",
 };
 
-export default function RootLayout({
+// Reading headers() here — inside currentLocale() — opts the WHOLE APP into
+// dynamic rendering, because every route shares this layout. /login and
+// /signin stop being statically prerendered as a result. Accepted: this is one
+// tutor and a small box, and it is the price of the page's language being
+// right on the first paint rather than flickering after hydration once a
+// client-side check ran.
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await currentLocale();
+
   return (
-    <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
+    <html lang={locale} className={`${fraunces.variable} ${inter.variable}`}>
       <body>
         {/* One provider for every route, so every Fab and every overlay —
             AddSheet today, ChatPanel once Task D1 wires it in — shares the

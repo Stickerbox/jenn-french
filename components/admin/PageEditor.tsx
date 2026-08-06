@@ -6,8 +6,16 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { HtmlPasteBox } from "@/components/ui/HtmlPasteBox";
 import { FileDropZone } from "@/components/ui/FileDropZone";
+import {
+  audiencePill,
+  audiencePillChecked,
+  audiencePillUnchecked,
+  cardFieldSkin,
+} from "@/components/card-styles";
 import { MAX_PDF_BYTES } from "@/lib/page-pdf";
 import type { PageKind } from "@/lib/page-kind";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { PageInput, PageSaveResult } from "@/app/page-actions";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
@@ -31,6 +39,7 @@ export function PageEditor({
   onSubmit,
   onSubmitPdf,
   onDelete,
+  locale,
 }: {
   groups: PageEditorGroup[];
   initial: {
@@ -49,7 +58,15 @@ export function PageEditor({
   // shape: a document is a string and a PDF is bytes in FormData.
   onSubmitPdf: (formData: FormData) => Promise<unknown>;
   onDelete?: () => Promise<void>;
+  // This is a client component reached directly from two server components
+  // (app/admin/pages/[slug]/page.tsx and, through PageEditOverlay, the Pages
+  // tab and a student's shelf), so it takes `locale` rather than the resolved
+  // `strings` object — a `Strings` value holds functions and cannot cross
+  // that boundary. See lib/strings.ts.
+  locale: Locale;
 }) {
+  const strings = getStrings(locale);
+  const labels = strings.admin.pageEditor;
   const router = useRouter();
   const [title, setTitle] = useState(initial.title);
   // The staged replacement for a pdf row, and null until she chooses one.
@@ -131,7 +148,7 @@ export function PageEditor({
       setSaved(true);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : strings.admin.genericError);
     } finally {
       setSaving(false);
     }
@@ -145,7 +162,7 @@ export function PageEditor({
       await onDelete();
       router.push("/admin?tab=pages");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete the page");
+      setError(err instanceof Error ? err.message : labels.deleteError);
     } finally {
       setDeleting(false);
     }
@@ -153,16 +170,21 @@ export function PageEditor({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <label className="text-sm font-medium text-[var(--color-ink)]">
-        Title
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
+      <label className="text-sm font-medium text-[var(--card-ink)]">
+        {strings.admin.titleLabel}
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          className={cardFieldSkin}
+        />
       </label>
 
-      <fieldset className="text-sm font-medium text-[var(--color-ink)]">
-        <legend className="mb-2">Students</legend>
+      <fieldset className="text-sm font-medium text-[var(--card-ink)]">
+        <legend className="mb-2">{strings.admin.pageForm.studentsLegend}</legend>
         {groups.length === 0 ? (
           <p className="text-sm font-normal text-[var(--color-ink-muted)]">
-            No students yet.
+            {strings.admin.pageForm.noStudentsYet}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -175,10 +197,8 @@ export function PageEditor({
                 <label
                   key={group.id}
                   className={cn(
-                    "cursor-pointer rounded-full border px-4 py-2 text-sm font-normal transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-accent)]/40",
-                    checked
-                      ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-ink)]"
-                      : "border-[var(--color-field-border)] bg-[var(--color-field)] text-[var(--color-ink-muted)]",
+                    audiencePill,
+                    checked ? audiencePillChecked : audiencePillUnchecked,
                   )}
                 >
                   <input
@@ -208,20 +228,19 @@ export function PageEditor({
             className="mt-1"
           />
           <span>
-            Students can save their answers
+            {labels.worksheetLabel}
             {/* The one sentence of explanation the control needs: the flag changes
                 where the tile goes, which is not guessable from the label. */}
             <span className="block text-[var(--color-ink-muted)]">
-              Opens on the student&rsquo;s own page, with a Save button and up to
-              three versions.
+              {labels.worksheetHelp}
             </span>
           </span>
         </label>
       )}
 
       {initial.kind === "pdf" ? (
-        <div className="text-sm font-medium text-[var(--color-ink)]">
-          Replace the PDF
+        <div className="text-sm font-medium text-[var(--card-ink)]">
+          {labels.replacePdfLabel}
           {/* A PDF cannot be pasted, so this is the one staging control that is
               still a file input. The existing document is described rather than
               shown: there is nothing to edit inside it. */}
@@ -230,16 +249,16 @@ export function PageEditor({
             fileSize={pdfFile?.size ?? initial.pdfSize}
             hasExisting
             accept=".pdf,application/pdf"
-            inputLabel="PDF to replace this one with"
-            emptyHint="Drop a PDF here, or click to choose one"
-            existingHint="A PDF is published. Drop a new one to replace it."
+            inputLabel={labels.pdfReplaceInputLabel}
+            emptyHint={strings.admin.newPageForm.pdfEmptyHint}
+            existingHint={labels.pdfExistingHint}
             onFile={(file) => {
               setError(null);
               // The cap is checked again on the server, which is the authority.
               // This is the courtesy of telling her before a 3 MB upload rather
               // than after.
               if (file.size > MAX_PDF_BYTES) {
-                setError("That PDF is larger than 3 MB.");
+                setError(strings.admin.pdfTooLarge);
                 return;
               }
               setPdfFile(file);
@@ -259,22 +278,23 @@ export function PageEditor({
           />
           {preparing && (
             <p className="mt-1 text-xs font-normal text-[var(--color-ink-muted)]">
-              Preparing preview…
+              {strings.admin.preparingPreview}
             </p>
           )}
         </div>
       ) : (
-        <div className="text-sm font-medium text-[var(--color-ink)]">
-          Replace the page
+        <div className="text-sm font-medium text-[var(--card-ink)]">
+          {labels.replacePageLabel}
           {/* Unlike the create form, pasting here does NOT save: there is a title
               and an audience on this screen that a paste must not commit behind
               her. It stages the new document and Save commits everything. */}
+          {/* tone="card" — see NewPageForm's identical comment. */}
           <HtmlPasteBox
-            tone="admin"
+            tone="card"
             labels={{
-              prompt: "Paste the page's HTML here (⌘V) to replace it",
-              accepted: (size) => `New version staged — ${size}. Save to publish it.`,
-              ariaLabel: "HTML to replace this page with",
+              prompt: labels.pastePromptReplace,
+              accepted: labels.pasteAcceptedReplace,
+              ariaLabel: labels.pasteAriaLabelReplace,
             }}
             onHtml={setHtml}
           />
@@ -283,7 +303,7 @@ export function PageEditor({
 
       <div className="flex items-center justify-center gap-4">
         <Button type="submit" disabled={saving || deleting || !hasContent}>
-          {saving ? "Saving..." : submitLabel}
+          {saving ? strings.common.saving : submitLabel}
         </Button>
         {onDelete && (
           <button
@@ -292,21 +312,21 @@ export function PageEditor({
             disabled={saving || deleting}
             className="text-sm text-[var(--color-ink-muted)] underline"
           >
-            {deleting ? "Deleting..." : "Delete page"}
+            {deleting ? strings.common.deleting : labels.deleteLabel}
           </button>
         )}
         {saved && (
-          <span className="text-sm text-[var(--color-ink-muted)]">Saved</span>
+          <span className="text-sm text-[var(--color-ink-muted)]">{labels.saved}</span>
         )}
       </div>
 
       {error && (
-        <p role="alert" className="text-center text-sm text-[var(--color-accent)]">
+        <p role="alert" className="text-center text-sm text-[var(--card-rouge)]">
           {error}
         </p>
       )}
 
-      <SkippedAssets skipped={skipped} />
+      <SkippedAssets skipped={skipped} strings={strings} />
     </form>
   );
 }
