@@ -1,8 +1,16 @@
 import type { Locale } from "@/lib/i18n";
 
-// The first word of Group.name, which holds the student's full name. A greeting
-// is the one place the full name reads wrong — "Bonjour Marie Dupont" is a
-// summons, not a hello.
+// The first word of Group.name, which holds the student's full name. Split out
+// so every caller that wants "the student's first name" — greeting() below,
+// and versionNotice's third-person copy — reads it the same way instead of
+// re-splitting the string and risking the two rules drifting apart.
+export function firstNameOf(name: string): string | null {
+  const first = name.trim().split(/\s+/)[0];
+  return first || null;
+}
+
+// A greeting is the one place the full name reads wrong — "Bonjour Marie
+// Dupont" is a summons, not a hello.
 //
 // The caller suppresses this on the everyone group: that row is named
 // "Everyone", and "Bonjour Everyone" is wrong in both languages. The rule lives
@@ -14,7 +22,7 @@ import type { Locale } from "@/lib/i18n";
 // looking at the page, from their own browser, which is why this takes a
 // locale instead of assuming one.
 export function greeting(name: string, locale: Locale): string | null {
-  const first = name.trim().split(/\s+/)[0];
+  const first = firstNameOf(name);
   if (!first) return null;
   return locale === "en" ? `Hello ${first}` : `Bonjour ${first}`;
 }

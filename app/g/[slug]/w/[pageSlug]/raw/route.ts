@@ -4,6 +4,7 @@ import { getPageBySlug } from "@/lib/pages";
 import { getVersionHtml } from "@/lib/version-store";
 import { SANDBOXED_DOCUMENT_CSP } from "@/lib/sandbox-csp";
 import {
+  withEditableBootstrap,
   withPrintableBootstrap,
   withSnapshotBootstrap,
 } from "@/lib/printable-bootstrap";
@@ -40,11 +41,15 @@ export async function GET(
 
   if (html === null) return new NextResponse("Not found", { status: 404 });
 
-  // Both bootstraps, which is the one place in this codebase two are appended
-  // together — and they stay independent listeners on one channel. The shell
-  // needs the Save pill AND the print pill on every version, and the gate rule
-  // is unchanged: only this route asks, and /p/[slug]/raw is untouched.
-  const body = withSnapshotBootstrap(withPrintableBootstrap(html));
+  // Three bootstraps, which is the one place in this codebase more than one is
+  // appended together — and they stay independent listeners on one channel,
+  // each keyed on its own event.data. The shell needs the Save pill, the print
+  // pill, and an answer to whether this document can still be filled in at
+  // all; the gate rule is unchanged: only this route asks, and /p/[slug]/raw
+  // is untouched.
+  const body = withEditableBootstrap(
+    withSnapshotBootstrap(withPrintableBootstrap(html)),
+  );
 
   return new NextResponse(body, {
     headers: {

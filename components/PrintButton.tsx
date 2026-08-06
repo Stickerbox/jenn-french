@@ -32,17 +32,24 @@ function SaveIcon() {
   );
 }
 
-// `className` overrides only the position: the worksheet shell renders this
-// beside a Save pill in the same corner and shifts it left so the two do not
-// overlap (see the note in CLAUDE.md about the two fixed controls that already
-// share bottom-right). Left undefined on /p/[slug], its only other caller,
-// which keeps that route's position exactly as it was.
-export function PrintButton({ className }: { className?: string } = {}) {
+// `className` overrides only the position: the worksheet shell owns one fixed
+// bottom-right container and stacks this above its Save pill inside it, so it
+// passes `className="static"` to cancel this button's own fixed placement —
+// tailwind-merge lets the caller's position utility win. Left undefined on
+// /p/[slug], its only other caller, which keeps that route's position exactly
+// as it was.
+export function PrintButton({
+  className,
+  // The worksheet shell frames its document under WORKSHEET_FRAME_ID, not
+  // PAGE_FRAME_ID — this button used to look up PAGE_FRAME_ID unconditionally,
+  // so pressing it on a worksheet found no frame and silently did nothing.
+  frameId = PAGE_FRAME_ID,
+}: { className?: string; frameId?: string } = {}) {
   return (
     <button
       type="button"
       onClick={() => {
-        const frame = document.getElementById(PAGE_FRAME_ID);
+        const frame = document.getElementById(frameId);
         if (!(frame instanceof HTMLIFrameElement)) return;
         // "*" because the frame's origin is opaque — there is no origin string
         // that would match it. The listener authenticates us from the other

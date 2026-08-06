@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SNAPSHOT_MESSAGE } from "@/lib/printable-bootstrap";
+import { cn } from "@/lib/utils";
 
 export const WORKSHEET_FRAME_ID = "worksheet-document";
 
@@ -19,10 +20,24 @@ export function SaveVersionButton({
   groupSlug,
   pageSlug,
   audience,
+  className,
+  disabled = false,
+  onSaved,
 }: {
   groupSlug: string;
   pageSlug: string;
   audience: "student" | "teacher";
+  // Nothing has changed in the document since it loaded or since the last
+  // save. The shell owns that fact, because only the shell hears the frame
+  // report it — this component cannot see into an opaque origin either.
+  disabled?: boolean;
+  // Told after a save lands, so the shell can clear the same flag that greys
+  // this pill and arms the browser's leave prompt. One fact, one owner.
+  onSaved?: () => void;
+  // Overrides only the position, the same contract PrintButton documents: the
+  // worksheet shell stacks this below the print pill in one fixed container
+  // and passes `className="static"` to cancel this div's own fixed placement.
+  className?: string;
 }) {
   const [state, setState] = useState<State>("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -96,6 +111,12 @@ export function SaveVersionButton({
     }
 
     setState("saved");
+    // After the write landed, never before: the shell clears its dirty flag on
+    // this, which disarms the browser's leave prompt. Calling it on a failed
+    // save would let a student walk away from work that was never stored, with
+    // no warning — the same after-the-write ordering createMessage and
+    // addChatLinks both keep, for the same reason.
+    onSaved?.();
   }
 
   const label =
@@ -108,7 +129,12 @@ export function SaveVersionButton({
         };
 
   return (
-    <div className="fixed bottom-5 right-5 z-10 flex flex-col items-end gap-2 print:hidden">
+    <div
+      className={cn(
+        "fixed bottom-5 right-5 z-10 flex flex-col items-end gap-2 print:hidden",
+        className,
+      )}
+    >
       {message && (
         <p className="max-w-xs rounded-lg bg-white px-3 py-2 text-sm text-[var(--card-rouge)] shadow-[var(--card-shadow)]">
           {message}
@@ -117,8 +143,21 @@ export function SaveVersionButton({
       <button
         type="button"
         onClick={save}
-        disabled={state === "saving"}
-        className="flex items-center gap-2 rounded-full bg-[var(--card-rouge)] px-5 py-3 font-[family-name:var(--card-font-serif)] text-sm text-white shadow-[var(--card-shadow)] transition-opacity hover:opacity-90 disabled:opacity-60"
+        // `disabled` is the caller's "nothing has changed"; the local state is
+        // "a save is already in flight". Two different facts, one attribute.
+        disabled={disabled || state === "saving"}
+        // The title carries what the greyed-out state cannot say on its own —
+        // a disabled control explains nothing by itself, and on a phone there
+        // is no hover to reveal it either, which is why the state is also
+        // visible in the label below.
+        title={
+          disabled && state !== "saving"
+            ? audience === "teacher"
+              ? "Nothing has changed yet"
+              : "Rien n'a changé pour le moment"
+            : undefined
+        }
+        className="flex items-center gap-2 rounded-full bg-[var(--card-rouge)] px-5 py-3 font-[family-name:var(--card-font-serif)] text-sm text-white shadow-[var(--card-shadow)] transition-opacity hover:opacity-90 motion-reduce:transition-none disabled:opacity-60"
       >
         {state === "saving" ? label.saving : state === "saved" ? label.saved : label.idle}
       </button>

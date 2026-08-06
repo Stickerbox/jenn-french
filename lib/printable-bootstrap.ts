@@ -1,5 +1,6 @@
 import { MAX_SNAPSHOT_BYTES } from "@/lib/page-snapshot";
 import { snapshotDocument } from "@/lib/snapshot-dom";
+import { hasEditableFields } from "@/lib/editable-fields";
 
 export const PRINT_MESSAGE = "print-page";
 export const CAPTURE_MESSAGE = "capture-page";
@@ -391,4 +392,87 @@ const SNAPSHOT_BOOTSTRAP = `<script ${BOOTSTRAP_MARKER_ATTR}>
 // left here is the same accumulation, one more layer down.
 export function withSnapshotBootstrap(html: string): string {
   return `${html}${SNAPSHOT_BOOTSTRAP}`;
+}
+
+export const EDITABLE_MESSAGE = "editable-page";
+export const DIRTY_MESSAGE = "dirty-page";
+
+// The fourth injection, composed on the worksheet route beside the snapshot
+// and print ones and gated the same way — by the route, not by a query
+// parameter.
+//
+// It answers whether this document can still be filled in without its own
+// JavaScript, which is what decides whether the shell draws the Save pill over
+// a SAVED version. The predicate is lib/editable-fields.ts, inlined by its own
+// source for the reason snapshotDocument is: it is a rule with edge cases,
+// and a rule tested only for what a string CONTAINS is not tested.
+//
+// It answers ALWAYS, and answers false on a throw. The contract is the capture
+// bootstrap's rather than the snapshot one's, and deliberately: a wrong `true`
+// draws a control that saves the same bytes over themselves, while a wrong
+// `false` on the blank would hide the only way to save — which cannot happen,
+// because the shell never asks about the blank. It draws the pill there
+// unconditionally.
+const EDITABLE_BOOTSTRAP = `<script ${BOOTSTRAP_MARKER_ATTR}>
+(function () {
+  var MESSAGE = ${JSON.stringify(EDITABLE_MESSAGE)};
+  var DIRTY = ${JSON.stringify(DIRTY_MESSAGE)};
+  var hasEditableFields = ${hasEditableFields.toString()};
+
+  // The document tells the shell that somebody changed something, because the
+  // shell cannot see in: the frame's origin is opaque, so there is no listener
+  // the parent could attach from outside. This is what enables the Save pill
+  // and what arms the leave prompt, and it is deliberately the SAME signal for
+  // both — a page worth prompting about is exactly a page with something to
+  // save.
+  //
+  // Both events, on the document in the CAPTURE phase: "input" carries typing
+  // and contenteditable, "change" carries a box being ticked and a select
+  // being chosen, and capture catches them wherever they are dispatched, even
+  // if the page stops them bubbling.
+  //
+  // Sent on EVERY change rather than once. The parent clears its own flag
+  // after a successful save and has to hear about the next keystroke; a
+  // one-shot notice would leave a second edit unsaveable and unguarded. The
+  // message is tiny and the parent's handler is idempotent.
+  //
+  // The known cost: a document whose own JavaScript dispatches these events
+  // while loading marks itself changed with nobody having touched it. That is
+  // only possible on the blank, where the scripts still run, and the effect is
+  // a Save pill that is enabled early rather than a wrong save.
+  function touched() {
+    try {
+      window.parent.postMessage({ type: DIRTY }, "*");
+    } catch (e) {}
+  }
+  document.addEventListener("input", touched, true);
+  document.addEventListener("change", touched, true);
+
+  addEventListener("message", function (event) {
+    // event.source, not event.origin — this document has an opaque origin and
+    // no origin string to compare against, exactly as the three listeners
+    // above it argue.
+    if (event.source !== window.parent) return;
+    if (event.data !== MESSAGE) return;
+
+    var editable = false;
+    try {
+      editable = hasEditableFields(document.documentElement);
+    } catch (e) {
+      // Nothing may throw out of here, and a failed probe means "no control",
+      // never a broken shell.
+    }
+    try {
+      window.parent.postMessage({ type: MESSAGE, editable: editable }, "*");
+    } catch (e) {}
+  });
+})();
+</script>`;
+
+// Appended, for the reason withPrintableBootstrap is, including the absence of
+// a separating "\\n" — see that function's comment. Marked like the others, so
+// snapshotDocument strips it back out and a saved version never accumulates a
+// copy of it.
+export function withEditableBootstrap(html: string): string {
+  return `${html}${EDITABLE_BOOTSTRAP}`;
 }

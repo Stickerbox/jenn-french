@@ -98,6 +98,21 @@ export async function savePage(input: SavePageInput): Promise<string> {
         // own shelf, and this is the flag canStudentDelete keys off to let them
         // take it back down again.
         addedByStudent: input.addedByStudent === true,
+        // ON for html, off for everything else, and CREATE ONLY — the same
+        // shape as addedByStudent directly above, and it does not reopen the
+        // split that keeps `worksheet` out of savePage: that split is about an
+        // EDIT, which must never rewrite a flag Jenn set by hand, and `update`
+        // below still leaves it alone. updatePageMeta remains the only way to
+        // change it.
+        //
+        // A default rather than a rule: almost every html page published here
+        // is a worksheet out of Dia, and the flag was reachable only by
+        // opening the editor after publishing and ticking a box — so the
+        // feature was off for every page nobody went back to. A pdf keeps the
+        // schema default of false: it cannot be filled in in the browser, so
+        // its versions are uploads, which is a deliberate act and a poor
+        // default. A link has nothing to fill in at all.
+        worksheet: input.kind === "html",
       },
       // addedByStudent is deliberately absent here: who added a row is a fact
       // about its creation, and an edit must not rewrite it.

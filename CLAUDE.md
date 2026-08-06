@@ -946,6 +946,78 @@ behaviour, not JavaScript — which is what makes the correction the *same
 operation* as the attempt rather than a second feature: Jenn opens the
 student's version and types into it.
 
+**"Typeable" is narrower than it sounds, and the Save pill asks the document
+whether it applies** (2026-08-06). What survives a strip is what the *browser*
+drives: text fields, checkboxes, selects, `contenteditable`, `:checked`. What
+does not is everything the page's own JavaScript drove — and a Dia worksheet is
+often exactly that: clickable answers, drag-and-drop matching, div-based
+pickers. Measured, not assumed: a real worksheet answered by clicking animated
+elements came back inert, and the pill over it offered to re-save a document
+nobody could edit.
+
+**Which tabs may draw it is decided first**, by `canSaveFromSlot`
+(`lib/worksheet-save-slots.ts`): Jenn on all three, a student on the blank and
+on their own answers, **never on Jenn's correction**. That asymmetry is not
+politeness. A save writes the CALLER'S slot from whatever view called it, so a
+student saving from the correction would file Jenn's marks as their own
+attempt, and what they actually handed in would be gone. Jenn saving from the
+student's attempt is the opposite: it is how a correction is made.
+
+Within those tabs the pill is drawn on the **blank always**, and on a **saved
+version only when that version answers that it still has an editable field**.
+`hasEditableFields` (`lib/editable-fields.ts`) is the predicate, and
+`withEditableBootstrap` inlines its source into the served document the way
+`withSnapshotBootstrap` inlines `snapshotDocument`'s — same ES5 rule, same
+`toString()` test, for the same reason. The shell asks on the iframe's `load`
+and listens for the reply; the frame has an opaque origin, so it has to answer
+for itself.
+
+Three things about that are load-bearing. **The blank is never probed** — it is
+the live document with its scripts intact, and a click-driven worksheet has no
+fields for the probe to find, so gating the blank on the answer would hide the
+only way to save exactly the worksheets this exists to serve. **The state is
+three-valued**, `null` until the answer arrives, because a pill that appears
+and then vanishes reads as a fault. And **visibility is judged from the markup,
+not from layout**: `getClientRects` needs a layout engine, which the test
+environment does not have, and an untestable rule sitting between a student and
+their homework is worse than a coarser one that is pinned — so a field hidden
+by a stylesheet still counts as editable.
+
+**The pill is disabled until the document reports a change, and the same
+signal arms the browser's leave prompt.** The frame posts `DIRTY_MESSAGE` on
+every `input` and `change` event — captured on `document`, so a page that stops
+them bubbling is still heard — and the shell holds one `dirty` flag from it.
+That flag greys the pill and registers a `beforeunload`, so leaving with
+unsaved answers raises the browser's own dialog; `onSaved` clears it after the
+write lands, never before, or a student could walk away from work that was
+never stored. It is one flag and not two because it answers one question: is
+there work here worth keeping? The prompt is gated on `canSave` as well, since
+warning somebody about typing they have no way to save is a dead end. Browser
+Back is the same accepted gap the whiteboard's leave-guard records —
+`beforeunload` does not fire for an App Router `popstate` — but every other way
+out of this page is a real navigation, because the tabs and the back control
+are plain anchors rather than `next/link`.
+
+The route is untouched and still writes the caller's own slot from whatever
+view called it, so this withholds a control and adds no access rule. The
+residual cost: on a click-driven worksheet, revising still restarts from the
+blank, and Jenn's correction of one is an answer key rather than an annotated
+attempt. Removing *that* is not a change to this control — it means making a
+stored snapshot live again, which is the trade `lib/snapshot-dom.ts` records
+and refuses.
+
+**A new html page is a worksheet by default; a pdf and a link are not.**
+`savePage` sets `worksheet: input.kind === "html"` in its **create** branch
+only — the same shape as `addedByStudent` beside it, and it does not reopen the
+rule that keeps `worksheet` out of `savePage`: that rule is about an *edit*,
+which must never rewrite a flag Jenn set by hand, and `update` still leaves it
+alone. `updatePageMeta` remains the only way to change it. The reason is that
+almost every html page published here is a Dia worksheet, and the flag was
+reachable only by reopening the editor after publishing — so the feature was
+off for every page nobody went back to. A pdf keeps `false`: it cannot be
+filled in in the browser, so its versions are uploads, which is a deliberate
+act and a poor default.
+
 `snapshotDocument` is inlined into the served document as a `<script>` via
 `Function.prototype.toString()`, the technique Playwright uses for
 `page.evaluate`. **It must stay self-contained** — no imports, no closure over
@@ -1010,8 +1082,10 @@ can delete an individual message, and can regenerate a student's tokens from
 the admin, which revokes both at once.
 
 A message carrying a URL also files it on that student's shelf — see *Files:
-pages, links and PDFs*. The message text is unchanged and still renders as
-plain text; linkifying it is deliberately not part of that.
+pages, links and PDFs*. `MessageList` draws the same URL as a clickable link in
+the bubble, through `lib/chat-linkify.ts`'s `linkifyBody`, which shares
+`chat-links.ts`'s matcher and `parseLinkUrl`'s guard rather than a second one —
+so the shelf and the bubble can never disagree about what counts as a link.
 
 Jenn chats from an inbox: one FAB, on `/admin`, `/admin/pages/[slug]` and
 `/g/[slug]`, rendered by `components/chat/TeacherInbox.tsx` and invisible to

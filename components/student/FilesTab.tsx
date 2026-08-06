@@ -320,6 +320,11 @@ export function FilesTab({
             // reaching here is html or pdf; the fallback matches
             // readPageKind's own default rather than inventing a third case.
             kind: chooserPage.kind === "pdf" ? "pdf" : "html",
+            // What the dialog's own preview needs — the same fields the tile
+            // above already reads to build HtmlPreview/PdfPreview's props.
+            updatedAt: chooserPage.updatedAt,
+            thumbAt: chooserPage.thumbAt,
+            pdfSize: chooserPage.pdfSize,
           }}
           versions={chooserPage.versions}
           audience={canEdit ? "teacher" : "student"}

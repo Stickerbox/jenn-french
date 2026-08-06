@@ -5,6 +5,7 @@ import { groupByDay } from "@/lib/chat-day";
 import { groupIntoRuns } from "@/lib/chat-run";
 import { dayHeading } from "@/lib/chat-stamp";
 import { formatTime, localDayKey } from "@/lib/chat-time";
+import { linkifyBody } from "@/lib/chat-linkify";
 import type { ChatMessage } from "@/lib/chat-message";
 import { cn } from "@/lib/utils";
 import { accentFocusRing } from "@/components/ui/field";
@@ -133,7 +134,36 @@ export function MessageList({
                               (mine ? "rounded-br-md" : "rounded-bl-md"),
                           )}
                         >
-                          {message.body}
+                          {/* linkifyBody is a pure function over the message
+                              string — no hook, no window read — so mapping it
+                              here does not touch the no-SSR rule this file
+                              states above: it is still a plain render of
+                              props, the same as {message.body} was. */}
+                          {linkifyBody(message.body).map((segment, i) =>
+                            segment.kind === "link" ? (
+                              <a
+                                key={i}
+                                href={segment.href}
+                                target="_blank"
+                                // noopener: an off-site link opened from a
+                                // chat message must not hand the new tab a
+                                // window.opener it can use to navigate this
+                                // one — the same reverse-tabnabbing reason
+                                // link tiles carry it.
+                                rel="noopener noreferrer"
+                                // currentColor, not a fixed link colour: this
+                                // bubble is white-on-accent when it is the
+                                // reader's own and ink-on-field otherwise, so
+                                // a literal colour would be unreadable on one
+                                // of the two.
+                                className="underline underline-offset-2 break-words"
+                              >
+                                {segment.label}
+                              </a>
+                            ) : (
+                              <span key={i}>{segment.value}</span>
+                            ),
+                          )}
                         </div>
                         {onDeleteMessage && (
                           <button

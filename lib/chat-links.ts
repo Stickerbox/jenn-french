@@ -23,7 +23,15 @@ export const MAX_LINKS_PER_MESSAGE = 5;
 // prose and numbered lists, and none of them begin with "www.". Requiring at
 // least one character after the dot is what keeps the sentence "il faut taper
 // www. avant l'adresse" from filing a row.
-const URL_PATTERN = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+//
+// Exported so lib/chat-linkify.ts can reuse the exact same matcher when it
+// draws a link in the bubble: two matchers would mean a link extractLinks
+// files onto the shelf but linkifyBody does not draw, or the reverse, with
+// nothing to catch the two drifting apart. Safe to share as a /g/ regex
+// because every caller iterates it with matchAll, which clones the regex
+// internally rather than mutating this object's lastIndex — a shared .exec
+// loop would leak state between callers and must not be used here.
+export const URL_PATTERN = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
 
 // A URL at the end of a sentence is the common case, and ".../verbes." is a 404.
 const TRAILING = /[.,;:!?'"»…\]}]+$/;
@@ -35,7 +43,11 @@ const TRAILING = /[.,;:!?'"»…\]}]+$/;
 // Accepted imperfection, in the register of titleFromUrl's note about short
 // all-letter ids: a URL that genuinely ends in a full stop is mangled, and
 // nothing available here can tell the two apart.
-function trimTrailing(candidate: string): string {
+//
+// Exported for the same reason URL_PATTERN is: linkifyBody trims a candidate
+// before validating it, the same order extractLinks uses, so the two agree
+// about where a link ends and a sentence resumes.
+export function trimTrailing(candidate: string): string {
   let value = candidate.replace(TRAILING, "");
 
   while (value.endsWith(")") && !value.includes("(")) {

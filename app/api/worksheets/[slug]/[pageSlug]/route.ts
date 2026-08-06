@@ -87,11 +87,29 @@ export async function POST(
   //
   // The everyone group needs no clause: chatRole refused it inside
   // resolveWorksheet, before it checked anything else.
+  //
+  // ORIGIN first, the request's own origin as the fallback — the same choice
+  // app/api/pages/route.ts makes at its line 141: this process sits behind
+  // nginx, so request.url can carry an internal hostname or port the
+  // student's browser cannot reach, where ORIGIN is the public domain set
+  // once in deployment. The fallback exists for local dev, where ORIGIN is
+  // unset and the request's own origin IS the address to use.
+  //
+  // One path for both page kinds: /g/[slug]/w/[pageSlug] itself redirects a
+  // pdf worksheet to its own viewer, so this link works whether the saved
+  // version was html or pdf.
+  //
+  // Deliberately NOT run through addChatLinks: that would file this URL as a
+  // second link tile on the shelf pointing at a worksheet the shelf already
+  // shows as a tile — a duplicate, not a new page.
+  const origin = process.env.ORIGIN ?? new URL(request.url).origin;
+  const worksheetUrl = `${origin}/g/${context.group.slug}/w/${context.page.slug}`;
+
   try {
     await createMessage(
       context.group.id,
       fromTeacher,
-      versionNotice(context.page.title, fromTeacher),
+      versionNotice(context.page.title, fromTeacher, context.group.name, worksheetUrl),
     );
   } catch {
     // Deliberately swallowed, for the reason above.
