@@ -504,6 +504,24 @@ export type Strings = {
 
     genericError: string;
   };
+
+  // components/pdf/PdfShell.tsx and components/pdf/PdfDocumentView.tsx —
+  // the in-site PDF viewer that replaced /p/[slug]'s redirect to the
+  // browser's own viewer (see CLAUDE.md's "A PDF is never framed"). Neither
+  // component is audience-specific the way `admin`/`student` are: /p/[slug]
+  // is reached by anyone holding the link, and the worksheet route's own
+  // back control and version tabs keep the older strings WorksheetShell
+  // already hardcodes by audience rather than gaining a second, locale-keyed
+  // copy of the same words. This section covers only what is genuinely new:
+  // the loading state, the failure sentence, the escape hatch to the
+  // browser's own viewer, and a per-page label for the rasterised canvases.
+  pdfViewer: {
+    loading: string;
+    renderFailed: string;
+    openInBrowser: string;
+    back: string;
+    pageAria: (page: number) => string;
+  };
 };
 
 const fr: Strings = {
@@ -934,6 +952,14 @@ const fr: Strings = {
 
     genericError: "Une erreur est survenue",
   },
+
+  pdfViewer: {
+    loading: "Chargement…",
+    renderFailed: "Ce PDF n'a pas pu s'afficher ici.",
+    openInBrowser: "Ouvrir dans le navigateur",
+    back: "Retour",
+    pageAria: (page) => `Page ${page}`,
+  },
 };
 
 const en: Strings = {
@@ -1347,6 +1373,14 @@ const en: Strings = {
     },
 
     genericError: "Something went wrong",
+  },
+
+  pdfViewer: {
+    loading: "Loading…",
+    renderFailed: "This PDF couldn't be displayed here.",
+    openInBrowser: "Open in browser",
+    back: "Back",
+    pageAria: (page) => `Page ${page}`,
   },
 };
 

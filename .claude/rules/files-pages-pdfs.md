@@ -17,6 +17,7 @@ paths:
   - lib/printable-bootstrap.ts
   - components/pdf-thumbnail.ts
   - components/html-thumbnail.ts
+  - components/pdf/**
   - components/admin/**
   - components/student/**
   - components/ui/PageTile.tsx
@@ -214,15 +215,56 @@ behind it mean "the picture" and never meant "the PDF's picture". Three routes r
 one handler switching on kind, because they want different headers and one
 handler under three header regimes is what a later edit gets wrong.
 
-**A PDF is never framed.** iOS Safari renders only the first page of a PDF in an
-iframe, which would silently truncate every multi-page worksheet on the device
-most of these students use. So `/p/[slug]` **redirects** a pdf row to
-`/p/[slug]/pdf` and it opens as a top-level navigation in the browser's own
-viewer, which brings page navigation, zoom, search, print and download with it —
-nothing to build. That redirect is not the open redirect a link row is refused:
-it is a constant path on our own origin chosen by the row's kind, with no input
-in it, so a bookmarked `/p/[slug]` keeps working. A shelf tile skips the hop and
-points at `/p/[slug]/pdf` directly (`pageTarget`, `lib/page-target.ts`).
+**A PDF is never framed.** That is still true, and always will be: iOS Safari
+renders only the first page of a PDF in an iframe, silently, which would
+truncate every multi-page worksheet on the device most of these students use.
+What changed on 2026-08-06 is *how* it stays true. `/p/[slug]` used to
+**redirect** a pdf row to `/p/[slug]/pdf` and let it open as a top-level
+navigation in the browser's own viewer — no iframe, because there was no
+document to frame at all, just a hop to somewhere else. Now `/p/[slug]`
+renders `PdfShell` (`components/pdf/PdfShell.tsx`) over `PdfDocumentView`
+(`components/pdf/PdfDocumentView.tsx`), which rasterises every page onto its
+own `<canvas>` with pdf.js and stacks them in a scrolling column — still not a
+frame, a picture. The redirect is gone because there is no longer anywhere for
+it to go: the PDF opens *inside* the site, under our own back control, instead
+of handing the tab to the OS.
+
+`/p/[slug]/pdf` is unchanged and matters more for it, not less: it is now
+**both** the byte source PdfDocumentView streams from (`pdfjs.getDocument({
+url })`, so the worker requests ranges rather than downloading the whole file
+first) **and** the escape hatch PdfDocumentView's own failure state links to
+when rendering fails outright — a corrupt or encrypted PDF, a timed-out
+library fetch, a zero-page document. A bookmarked `/p/[slug]` still works for
+the same reason it always did: the destination is chosen by the row's kind
+with no input in it, never an open redirect. A shelf tile now points at
+`/p/[slug]` itself rather than skipping ahead to the bytes (`pageTarget`,
+`lib/page-target.ts`) — there is no hop left to skip.
+
+Two costs were accepted to build this, both measured against the same iOS
+ceiling `lib/whiteboard-export.ts`'s `MAX_CANVAS_AREA` answers to for its own
+canvas: iOS Safari returns a **blank** canvas, not an error, past roughly
+16.7M pixels, so each page's raster — not its CSS box, which already carries
+the page's real aspect ratio from an untouched `getViewport({scale:1})` — is
+capped a little under that and downscaled rather than left to fail silently.
+And a document is **rendered lazily**, one `IntersectionObserver` per page
+with roughly a screen of `rootMargin` on each side and at most two pages
+decoding at once: rasterising a forty-page scan all at once on a phone is
+worse than the flicker of a page arriving a moment before it is scrolled to.
+
+The larger accepted cost is a narrowing, not a reversal, of the 2026-08-03
+refusal of pdf.js. That refusal was about a shelf grid mounting a dozen
+renderers at once for a wall of thumbnails — `PdfPreview` still never runs
+pdf.js; it draws a stored JPEG through a plain `<img>`, exactly as before.
+What is new is that **opening** a PDF, not just **uploading** one, now costs a
+fetch of pdf.js and its worker (~1 MB) on whichever device does it — every
+time, not once per student, since nothing caches the library across page
+loads any more than `renderPdfThumbnail`'s did. The owner chose this
+knowingly: framing a PDF was refused outright, and the alternative to
+rasterising it ourselves was sending the reader back out to the OS's own
+viewer, which is the exact experience — leaving the site to read a worksheet —
+this feature exists to replace. `PdfDocumentView`'s own failure state, which
+`fallbackHref` points at the same raw route, is what keeps that a fallback and
+not a dead end.
 
 The PDF response carries `application/pdf`, `X-Content-Type-Options: nosniff`,
 `no-store`, and a `Content-Disposition: inline` built by

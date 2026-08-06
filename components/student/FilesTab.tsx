@@ -177,11 +177,19 @@ export function FilesTab({
                     : null;
                   // A worksheet tile opens the chooser instead of navigating
                   // once there is more than the blank to pick from, or
-                  // whenever it is a pdf worksheet — a pdf opens in the
-                  // browser's own viewer, which has nowhere to put a save
-                  // control, so the chooser is its only surface even at one
-                  // version. `groupSlug` gates it the same way it gates
-                  // pageTarget's own worksheet branch: no shelf, no chooser.
+                  // whenever it is a pdf worksheet. The `page.kind === "pdf"`
+                  // clause predates PdfShell (2026-08-06): it used to be load
+                  // -bearing because a pdf worksheet opened top-level in the
+                  // browser's own viewer, with nowhere to put a save control,
+                  // so the chooser was its only surface even at one version.
+                  // That reason is gone now that the worksheet route itself
+                  // carries an upload control — this clause was deliberately
+                  // left as-is rather than folded into the same change, so a
+                  // single-version pdf worksheet still shows the chooser
+                  // first; revisiting that is a separate decision (see
+                  // .claude/rules/worksheets.md). `groupSlug` gates it the
+                  // same way it gates pageTarget's own worksheet branch: no
+                  // shelf, no chooser.
                   const dialogDue =
                     Boolean(groupSlug) &&
                     page.worksheet &&

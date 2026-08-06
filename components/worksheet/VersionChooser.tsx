@@ -64,10 +64,14 @@ export function VersionChooser({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const base =
-    page.kind === "pdf"
-      ? `/g/${groupSlug}/w/${page.slug}/pdf`
-      : `/g/${groupSlug}/w/${page.slug}`;
+  // Both kinds land on the SAME route now. A pdf row used to go straight to
+  // the raw bytes at /pdf because that was where the browser's own viewer
+  // opened it; as of 2026-08-06 the worksheet page itself renders PdfShell
+  // over PdfDocumentView for a pdf row instead of redirecting there, so this
+  // dialog's rows should land the reader in that chrome — the version tabs,
+  // the back control, the upload action — rather than skip past it into the
+  // raw bytes with none of that.
+  const base = `/g/${groupSlug}/w/${page.slug}`;
 
   const rows = [
     { slot: "blank" as const, at: null },

@@ -1,8 +1,12 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getPageBySlug } from "@/lib/pages";
 import { readPageKind } from "@/lib/page-kind";
+import { currentLocale } from "@/lib/locale";
+import { getStrings } from "@/lib/strings";
 import { PrintButton, PAGE_FRAME_ID } from "@/components/PrintButton";
+import { PdfShell, pdfShellButtonClass } from "@/components/pdf/PdfShell";
+import { PdfDocumentView } from "@/components/pdf/PdfDocumentView";
 
 export async function generateMetadata({
   params,
@@ -34,19 +38,49 @@ export default async function PublishedPage({
   const kind = readPageKind(page);
   if (kind === "link") notFound();
 
-  // A pdf row cannot be served from here — bytes need a route handler and this
-  // path is a page — so it redirects, and the PDF opens as a top-level
-  // navigation in the browser's own viewer.
-  //
-  // That is the right outcome and not merely the available one. A PDF must not
-  // be framed: iOS Safari renders only the first page of a framed PDF, which
-  // would silently truncate every multi-page worksheet on the device most of
-  // these students use.
-  //
-  // This is not the redirect forbidden above. That rule is about page.url, an
-  // off-site string; this is a constant path on our own origin chosen by the
-  // row's kind, with no input in it.
-  if (kind === "pdf") redirect(`/p/${slug}/pdf`);
+  // A PDF still must not be FRAMED: iOS Safari renders only the first page of
+  // a framed PDF, silently, which would truncate every multi-page worksheet on
+  // the device most of these students use. What changed (2026-08-06) is that
+  // this route no longer redirects a pdf row out to the browser's own viewer
+  // to honour that rule — it rasterises the pages itself with pdf.js and
+  // draws our own chrome on top, so a PDF opens inside the site with a back
+  // control and stays on this origin. /p/[slug]/pdf is still exactly what it
+  // was: the byte source PdfDocumentView streams from, AND the fallback this
+  // page falls back to on any render failure (see PdfDocumentView's own
+  // contract) — it matters MORE now, not less.
+  if (kind === "pdf") {
+    const locale = await currentLocale();
+    const strings = getStrings(locale).pdfViewer;
+    const pdfHref = `/p/${slug}/pdf`;
+
+    return (
+      <PdfShell
+        // No group context reaches this route — a page has no student of its
+        // own, only a slug — so there is nowhere to build a real "back to X"
+        // link. history.back() is the one place in this feature a button
+        // stands in for an anchor; see PdfShell's own comment on why that is
+        // an accepted, narrow exception to "back must be a real <a>".
+        back={{ kind: "history", label: strings.back }}
+        center={
+          <h1 className="truncate px-2 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-ink)]">
+            {page.title}
+          </h1>
+        }
+        actions={
+          // Always present, not only on failure: the escape hatch to the
+          // browser's own viewer — native search, zoom and print — that this
+          // whole feature exists beside rather than instead of. Never a
+          // canvas print: this component makes no claim to a print feature it
+          // does not have.
+          <a href={pdfHref} className={pdfShellButtonClass}>
+            {strings.openInBrowser}
+          </a>
+        }
+      >
+        <PdfDocumentView src={pdfHref} fallbackHref={pdfHref} locale={locale} />
+      </PdfShell>
+    );
+  }
 
   return (
     <>

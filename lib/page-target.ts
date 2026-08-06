@@ -3,9 +3,10 @@ import type { PageKind } from "@/lib/page-kind";
 export type PageTarget = { href: string; newTab: boolean };
 
 // Both page lists render the same tile and were both about to grow the same
-// three-way ternary. The rule is that only an html page opens in this tab: a
-// link is off-site, and a PDF opens in a new one so the shelf a student is
-// browsing stays where they left it.
+// three-way ternary. The rule is that a link is off-site and opens in a new
+// tab; an html page and a pdf both open here, in this tab, since 2026-08-06
+// both render inside the site's own chrome — see the pdf branch below for why
+// a PDF no longer needs the new tab it used to.
 //
 // A worksheet overrides all of that, and it needs a group to do it — a version
 // belongs to (page, student), and there is no student in a page row. So the
@@ -31,6 +32,11 @@ export function pageTarget(
     return { href: `/g/${groupSlug}/w/${page.slug}`, newTab: false };
   }
   if (page.kind === "link") return { href: page.url ?? "#", newTab: true };
-  if (page.kind === "pdf") return { href: `/p/${page.slug}/pdf`, newTab: true };
+  // Used to point straight at the bytes with newTab: true, because a PDF took
+  // over the tab in the browser's own viewer and a shelf tile should not make
+  // that browser ask twice. As of 2026-08-06 a PDF opens INSIDE the site —
+  // /p/[slug] renders PdfShell over PdfDocumentView instead of redirecting —
+  // so the reason for a new tab is gone and the destination is the same
+  // /p/[slug] an html page already gets: same tab, our own chrome.
   return { href: `/p/${page.slug}`, newTab: false };
 }

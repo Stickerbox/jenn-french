@@ -7,8 +7,18 @@ import { studentGate } from "@/lib/student-gate";
 import { readToken, cookieNameFor } from "@/lib/student-tokens";
 import { resolveWorksheet } from "@/lib/worksheet-context";
 import { listVersions } from "@/lib/version-store";
-import { slotForVersion, type VersionSlot } from "@/lib/version-labels";
+import {
+  versionLabel,
+  slotForVersion,
+  type VersionSlot,
+} from "@/lib/version-labels";
+import { canSaveFromSlot } from "@/lib/worksheet-save-slots";
+import { currentLocale } from "@/lib/locale";
 import { WorksheetShell } from "@/components/worksheet/WorksheetShell";
+import { PdfShell } from "@/components/pdf/PdfShell";
+import { PdfDocumentView } from "@/components/pdf/PdfDocumentView";
+import { UploadVersion } from "@/components/worksheet/UploadVersion";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   // Nothing behind a token should ever reach an index.
@@ -55,29 +65,90 @@ export default async function WorksheetPage({
     if (gate !== "signed-in") redirect(`/g/${slug}?tab=files`);
   }
 
-  // A pdf worksheet has no shell: it opens in the browser's own viewer, where
-  // there is nowhere to put a control. The chooser on the shelf is its only
-  // surface, so a direct hit here goes straight to the document.
-  //
-  // Before listVersions, not after: the redirect needs none of them.
-  if (context.page.kind === "pdf") {
-    redirect(`/g/${slug}/w/${pageSlug}/pdf?v=${readSlot(v)}`);
-  }
-
   const versions = await listVersions(context.page.id, context.group.id);
   const slots: VersionSlot[] = [
     "blank",
     ...versions.map((version) => slotForVersion(version.fromTeacher)),
   ];
+  const audience = context.role === "teacher" ? "teacher" : "student";
+  const slot = readSlot(v);
+
+  // A pdf worksheet used to redirect out to /g/[slug]/w/[pageSlug]/pdf and
+  // open in the browser's own viewer, for the same reason /p/[slug] once did
+  // — there was nowhere in that viewer to put a control. As of 2026-08-06
+  // there is: PdfShell draws the same chrome WorksheetShell does around
+  // PdfDocumentView's rasterised pages instead of an iframe. The raw route is
+  // untouched — it is now this view's byte source AND its fallback, exactly
+  // as /p/[slug]/pdf is for /p/[slug].
+  if (context.page.kind === "pdf") {
+    const locale = await currentLocale();
+    const pdfHref = `/g/${slug}/w/${pageSlug}/pdf?v=${slot}`;
+    // Matches WorksheetShell's own back control exactly — same target, same
+    // audience split — rather than a second copy keyed by locale. See
+    // CLAUDE.md's note on why the worksheet route still splits by audience
+    // instead of the browser's language: this predates that convention and
+    // migrating it is a separate decision from adding a pdf viewer beside it.
+    const backLabel = audience === "teacher" ? "Back to files" : "Les fichiers";
+
+    return (
+      <PdfShell
+        back={{ kind: "link", href: `/g/${slug}?tab=files`, label: backLabel }}
+        center={
+          // The exact tab strip WorksheetShell renders for an html worksheet
+          // — same classes, same slots computation, same versionLabel calls —
+          // duplicated here rather than imported because WorksheetShell's
+          // version is wired to its own iframe-reporting state (editable,
+          // dirty) that a pdf worksheet has no equivalent of. Keep the two in
+          // step by eye if either changes.
+          <div className="flex min-w-0 max-w-full gap-1 overflow-x-auto rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1 shadow-[var(--card-shadow)]">
+            {slots.map((s) => (
+              <a
+                key={s}
+                href={`?v=${s}`}
+                aria-current={s === slot ? "page" : undefined}
+                className={cn(
+                  "shrink-0 whitespace-nowrap rounded-full px-4 py-2 font-[family-name:var(--card-font-serif)] text-sm transition-colors motion-reduce:transition-none",
+                  s === slot ? "bg-[var(--card-bleu)] text-white" : "text-[var(--card-moss)]",
+                )}
+              >
+                {versionLabel(s, audience, context.group.name)}
+              </a>
+            ))}
+          </div>
+        }
+        actions={
+          // canSaveFromSlot is reused rather than re-expressed: a student
+          // must never be offered an upload while looking at Jenn's
+          // correction, for the reason lib/worksheet-save-slots.ts records —
+          // the route writes the CALLER's own slot regardless of which view
+          // asked, so that upload would file Jenn's marks as the student's
+          // own attempt and destroy the record of what they actually handed
+          // in.
+          canSaveFromSlot(slot, audience) && (
+            // Capped rather than left to fill the whole `1fr` action track,
+            // which can be several hundred pixels wide on a desktop nav bar —
+            // FileDropZone was built for a narrow dialog column
+            // (VersionChooser) and stretching it that far reads as a mistake
+            // rather than a control.
+            <div className="w-full max-w-[220px]">
+              <UploadVersion groupSlug={slug} pageSlug={pageSlug} audience={audience} />
+            </div>
+          )
+        }
+      >
+        <PdfDocumentView src={pdfHref} fallbackHref={pdfHref} locale={locale} />
+      </PdfShell>
+    );
+  }
 
   return (
     <WorksheetShell
       groupSlug={slug}
       pageSlug={pageSlug}
       title={context.page.title}
-      audience={context.role === "teacher" ? "teacher" : "student"}
+      audience={audience}
       studentName={context.group.name}
-      slot={readSlot(v)}
+      slot={slot}
       slots={slots}
     />
   );

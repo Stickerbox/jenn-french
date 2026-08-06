@@ -9,12 +9,13 @@ describe("pageTarget", () => {
     });
   });
 
-  it("sends a pdf straight to the bytes, in a new tab", () => {
-    // The bytes and not /p/[slug]: that route only exists to redirect here, and
-    // a tile that knows the destination should not make the browser ask twice.
+  it("sends a pdf to its own page, in this tab", () => {
+    // /p/[slug] and not the raw bytes: that route no longer redirects out to
+    // the browser's own viewer, it renders PdfShell over PdfDocumentView, so
+    // a pdf tile now opens exactly where an html tile does.
     expect(pageTarget({ kind: "pdf", slug: "tableau", url: null })).toEqual({
-      href: "/p/tableau/pdf",
-      newTab: true,
+      href: "/p/tableau",
+      newTab: false,
     });
   });
 

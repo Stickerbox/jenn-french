@@ -46,8 +46,8 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `/signin` | students | sign in with an email address and a password, from anywhere |
 | `/login` | teacher | passkey register/authenticate |
 | `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages |
-| `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe; a pdf row redirects to `/p/[slug]/pdf` |
-| `/p/[slug]/pdf` | public | an uploaded PDF, in the browser's own viewer |
+| `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe; a pdf row renders `PdfShell` over `PdfDocumentView` — pdf.js rasterises each page onto its own canvas in-site rather than redirecting out to the browser's own viewer, still never in an iframe |
+| `/p/[slug]/pdf` | public | the raw PDF bytes — `/p/[slug]`'s byte source and its fallback on a render failure |
 | `GET /p/[slug]/thumb` | public | a page's cached preview picture — a pdf's first page, or an html page's captured top |
 | `/f/[token]` | students | that student's files, at an opaque unguessable link |
 | `/admin/pages/[slug]` | teacher | edits one uploaded page |
@@ -60,9 +60,9 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `POST /api/whiteboard/[slug]/ops` | teacher | appends and fans out ops |
 | `POST /api/whiteboard/[slug]/discard` | teacher | drops a live board, saving nothing |
 | `GET /api/whiteboard/[slug]/[id]` | token or teacher | a board's ops, for the JPEG export |
-| `/g/[slug]/w/[pageSlug]` | student or teacher | the worksheet shell: full-screen frame, version switcher, Save pill, print pill |
+| `/g/[slug]/w/[pageSlug]` | student or teacher | an html worksheet gets the worksheet shell: full-screen frame, version switcher, Save pill, print pill. A pdf worksheet gets `PdfShell` over `PdfDocumentView` instead — the same version tabs, a back control, and `UploadVersion` in place of the Save pill |
 | `GET /g/[slug]/w/[pageSlug]/raw` | student or teacher | `?v=blank\|student\|teacher`; the document, under `SANDBOXED_DOCUMENT_CSP` |
-| `GET /g/[slug]/w/[pageSlug]/pdf` | student or teacher | a pdf version, top-level, in the browser's own viewer |
+| `GET /g/[slug]/w/[pageSlug]/pdf` | student or teacher | `?v=blank\|student\|teacher`; the raw PDF bytes for that slot — the pdf worksheet view's byte source and its fallback on a render failure |
 | `POST /api/worksheets/[slug]/[pageSlug]` | student or teacher | saves the caller's own slot |
 | `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, `/api/chat/*`, `/api/inbox/*`, `/api/whiteboard/*`, `/api/worksheets/*`, and `/p/[slug]/raw`) |
 

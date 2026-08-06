@@ -9,6 +9,7 @@ paths:
   - lib/editable-fields.ts
   - lib/page-version*.ts
   - components/worksheet/**
+  - components/pdf/**
   - tests/lib/worksheet-*.test.ts
   - tests/lib/snapshot-*.test.ts
   - tests/lib/editable-fields.test.ts
@@ -153,13 +154,22 @@ versionCount(page.versions) > 1` — `/f/[token]` supplies no `groupSlug`, so
 its badge is off for that reason alone. Opening a tile goes straight to the
 shell for an html worksheet holding only the blank, but a pdf worksheet
 always opens the chooser (`components/worksheet/VersionChooser.tsx`), even at
-one version: a PDF opens top-level in the browser's own viewer, with nowhere
-in it to put a Save control, so the chooser is the only surface that can hold
-the upload button. **The chooser's rows are anchors, not buttons**, the same
-reason the admin's pencil had to stay one: the whiteboard's leave-guard is a
-capture-phase `click` listener on `document` that inspects anchors, so a row
-is protected by it without knowing it exists, and a `router.push` handler
-would slip past it.
+one version. Its rows now point at `/g/[slug]/w/[pageSlug]` — the same
+route an html worksheet's tile opens — rather than skipping ahead to the raw
+bytes, because that route no longer redirects a pdf row out to the browser's
+own viewer; it renders `PdfShell` over `PdfDocumentView` and carries the
+upload control itself (see `.claude/rules/files-pages-pdfs.md`'s "A PDF is
+never framed" for the fuller change). **The original reason the chooser forces
+open even at one pdf version — "a PDF opens top-level, with nowhere in it to
+put a Save control" — is gone**: there is now somewhere. `dialogDue` in
+`FilesTab` was deliberately left as it was rather than folded into this
+change, so a single-version pdf worksheet still shows the chooser first
+before landing in the shell; that extra step is redundant now, not broken,
+and revisiting it is a separate decision. **The chooser's rows are anchors,
+not buttons**, the same reason the admin's pencil had to stay one: the
+whiteboard's leave-guard is a capture-phase `click` listener on `document`
+that inspects anchors, so a row is protected by it without knowing it
+exists, and a `router.push` handler would slip past it.
 
 **The badge and the worksheet target are two different mechanisms, and their
 absence in the admin has two different causes — do not read them as one
