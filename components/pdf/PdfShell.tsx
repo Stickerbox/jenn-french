@@ -78,7 +78,11 @@ export function PdfShell({
             </button>
           )}
         </div>
-        <div className="flex min-w-0 max-w-full items-center justify-center overflow-x-auto">
+        {/* `items-center`, and matching the back control's own height: the
+            middle track used to align to the top of a row whose other tracks
+            are 44px tall, which left the title sitting high and reading as
+            though it belonged to nothing. */}
+        <div className="flex h-11 min-w-0 max-w-full items-center justify-center overflow-x-auto">
           {center}
         </div>
         {/* min-w-0 so a wide action — UploadVersion's drop zone, on the

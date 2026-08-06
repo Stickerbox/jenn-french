@@ -518,6 +518,11 @@ export type Strings = {
   pdfViewer: {
     loading: string;
     renderFailed: string;
+    // The bar's own control: the file itself. Distinct from openInBrowser
+    // below, which is the FAILURE state's escape hatch — when nothing
+    // rendered, a reader needs somewhere they can still read it, and a
+    // download is a file they then have to find and open.
+    download: string;
     openInBrowser: string;
     back: string;
     pageAria: (page: number) => string;
@@ -956,6 +961,7 @@ const fr: Strings = {
   pdfViewer: {
     loading: "Chargement…",
     renderFailed: "Ce PDF n'a pas pu s'afficher ici.",
+    download: "Télécharger le PDF",
     openInBrowser: "Ouvrir dans le navigateur",
     back: "Retour",
     pageAria: (page) => `Page ${page}`,
@@ -1378,6 +1384,7 @@ const en: Strings = {
   pdfViewer: {
     loading: "Loading…",
     renderFailed: "This PDF couldn't be displayed here.",
+    download: "Download PDF",
     openInBrowser: "Open in browser",
     back: "Back",
     pageAria: (page) => `Page ${page}`,

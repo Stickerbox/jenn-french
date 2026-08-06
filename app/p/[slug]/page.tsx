@@ -62,18 +62,31 @@ export default async function PublishedPage({
         // an accepted, narrow exception to "back must be a real <a>".
         back={{ kind: "history", label: strings.back }}
         center={
-          <h1 className="truncate px-2 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-ink)]">
+          // The document's name is what this bar is for, so it carries the
+          // weight: `text-base font-semibold` against the two controls'
+          // `text-sm` regular, which is what makes it read as the heading of
+          // the page rather than a third label competing with them.
+          <h1 className="truncate px-2 font-[family-name:var(--card-font-serif)] text-base font-semibold text-[var(--card-ink)]">
             {page.title}
           </h1>
         }
         actions={
-          // Always present, not only on failure: the escape hatch to the
-          // browser's own viewer — native search, zoom and print — that this
-          // whole feature exists beside rather than instead of. Never a
-          // canvas print: this component makes no claim to a print feature it
-          // does not have.
-          <a href={pdfHref} className={pdfShellButtonClass}>
-            {strings.openInBrowser}
+          // A DOWNLOAD, not "open in browser". The old label described the
+          // mechanism — a top-level navigation to the raw route, where the OS
+          // viewer takes over — and named the thing this feature exists to
+          // stop doing. What a reader wants from a bar above a document they
+          // can already read is the file itself.
+          //
+          // The `download` attribute is what makes it one: the raw route
+          // answers Content-Disposition: inline, and on a same-origin link
+          // this attribute overrides that. Never a canvas print — this makes
+          // no claim to a print feature it does not have.
+          <a href={pdfHref} download className={pdfShellButtonClass}>
+            <DownloadIcon />
+            <span className="hidden whitespace-nowrap sm:inline">
+              {strings.download}
+            </span>
+            <span className="sr-only sm:hidden">{strings.download}</span>
           </a>
         }
       >
@@ -108,5 +121,29 @@ export default async function PublishedPage({
       />
       <PrintButton />
     </>
+  );
+}
+
+// The same arrow-into-a-tray PrintButton draws for "Enregistrer en PDF",
+// duplicated rather than shared: this codebase keeps a one-off glyph local to
+// the file that draws it (PdfShell's BackIcon is the same pattern) instead of
+// growing an icon module for a handful of them.
+function DownloadIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3v10" />
+      <path d="m8 11 4 4 4-4" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </svg>
   );
 }
