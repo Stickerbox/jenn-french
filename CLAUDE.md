@@ -60,10 +60,12 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `POST /api/whiteboard/[slug]/ops` | teacher | appends and fans out ops |
 | `POST /api/whiteboard/[slug]/discard` | teacher | drops a live board, saving nothing |
 | `GET /api/whiteboard/[slug]/[id]` | token or teacher | a board's ops, for the JPEG export |
-| `/g/[slug]/w/[pageSlug]` | student or teacher | an html worksheet gets the worksheet shell: full-screen frame, version switcher, Save pill, print pill. A pdf worksheet gets `PdfShell` over `PdfDocumentView` instead — the same version tabs, a back control, and `UploadVersion` in place of the Save pill |
+| `/g/[slug]/w/[pageSlug]` | student or teacher | an html worksheet gets the worksheet shell: full-screen frame, version switcher, print pill, and — in place of the Save pill it carried until 2026-08-07 — a ten-second debounced auto-save with a *Send* notice and a delete beside it. A pdf worksheet gets `PdfShell` over `PdfDocumentView` instead — the same version tabs, a back control, and `UploadVersion`, and **it keeps the old flow whole**: three tabs for both parties, and an upload that notifies on its own |
 | `GET /g/[slug]/w/[pageSlug]/raw` | student or teacher | `?v=blank\|student\|teacher`; the document, under `SANDBOXED_DOCUMENT_CSP` |
 | `GET /g/[slug]/w/[pageSlug]/pdf` | student or teacher | `?v=blank\|student\|teacher`; the raw PDF bytes for that slot — the pdf worksheet view's byte source and its fallback on a render failure |
 | `POST /api/worksheets/[slug]/[pageSlug]` | student or teacher | saves the caller's own slot |
+| `POST /api/worksheets/[slug]/[pageSlug]/send` | student or teacher | announces the caller's own row; 204, or 400 `"Nothing to send."` with no row |
+| `POST /api/worksheets/[slug]/[pageSlug]/restart` | student or teacher | deletes the caller's own row |
 | `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, `/api/chat/*`, `/api/inbox/*`, `/api/whiteboard/*`, `/api/worksheets/*`, and `/p/[slug]/raw`) |
 
 ## Architecture
@@ -302,6 +304,9 @@ file first — each of these records a failure that already happened.**
 - **A student never saves from Jenn's correction** (`canSaveFromSlot`). A save
   writes the caller's own slot from whatever view called it, so it would file her
   marks as their attempt and lose what they handed in.
+- **`canSaveFromSlot` and `isWritableSlot` are two rules, not one.** The first
+  governs PDF uploads, the second html auto-save. They disagree about Jenn on
+  purpose, because a press and a ten-second timer are not the same act.
 - **`snapshotDocument` stays self-contained ES5** — no imports, no closure over
   module scope. It is the bundled output, inlined into the page via `toString()`.
 - **Brotli and bcrypt through the async API only.** One pm2 fork process serves

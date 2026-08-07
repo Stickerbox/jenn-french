@@ -53,31 +53,77 @@ behaviour, not JavaScript — which is what makes the correction the *same
 operation* as the attempt rather than a second feature: Jenn opens the
 student's version and types into it.
 
-**"Typeable" is narrower than it sounds, and the Save pill asks the document
-whether it applies** (2026-08-06). What survives a strip is what the *browser*
-drives: text fields, checkboxes, selects, `contenteditable`, `:checked`. What
-does not is everything the page's own JavaScript drove — and a Dia worksheet is
-often exactly that: clickable answers, drag-and-drop matching, div-based
-pickers. Measured, not assumed: a real worksheet answered by clicking animated
-elements came back inert, and the pill over it offered to re-save a document
-nobody could edit.
+**"Typeable" is narrower than it sounds, and the editable probe answers
+whether the caller's own saved copy still is** (2026-08-06). What survives a
+strip is what the *browser* drives: text fields, checkboxes, selects,
+`contenteditable`, `:checked`. What does not is everything the page's own
+JavaScript drove — and a Dia worksheet is often exactly that: clickable
+answers, drag-and-drop matching, div-based pickers. Measured, not assumed: a
+real worksheet answered by clicking animated elements came back inert. There
+is no Save pill for that answer to gate any more (see below); it now draws the
+`stuck` hint beside Recommencer / Delete correction instead, so a document
+that came back inert says so next to the control that gets a party off it,
+rather than sitting there silently offering fields nobody can fill in.
 
-**Which tabs may draw it is decided first**, by `canSaveFromSlot`
-(`lib/worksheet-save-slots.ts`): Jenn on all three, a student on the blank and
-on their own answers, **never on Jenn's correction**. That asymmetry is not
-politeness. A save writes the CALLER'S slot from whatever view called it, so a
-student saving from the correction would file Jenn's marks as their own
-attempt, and what they actually handed in would be gone. Jenn saving from the
-student's attempt is the opposite: it is how a correction is made.
+**Which tabs may write is decided first, by two rules, not one.**
+`canSaveFromSlot` (`lib/worksheet-save-slots.ts`) governs a PDF worksheet's
+upload button: Jenn on all three tabs, a student on the blank and on their own
+answers, never on Jenn's correction. `isWritableSlot`, beside it in the same
+file, governs an html worksheet's auto-save and answers differently for Jenn —
+**on purpose**. A student is the same case both ways, and harder under
+auto-save than under a pill: typing over Jenn's correction used to require a
+press to destroy an attempt, and now a stray keystroke does it by itself, so
+`isWritableSlot` still confines her to `slot === "student"`. Jenn is where the
+two rules part. A PDF version is an upload — a deliberate act she performs from
+wherever she is standing — so `canSaveFromSlot` leaves all three of her tabs
+open. An html version is auto-saved ten seconds after a keystroke, with no
+press in which to reconsider, so `isWritableSlot` gives her exactly one
+writable tab: any of the three while she has no correction yet, because her
+first keystroke seeds it and where it lands decides whether that correction is
+an answer key or an annotated attempt — and only her own tab once a correction
+exists, because reopening the student's attempt a second time and typing would
+silently overwrite the one she already made, with no version history to
+recover it from. **Do not delete either function as a duplicate of the
+other**, and do not let a fix to one drift into the other's territory: a press
+and a ten-second timer are not the same act, and the two page kinds they gate
+are not the same risk.
 
-Within those tabs the pill is drawn on the **blank always**, and on a **saved
-version only when that version answers that it still has an editable field**.
-`hasEditableFields` (`lib/editable-fields.ts`) is the predicate, and
+| Tab | Jenn, PDF | Jenn, html, no correction | Jenn, html, has correction | Student |
+|---|---|---|---|---|
+| Blank | write | write | read-only | read-only |
+| Student's attempt | write | write | read-only | write |
+| Jenn's correction | write | write | write | read-only |
+
+Blank/Student reads read-only rather than n/a on purpose: `isWritableSlot`
+answers `slot === "student"` for a student regardless of whether they can
+reach `slot` — its own test says so directly, "not a tab they can reach, but
+the predicate must not depend on that" — because a student's tab is always
+`"student"` from the moment they open a fresh worksheet, blank content served
+under that slot until their first save gives it a row. The cell records what
+the predicate answers, not a tab that exists in the product.
+
+The table's read-only cells are where `stuck` and the *Lecture seule* /
+*Read-only* marker matter: the document still **types** on a read-only tab —
+text fields, checkboxes and `:checked` are browser behaviour, and stopping
+them would mean rewriting the served document — so the marker exists precisely
+because the tab would otherwise look writable right up until the debounce
+tried to save and silently lost the keystrokes. Jenn's own way back onto a
+locked tab is deleting her correction (below); a student's is `Recommencer` on
+their own slot, the button that exists because auto-save removed the only
+other way out of an inert worksheet.
+
+Within a writable tab the pill used to be drawn on the **blank always**, and on
+a **saved version only when that version answers that it still has an editable
+field**. `hasEditableFields` (`lib/editable-fields.ts`) is the predicate, and
 `withEditableBootstrap` inlines its source into the served document the way
 `withSnapshotBootstrap` inlines `snapshotDocument`'s — same ES5 rule, same
 `toString()` test, for the same reason. The shell asks on the iframe's `load`
 and listens for the reply; the frame has an opaque origin, so it has to answer
-for itself.
+for itself. That probe still runs and still feeds `editable`, but Save is gone;
+what it now gates is the *stuck* hint beside Recommencer/Delete correction —
+`writable && ownExists && editable === false` — since a disabled document with
+no explanation beside it reads as a broken page rather than a worksheet that
+cannot be re-typed.
 
 Three things about that are load-bearing. **The blank is never probed** — it is
 the live document with its scripts intact, and a click-driven worksheet has no
@@ -90,20 +136,67 @@ environment does not have, and an untestable rule sitting between a student and
 their homework is worse than a coarser one that is pinned — so a field hidden
 by a stylesheet still counts as editable.
 
-**The pill is disabled until the document reports a change, and the same
-signal arms the browser's leave prompt.** The frame posts `DIRTY_MESSAGE` on
-every `input` and `change` event — captured on `document`, so a page that stops
-them bubbling is still heard — and the shell holds one `dirty` flag from it.
-That flag greys the pill and registers a `beforeunload`, so leaving with
-unsaved answers raises the browser's own dialog; `onSaved` clears it after the
-write lands, never before, or a student could walk away from work that was
-never stored. It is one flag and not two because it answers one question: is
-there work here worth keeping? The prompt is gated on `canSave` as well, since
-warning somebody about typing they have no way to save is a dead end. Browser
-Back is the same accepted gap the whiteboard's leave-guard records —
-`beforeunload` does not fire for an App Router `popstate` — but every other way
-out of this page is a real navigation, because the tabs and the back control
-are plain anchors rather than `next/link`.
+**Save is not a control any more — it is a ten-second timer, and what a party
+presses instead is Send or Recommencer/Delete correction, each following the
+CALLER'S OWN row rather than the tab that happens to be open.**
+`useWorksheetAutosave` (`components/worksheet/useWorksheetAutosave.ts`)
+restarts a `DEBOUNCE_MS` (10 000 ms) timeout on every `DIRTY_MESSAGE` — posted
+on every `input` and `change` event, captured on `document` so a page that
+stops them bubbling is still heard — counted from the LAST keystroke rather
+than the first, so a run of typing costs one write instead of one per pause.
+That same `dirty` flag arms the browser's `beforeunload` prompt, gated on
+`writable` as well since warning somebody about typing they have no way to
+save is a dead end; `onSaved` clears it after the write lands, never before,
+or a student could walk away from work that was never stored. Browser Back is
+the same accepted gap the whiteboard's leave-guard records — `beforeunload`
+does not fire for an App Router `popstate` — but every other way out of this
+page is a real navigation, because the tabs and the back control are plain
+anchors rather than `next/link`. `flush()` clears the pending timer and writes
+immediately if anything is outstanding, and answers whether the write landed;
+Send calls it and awaits the answer BEFORE it POSTs to `/send`, because a
+notice about work that was never stored is worse than a late notice.
+
+**`sentAt` is nulled by `saveHtmlVersion`/`savePdfVersion` on every write — in
+both the create and the update branch — rather than left standing so
+`sendState` could compare it against `updatedAt`.** Two timestamps written by
+the same request can tie: SQLite's stored precision does not guarantee a save
+and its own mark differ, so a comparison risks reading a version as "still
+sent" in the instant it stops being true. A null answers a yes/no question with
+no clock in it — `findVersionMeta`'s `sentAt` is either there, meaning nothing
+has touched the row since the last notice, or gone, meaning something has.
+`sendState` (`lib/worksheet-send.ts`) folds that boolean together with `dirty`
+— checked FIRST, because the last ten seconds of typing have not reached the
+server's `sentAt` at all — into three states: `"empty"` (nothing to send,
+drawn disabled so the control is where it will be rather than appearing from
+nowhere), `"ready"` (unannounced work exists), and `"sent"` (announced and
+unchanged, drawn disabled and SAYING so — a control that vanishes after a
+press tells a student nothing about whether the press worked).
+
+**The first save moves the shell in place, and does not reload.** `onSaved`
+(`WorksheetShell.tsx`) adds the caller's own slot to `tabs`, moves `current` to
+it, and calls ``window.history.replaceState(null, "", `?v=${mine}`)`` — a
+`history` call, not a `router.push`, because the frame's DOM already IS the
+new version; a reload would fetch the same bytes back and throw away any key
+pressed during it. This is what Jenn sees making a fresh correction: she opens
+the student's attempt with no correction yet, types, and ten seconds later she
+is on "My correction" holding the exact document she has been typing in, its
+address now agreeing with where the write went.
+
+**Delete is `POST /api/worksheets/[slug]/[pageSlug]/restart`, one route behind
+two labels — Recommencer to a student, Delete correction to Jenn — and it
+always deletes the CALLER'S OWN row, never a row named by the tab that is
+open.** `DeleteVersionButton` is drawn whenever `ownExists`, which for Jenn is
+all three of her tabs at once: one stray keystroke on the blank creates a
+correction and locks the other two (see the table above), so a control that
+unlocks them is useless if it is reachable only from the tab she must first
+know to open. For a student it is the sole way out of a click-driven worksheet
+that auto-save has answered into an inert copy — there is no blank left to
+fall back to under one tab, the way there was under a pill and two. It
+confirms first, because there is no version history behind it: the row is
+simply gone. On success it navigates with `window.location.href`, not a
+reload, to `/g/{groupSlug}/w/{pageSlug}` with NO `?v=` — the tab that was open
+no longer exists, and the page must pick each party's correct default for
+itself.
 
 The route is untouched and still writes the caller's own slot from whatever
 view called it, so this withholds a control and adds no access rule. The

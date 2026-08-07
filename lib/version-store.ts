@@ -7,6 +7,9 @@ export type StoredVersion = {
   fromTeacher: boolean;
   kind: VersionKind;
   updatedAt: Date;
+  // Null when this row has not been announced to the other party. The shell
+  // reduces it to a boolean before it crosses into the client component.
+  sentAt: Date | null;
 };
 
 // Neither blob is ever selected here, for the reason SHELF_SELECT omits `html`
@@ -17,6 +20,7 @@ const SUMMARY = {
   kind: true,
   pdfSize: true,
   updatedAt: true,
+  sentAt: true,
 } as const;
 
 export async function listVersions(
@@ -38,6 +42,7 @@ export async function listVersions(
     fromTeacher: row.fromTeacher,
     kind: readVersionKind(row),
     updatedAt: row.updatedAt,
+    sentAt: row.sentAt,
   }));
 }
 
@@ -90,7 +95,7 @@ export async function saveHtmlVersion(input: {
   html: string;
 }): Promise<void> {
   const snapshot = Buffer.from(await packSnapshot(input.html));
-  const columns = { kind: "html", snapshot, pdf: null, pdfSize: null };
+  const columns = { kind: "html", snapshot, pdf: null, pdfSize: null, sentAt: null };
 
   await prisma.pageVersion.upsert({
     where: {
@@ -123,6 +128,7 @@ export async function savePdfVersion(input: {
     // bytes.
     pdf: Buffer.from(input.pdf),
     pdfSize: input.pdf.byteLength,
+    sentAt: null,
   };
 
   await prisma.pageVersion.upsert({
@@ -141,4 +147,44 @@ export async function savePdfVersion(input: {
     },
     update: columns,
   });
+}
+
+// Whether the caller's row exists, and whether it has been announced. Selects
+// neither blob, for the reason SUMMARY does not: this answers a question about
+// a button, and loading a whole document to do it ships the thing the summary
+// was avoiding.
+export async function findVersionMeta(
+  pageId: string,
+  groupId: string,
+  fromTeacher: boolean,
+): Promise<{ sentAt: Date | null } | null> {
+  return prisma.pageVersion.findUnique({
+    where: { pageId_groupId_fromTeacher: { pageId, groupId, fromTeacher } },
+    select: { sentAt: true },
+  });
+}
+
+// updateMany rather than update, the same reason every delete here is a
+// deleteMany: a double-press or a stale tab is a no-op rather than a P2025.
+// The boolean says whether a row was actually marked.
+export async function markVersionSent(
+  pageId: string,
+  groupId: string,
+  fromTeacher: boolean,
+): Promise<boolean> {
+  const result = await prisma.pageVersion.updateMany({
+    where: { pageId, groupId, fromTeacher },
+    data: { sentAt: new Date() },
+  });
+  return result.count > 0;
+}
+
+// The caller's OWN row, always — the same rule every save follows, so there is
+// nothing in a request that could point this at the other party's work.
+export async function deleteVersion(
+  pageId: string,
+  groupId: string,
+  fromTeacher: boolean,
+): Promise<void> {
+  await prisma.pageVersion.deleteMany({ where: { pageId, groupId, fromTeacher } });
 }

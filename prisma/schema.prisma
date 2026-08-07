@@ -244,6 +244,16 @@ model PageVersion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Null means "the other party has not been told about this row". EVERY save
+  // sets it back to null and the send route sets it to now, so the Send
+  // button's state is one field with one writer per transition.
+  //
+  // Deliberately NOT a comparison against updatedAt. Prisma writes @updatedAt
+  // itself, so a send would be two clocks set inside one statement, and the
+  // button's state on that write would depend on which landed first by a
+  // microsecond.
+  sentAt DateTime?
+
   // THIS IS THE THREE-SLOT RULE, enforced by the database rather than by a
   // convention inside an action. A save is an upsert against it; there is no
   // counting, no pruning, and no way for a fourth row to exist.

@@ -10,8 +10,10 @@ import { listVersions } from "@/lib/version-store";
 import {
   slotForVersion,
   type VersionSlot,
+  type VersionAudience,
 } from "@/lib/version-labels";
-import { canSaveFromSlot } from "@/lib/worksheet-save-slots";
+import { canSaveFromSlot, isWritableSlot } from "@/lib/worksheet-save-slots";
+import { visibleSlots } from "@/lib/worksheet-slots";
 import { currentLocale } from "@/lib/locale";
 import { WorksheetShell } from "@/components/worksheet/WorksheetShell";
 import { PdfShell } from "@/components/pdf/PdfShell";
@@ -24,7 +26,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-function readSlot(value: string | undefined): VersionSlot {
+// A student has no blank tab, so "blank" — and anything unrecognised — means
+// "my homework" for them. Jenn keeps the blank as her default, which is the
+// worksheet as she uploaded it.
+function readSlot(value: string | undefined, audience: VersionAudience): VersionSlot {
+  if (audience === "student") return value === "teacher" ? "teacher" : "student";
   if (value === "student" || value === "teacher") return value;
   return "blank";
 }
@@ -65,12 +71,18 @@ export default async function WorksheetPage({
   }
 
   const versions = await listVersions(context.page.id, context.group.id);
-  const slots: VersionSlot[] = [
+  const audience = context.role === "teacher" ? "teacher" : "student";
+  const hasStudent = versions.some((version) => !version.fromTeacher);
+  const hasTeacher = versions.some((version) => version.fromTeacher);
+
+  // The pdf branch below is UNCHANGED and keeps the old list: blank plus every
+  // row, for both parties. A pdf worksheet is filled in on paper, so a student
+  // must be able to reach the blank and print it — the one thing the html rule
+  // takes away.
+  const pdfSlots: VersionSlot[] = [
     "blank",
     ...versions.map((version) => slotForVersion(version.fromTeacher)),
   ];
-  const audience = context.role === "teacher" ? "teacher" : "student";
-  const slot = readSlot(v);
 
   // A pdf worksheet used to redirect out to /g/[slug]/w/[pageSlug]/pdf and
   // open in the browser's own viewer, for the same reason /p/[slug] once did
@@ -80,6 +92,9 @@ export default async function WorksheetPage({
   // untouched — it is now this view's byte source AND its fallback, exactly
   // as /p/[slug]/pdf is for /p/[slug].
   if (context.page.kind === "pdf") {
+    // "teacher" and not `audience`: the pdf branch wants the old three-slot
+    // reading for both parties, unaffected by the html-only student rule.
+    const slot = readSlot(v, "teacher");
     const locale = await currentLocale();
     const pdfHref = `/g/${slug}/w/${pageSlug}/pdf?v=${slot}`;
     // Matches WorksheetShell's own back control exactly — same target, same
@@ -95,7 +110,7 @@ export default async function WorksheetPage({
         back={{ kind: "link", href: `/g/${slug}?tab=files`, label: backLabel }}
         center={
           <WorksheetHeading
-            slots={slots}
+            slots={pdfSlots}
             slot={slot}
             audience={audience}
             studentName={context.group.name}
@@ -127,6 +142,21 @@ export default async function WorksheetPage({
     );
   }
 
+  const slots = visibleSlots({ audience, hasStudent, hasTeacher });
+  const asked = readSlot(v, audience);
+  // A tab that is not drawn cannot be the current one. This catches a student
+  // asking for "?v=teacher" before Jenn has corrected, and a bookmark to a tab
+  // whose row has since been deleted — both of which would otherwise render a
+  // strip with nothing selected over a 404 in the frame.
+  const slot = slots.includes(asked) ? asked : slots[0];
+
+  // The caller's OWN row, which is what Send and Delete both act on — never
+  // the row whose tab happens to be open. Jenn reading Marie's attempt on a
+  // read-only tab still gets a live Send if her correction is unannounced.
+  const own = versions.find(
+    (version) => version.fromTeacher === (audience === "teacher"),
+  );
+
   return (
     <WorksheetShell
       groupSlug={slug}
@@ -136,6 +166,12 @@ export default async function WorksheetPage({
       studentName={context.group.name}
       slot={slot}
       slots={slots}
+      writable={isWritableSlot({ slot, audience, hasTeacher })}
+      hasOwnVersion={Boolean(own)}
+      // Reduced to a boolean HERE, on the server. A Date would serialise
+      // across the boundary, but nothing in the client needs to know when —
+      // and lib/worksheet-send.ts is written to take facts, not rows.
+      sent={own?.sentAt != null}
     />
   );
 }
