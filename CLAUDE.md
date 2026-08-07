@@ -60,7 +60,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `POST /api/whiteboard/[slug]/ops` | teacher | appends and fans out ops |
 | `POST /api/whiteboard/[slug]/discard` | teacher | drops a live board, saving nothing |
 | `GET /api/whiteboard/[slug]/[id]` | token or teacher | a board's ops, for the JPEG export |
-| `/g/[slug]/w/[pageSlug]` | student or teacher | an html worksheet gets the worksheet shell: full-screen frame, version switcher, Save pill, print pill. A pdf worksheet gets `PdfShell` over `PdfDocumentView` instead — the same version tabs, a back control, and `UploadVersion` in place of the Save pill |
+| `/g/[slug]/w/[pageSlug]` | student or teacher | an html worksheet gets the worksheet shell: full-screen frame, version switcher, print pill, and — in place of the Save pill it carried until 2026-08-07 — a ten-second debounced auto-save with a *Send* notice and a delete beside it. A pdf worksheet gets `PdfShell` over `PdfDocumentView` instead — the same version tabs, a back control, and `UploadVersion`, and **it keeps the old flow whole**: three tabs for both parties, and an upload that notifies on its own |
 | `GET /g/[slug]/w/[pageSlug]/raw` | student or teacher | `?v=blank\|student\|teacher`; the document, under `SANDBOXED_DOCUMENT_CSP` |
 | `GET /g/[slug]/w/[pageSlug]/pdf` | student or teacher | `?v=blank\|student\|teacher`; the raw PDF bytes for that slot — the pdf worksheet view's byte source and its fallback on a render failure |
 | `POST /api/worksheets/[slug]/[pageSlug]` | student or teacher | saves the caller's own slot |
