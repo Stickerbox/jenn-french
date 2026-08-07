@@ -78,6 +78,7 @@ export function Conversation({
           labels={labels}
           onDeleteMessage={onDeleteMessage}
           onReply={onSend ? startReply : undefined}
+          replyTargetId={replyTo?.id ?? null}
         />
       </div>
 

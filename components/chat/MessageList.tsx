@@ -31,6 +31,7 @@ export function MessageList({
   labels,
   onDeleteMessage,
   onReply,
+  replyTargetId,
 }: {
   messages: ChatMessage[];
   self: "teacher" | "student";
@@ -40,6 +41,10 @@ export function MessageList({
   // unclaimed student's footer replaces the composer entirely) has nothing to
   // reply into.
   onReply?: (message: ChatMessage) => void;
+  // The message a reply is currently staged against, or null. Passed in rather
+  // than held here because the composer owns that state — this only needs to
+  // know which bubble to bring into view.
+  replyTargetId?: string | null;
 }) {
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -48,6 +53,9 @@ export function MessageList({
   // setState per touchmove for a value nothing draws would re-render the whole
   // list on every frame of the gesture.
   const swipeStart = useRef<{ id: string; x: number; y: number } | null>(null);
+  // Every mounted bubble, by message id, so replyTargetId below can be
+  // scrolled to without a query selector over the whole document.
+  const messageNodes = useRef(new Map<string, HTMLDivElement>());
   // What IS drawn: one message at a time, so this is a single value rather than
   // a map. Two fingers on two bubbles is not a gesture worth modelling.
   const [swipe, setSwipe] = useState<
@@ -59,6 +67,44 @@ export function MessageList({
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
+
+  // Bring the quoted message to the bottom of what is still visible.
+  //
+  // On a phone the keyboard opens at the same moment a reply is staged and
+  // takes half the screen with it, so the message being answered is very often
+  // behind it — the reader is asked to write about something they can no
+  // longer see. `block: "end"` puts it just above the composer, which is
+  // exactly where the keyboard's top edge is.
+  //
+  // Run TWICE, and the second is the one that matters: the keyboard has not
+  // opened yet when the reply is staged, so the first scroll aims at a
+  // viewport that is about to shrink. visualViewport fires `resize` when it
+  // does, and iOS Safari is the browser that shrinks the visual viewport
+  // without shrinking the layout one — the same asymmetry ChatPanel already
+  // drives its own height from.
+  useEffect(() => {
+    if (!replyTargetId) return;
+    const node = messageNodes.current.get(replyTargetId);
+    if (!node) return;
+
+    const bring = () => node.scrollIntoView({ block: "end", behavior: "smooth" });
+    bring();
+
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    viewport.addEventListener("resize", bring);
+    // Unhooked shortly after: this exists for the keyboard opening in
+    // response to THIS reply, not for every later resize — an orientation
+    // change ten minutes on must not yank the list back to an old quote.
+    const stop = window.setTimeout(
+      () => viewport.removeEventListener("resize", bring),
+      1500,
+    );
+    return () => {
+      window.clearTimeout(stop);
+      viewport.removeEventListener("resize", bring);
+    };
+  }, [replyTargetId]);
 
   if (messages.length === 0) {
     return (
@@ -128,6 +174,20 @@ export function MessageList({
                     return (
                       <div
                         key={message.id}
+                        ref={(el) => {
+                          // Kept so a staged reply can be scrolled to. A Map
+                          // in a ref rather than state: nothing renders from
+                          // it, and a setState per mounted bubble would
+                          // re-render the list on every message.
+                          if (el) messageNodes.current.set(message.id, el);
+                          else messageNodes.current.delete(message.id);
+                        }}
+                        className={cn(
+                          "flex flex-col",
+                          mine ? "items-end" : "items-start",
+                        )}
+                      >
+                      <div
                         // Unconditional, on the keyed element: the animation
                         // plays once when this node is inserted and does not
                         // replay on a re-render, since the class string never
@@ -365,44 +425,6 @@ export function MessageList({
                             )}
                           </div>
                         )}
-                        {onReply && (
-                          <button
-                            type="button"
-                            onClick={() => onReply(message)}
-                            aria-label={`${labels.reply}: ${message.body.slice(0, 40)}`}
-                            // ALWAYS VISIBLE BELOW md, hover-revealed above it.
-                            // The reveal was copied from the delete button and
-                            // shipped that way: a phone has no hover and no
-                            // focus-visible, so the control was a transparent
-                            // 32px square nobody could find — the whole feature
-                            // was unreachable on the device most of these
-                            // students use. At md and up the pointer exists and
-                            // an arrow beside every bubble is noise, so the
-                            // reveal stays there.
-                            //
-                            // 44px on a phone, the project's hit-box rule,
-                            // dropping to 32px at md where a mouse aims for it.
-                            className={cn(
-                              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-muted)] transition-opacity duration-150 hover:bg-[var(--color-field)] focus-visible:opacity-100 motion-reduce:transition-none md:h-8 md:w-8 md:opacity-0 md:group-hover/msg:opacity-100",
-                              accentFocusRing,
-                            )}
-                          >
-                            <svg
-                              width="15"
-                              height="15"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden="true"
-                            >
-                              <path d="M9 14 4 9l5-5" />
-                              <path d="M4 9h10.5A5.5 5.5 0 0 1 20 14.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
-                            </svg>
-                          </button>
-                        )}
                         {onDeleteMessage && (
                           <button
                             type="button"
@@ -426,6 +448,35 @@ export function MessageList({
                             ×
                           </button>
                         )}
+                      </div>
+                      {onReply && (
+                        // THE WORD, not an icon. An arrow beside a bubble said
+                        // nothing on its own and was the only label this
+                        // control had; the swipe gesture is the fast path and
+                        // this is the one that explains itself.
+                        //
+                        // Under the bubble rather than beside it, so a run of
+                        // messages keeps its shape and the text never competes
+                        // with the message for width.
+                        //
+                        // Deliberately short of the 44px hit box this project
+                        // asks for, and stated rather than hidden: one under
+                        // every bubble at that height would half again the
+                        // length of a conversation. On a phone the gesture is
+                        // the primary way in — this is the discoverable label
+                        // for it, and a documented exception like the tile's
+                        // three action icons.
+                        <button
+                          type="button"
+                          onClick={() => onReply(message)}
+                          className={cn(
+                            "rounded px-1.5 py-1 text-[11px] font-medium text-[var(--color-ink-muted)] transition-colors duration-150 hover:text-[var(--color-accent)] motion-reduce:transition-none",
+                            accentFocusRing,
+                          )}
+                        >
+                          {labels.reply}
+                        </button>
+                      )}
                       </div>
                     );
                   })}

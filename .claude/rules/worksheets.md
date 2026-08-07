@@ -159,13 +159,13 @@ route an html worksheet's tile opens — rather than skipping ahead to the raw
 bytes, because that route no longer redirects a pdf row out to the browser's
 own viewer; it renders `PdfShell` over `PdfDocumentView` and carries the
 upload control itself (see `.claude/rules/files-pages-pdfs.md`'s "A PDF is
-never framed" for the fuller change). **The original reason the chooser forces
-open even at one pdf version — "a PDF opens top-level, with nowhere in it to
-put a Save control" — is gone**: there is now somewhere. `dialogDue` in
-`FilesTab` was deliberately left as it was rather than folded into this
-change, so a single-version pdf worksheet still shows the chooser first
-before landing in the shell; that extra step is redundant now, not broken,
-and revisiting it is a separate decision. **The version tabs are one component now**, `WorksheetHeading`, shared by
+never framed" for the fuller change). **The chooser now opens for one reason
+only, on both kinds: more than one version exists.** It used to force the
+dialog for every pdf worksheet even at a single version, because a PDF opened
+top-level with nowhere in it to put a Save control and the chooser was that
+control's only surface. `PdfShell` took that job, so the clause outlived its
+reason and cost a tap and a dialog on the way to a document with nothing to
+pick from. **The version tabs are one component now**, `WorksheetHeading`, shared by
 the html shell and the pdf one — they were written twice, with a comment on
 the second copy asking the reader to keep them in step by eye, and the two had
 already drifted. **The tabs hide when there is nothing to choose**: `slots`

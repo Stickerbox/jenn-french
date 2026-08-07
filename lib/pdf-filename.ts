@@ -49,6 +49,31 @@ function encodeRfc5987(value: string): string {
 }
 
 export function contentDispositionInline(title: string, slug: string): string {
+  return disposition("inline", title, slug);
+}
+
+// `attachment` says "save this", and it is the ONLY thing that reliably does.
+// The download control used to be an `<a download>` over the inline response,
+// and the attribute is advisory: a browser that would rather show a PDF shows
+// it, which is what happened — the button opened the document in a new tab
+// instead of saving it. A header the browser must obey replaces a hint it may
+// ignore.
+export function contentDispositionAttachment(
+  title: string,
+  slug: string,
+): string {
+  return disposition("attachment", title, slug);
+}
+
+// The filename half is identical for both, and that is the point of one
+// function: the escaping is the security control here — a bare `"` ends the
+// quoted form early and a CR or LF is response-header injection — and two
+// copies of it would be two places for that to be got wrong.
+function disposition(
+  kind: "inline" | "attachment",
+  title: string,
+  slug: string,
+): string {
   const stem = withoutPdfSuffix(title);
   const ascii = asciiStem(stem);
 
@@ -60,5 +85,5 @@ export function contentDispositionInline(title: string, slug: string): string {
   const quoted = usable ? ascii : slug;
   const encoded = encodeRfc5987(usable ? utf8Stem(stem) : slug);
 
-  return `inline; filename="${quoted}.pdf"; filename*=UTF-8''${encoded}.pdf`;
+  return `${kind}; filename="${quoted}.pdf"; filename*=UTF-8''${encoded}.pdf`;
 }

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getPagePdf } from "@/lib/pages";
 import { readPageKind } from "@/lib/page-kind";
-import { contentDispositionInline } from "@/lib/pdf-filename";
+import {
+  contentDispositionAttachment,
+  contentDispositionInline,
+} from "@/lib/pdf-filename";
 
 // The mirror of /p/[slug]/raw's contract: that route refuses every row that is
 // not html, this one refuses every row that is not pdf. Two routes rather than
@@ -19,10 +22,16 @@ import { contentDispositionInline } from "@/lib/pdf-filename";
 // teacher-only control. If PDFs are ever opened to student upload, revisit this
 // line first.
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
+  // `?download=1` and nothing else about the response changes — same bytes,
+  // same type, same nosniff. Only the disposition, because `<a download>` is
+  // advisory: a browser that would rather display a PDF displays it, and the
+  // download control did exactly that. This makes the answer the server's.
+  const wantsDownload =
+    new URL(request.url).searchParams.get("download") === "1";
   const page = await getPagePdf(slug);
   if (!page || readPageKind(page) !== "pdf" || page.pdf === null) {
     return new NextResponse("Not found", { status: 404 });
@@ -35,7 +44,9 @@ export async function GET(
       // download, print, search and page controls this feature would otherwise
       // have to build. The filename is what that viewer's own download button
       // saves as.
-      "Content-Disposition": contentDispositionInline(page.title, page.slug),
+      "Content-Disposition": wantsDownload
+        ? contentDispositionAttachment(page.title, page.slug)
+        : contentDispositionInline(page.title, page.slug),
       // A mislabelled upload must never be re-interpreted as something
       // executable.
       "X-Content-Type-Options": "nosniff",

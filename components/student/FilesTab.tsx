@@ -177,23 +177,21 @@ export function FilesTab({
                     : null;
                   // A worksheet tile opens the chooser instead of navigating
                   // once there is more than the blank to pick from, or
-                  // whenever it is a pdf worksheet. The `page.kind === "pdf"`
-                  // clause predates PdfShell (2026-08-06): it used to be load
-                  // -bearing because a pdf worksheet opened top-level in the
-                  // browser's own viewer, with nowhere to put a save control,
-                  // so the chooser was its only surface even at one version.
-                  // That reason is gone now that the worksheet route itself
-                  // carries an upload control — this clause was deliberately
-                  // left as-is rather than folded into the same change, so a
-                  // single-version pdf worksheet still shows the chooser
-                  // first; revisiting that is a separate decision (see
-                  // .claude/rules/worksheets.md). `groupSlug` gates it the
-                  // same way it gates pageTarget's own worksheet branch: no
-                  // shelf, no chooser.
+                  // ONE RULE FOR BOTH KINDS: a chooser only when there is
+                  // something to choose. It used to force the dialog for every
+                  // pdf worksheet even at a single version, because a PDF
+                  // opened top-level in the browser's own viewer and the
+                  // chooser was the only surface that could hold a save
+                  // control. PdfShell took that job (2026-08-06) — the
+                  // worksheet route carries the upload itself now — so the
+                  // clause outlived its reason and cost a tap and a dialog on
+                  // the way to a document with nothing to pick from.
+                  // `groupSlug` gates it the same way it gates pageTarget's
+                  // own worksheet branch: no shelf, no chooser.
                   const dialogDue =
                     Boolean(groupSlug) &&
                     page.worksheet &&
-                    (versionCount(page.versions) > 1 || page.kind === "pdf");
+                    versionCount(page.versions) > 1;
                   return (
                     <li key={page.id}>
                       <PageTile

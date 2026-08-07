@@ -80,7 +80,12 @@ export default async function PublishedPage({
           // answers Content-Disposition: inline, and on a same-origin link
           // this attribute overrides that. Never a canvas print — this makes
           // no claim to a print feature it does not have.
-          <a href={pdfHref} download className={shellBarButtonClass}>
+          // `?download=1`, not the `download` attribute: that attribute is a
+          // hint a browser may ignore, and this one did — it opened the PDF
+          // in a new tab instead of saving it. The route answers the same
+          // bytes with Content-Disposition: attachment, which is not
+          // advisory.
+          <a href={`${pdfHref}?download=1`} className={shellBarButtonClass}>
             <DownloadIcon />
             <span className="hidden whitespace-nowrap sm:inline">
               {strings.download}
