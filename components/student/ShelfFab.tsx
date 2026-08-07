@@ -14,8 +14,9 @@ import { fieldClassName } from "@/components/ui/field";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
 import { cardFocusRing, formErrorText } from "@/components/card-styles";
+import { AddFlashcardForm } from "@/components/student/AddFlashcardForm";
 
-type Open = null | "menu" | "link" | "page" | "pdf";
+type Open = null | "menu" | "link" | "page" | "pdf" | "card";
 
 // The Save button on each of the three sheets below — link, page, PDF — was
 // three copies of the same string. min-h-[44px] added on top of its existing
@@ -70,6 +71,7 @@ export function ShelfFab({
   onAddLink,
   onAddPage,
   onAddPdf,
+  onAddFlashcard,
   locale,
 }: {
   role: ShelfRole;
@@ -78,6 +80,14 @@ export function ShelfFab({
   // offer it, so a student page has nothing to pass.
   onAddPage?: (input: { html: string }) => Promise<void>;
   onAddPdf: (formData: FormData) => Promise<void>;
+  // Both roles get this one — a card is vocabulary from the lesson and either
+  // party writes it down. Unlike onAddPage, which is Jenn's alone because a
+  // student may upload a PDF and not a whole website.
+  onAddFlashcard: (input: {
+    front: string;
+    back: string;
+    note: string;
+  }) => Promise<void>;
   // This is a client component, so it cannot call headers() itself — the
   // server component above it (app/g/[slug]/page.tsx) reads the locale once
   // and hands it down; getStrings(locale) below rebuilds the dictionary here
@@ -216,10 +226,12 @@ export function ShelfFab({
           { key: "link", label: shelf.addLink },
           { key: "page", label: shelf.addPage },
           { key: "pdf", label: shelf.addPdf },
+          { key: "card", label: strings.student.deck.addTitle },
         ]
       : [
           { key: "link", label: shelf.addLink },
           { key: "pdf", label: shelf.addPdf },
+          { key: "card", label: strings.student.deck.addTitle },
         ];
 
   return (
@@ -340,6 +352,27 @@ export function ShelfFab({
               </p>
             )}
           </form>
+        </AddSheet>
+      )}
+
+      {open === "card" && (
+        <AddSheet
+          title={strings.student.deck.addTitle}
+          closeLabel={strings.common.close}
+          onClose={() => setOpen(null)}
+        >
+          <AddFlashcardForm
+            locale={locale}
+            onAdd={onAddFlashcard}
+            onDone={() => {
+              setOpen(null);
+              // The deck is server-rendered, so a refresh is what makes the new
+              // card appear rather than a local insert that could disagree
+              // with it — the same reason `done()` above refreshes.
+              router.push("?tab=deck");
+              router.refresh();
+            }}
+          />
         </AddSheet>
       )}
 
