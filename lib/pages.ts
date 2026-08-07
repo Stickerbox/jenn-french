@@ -294,9 +294,14 @@ export async function listPagesForAdmin() {
     worksheet: page.worksheet,
     groupIds: page.groups.map((g) => g.group.id),
     groupNames: page.groups.map((g) => g.group.name),
-    // Drives both the tile's marker and the filter: a page shared with
-    // everyone is on every student's shelf, so it must survive a filter for
-    // any one of them.
+    // Drives the FILTER, and only the filter: a page shared with everyone is
+    // on every student's shelf, so it must survive a filter for any one of
+    // them. That matters more since 2026-08-07, when the everyone chip was
+    // removed — widening a student's chip is now the only way Jenn finds a
+    // shared page.
+    //
+    // It used to say it also drove "the tile's marker". PageList renders no
+    // such marker and never did.
     sharedWithEveryone: page.groups.some((g) => g.group.isEveryone),
     pins: page.pins,
   }));

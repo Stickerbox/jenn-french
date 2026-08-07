@@ -496,6 +496,20 @@ There is no HTML sanitiser, deliberately. Sanitising would strip exactly the
 interactivity the feature exists to preserve, and the sandbox already contains
 what a sanitiser would defend against.
 
+**The student shelf's chips are behind a filter icon** and the admin Pages tab's
+are not. `FilterDisclosure` (`components/ui/FilterDisclosure.tsx`) closes the
+kind and sort rows by default, because a search field and two chip rows above
+the tiles was most of a phone's first screen. The icon carries a dot while
+`filtersAreActive` (`lib/shelf-filters.ts`) answers true — without it a filtered
+list is a short list with no visible cause, which reads as a fault. The panel is
+`hidden` rather than unmounted so `aria-controls` always names an element that
+exists.
+
+The admin is the stated exception. Its chip row is not only a filter: the same
+selection decides which shelf a pin lands on and the default audience for a new
+page, so folding it away would hide a control that does more than narrow a list.
+The two lists are meant to look alike, and this is the place that rule bends.
+
 Both page lists — the student's shelf and the admin Pages tab — render
 `PageTile` in a grid, each tile previewing its page live: `HtmlPreview` frames
 `/p/[slug]/raw` at 500% and scales it by 0.2, so the page lays out at roughly
@@ -610,6 +624,13 @@ list, following `loadConversation`, because the payload is a whole document and
 a shelf renders many tiles. It wraps the **unmodified** `PageEditor`, so there
 is one edit form and no second copy to drift.
 
+As of 2026-08-07 a **clean save closes it**: `PageEditor` takes an optional
+`onSaved`, the overlay passes its own close, and `/admin/pages/[slug]` passes
+nothing because a page has nothing to dismiss and its *Saved* flag is the whole
+feedback there. A save that skipped assets keeps the sheet open, matching
+`NewPageForm` — that list exists only in the reply to that one request, so
+closing over it is the warning nobody sees.
+
 A search param rather than local state, for four reasons and the last is the one
 that would be hard to add later: Back closes it; it has a URL, which is what the
 dia script opens after publishing; the list stays mounted, so a rename no longer
@@ -721,6 +742,26 @@ every student's shelf: `listPagesForGroup` fetches both sets and hands them to
 happened. That row cannot be deleted — `canDeleteGroup` is checked in
 `deleteGroup` as well as in the UI, because deleting it would empty every
 student's shelf at once and nothing would report an error.
+
+**That row is no longer drawn as a student** (2026-08-07). `lib/audience.ts`
+withholds it from the Students tab (`visibleStudents`) and from the Pages tab's
+chip row (`visibleGroupChips`), and relabels it in the three audience forms
+(`audienceOptions`) as *All students*, from the dictionary rather than from
+`Group.name`. It stays in those forms because sharing one page with every
+student is a real feature and that row is the mechanism behind it — removing the
+pill would end it.
+
+**No access rule moved.** `chatRole`, `shelfRole`, `studentGate`,
+`worksheetOpenable` and `canDeleteGroup` all still read the flag and all keep
+their present answers. This withholds controls and grants nothing.
+
+The accepted cost is that the admin has no link to `/g/all` any more. Shared
+pages stay findable because `filterPagesByGroup` widens a student's chip to
+include them — a rule that already existed and now carries more weight, not
+less. `visibleGroupChips` matches on a NAME, so an ordinary student named
+"Everyone" would lose their chip; that collision already exists inside
+`filterPagesByGroup`, which compares the same two strings, and `Group.name` is
+not unique. If it ever needs fixing, fix both.
 
 In the admin, filtering the Pages tab by a student shows that student's
 effective shelf rather than their assignments: the chip answers "what does
