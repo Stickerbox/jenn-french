@@ -297,13 +297,27 @@ tab, already selected, that did nothing when pressed — above every worksheet
 on its first opening, which is most of them. The document's title takes that
 place instead, the same `ShellTitle` `/p/[slug]` shows, so the bar always says
 what you are looking at and starts offering versions the moment a second one
-exists. The bar itself is `ShellBar` (`components/ui/ShellBar.tsx`) in two
-variants: `floating` over the html shell's `fixed inset-0` iframe, `sticky`
-over the pdf viewer's canvases, which flow. **The chooser's rows are anchors,
-not buttons**, the same reason the admin's pencil had to stay one: the
-whiteboard's leave-guard is a capture-phase `click` listener on `document`
-that inspects anchors, so a row is protected by it without knowing it
-exists, and a `router.push` handler would slip past it.
+exists.
+
+**The bar is `ShellBar` (`components/ui/ShellBar.tsx`), in flow, with ground
+under it — one shape, no variants.** It had two until 2026-08-07: `floating`,
+which was `fixed inset-x-0 top-0` with no background, over the html shell's
+`fixed inset-0` iframe, and `sticky` over the pdf viewer's canvases, which
+flow. The floating one was wrong and looked it — the document ran *underneath*
+the bar rather than below it, so the worksheet's own heading collided with the
+version tab and the tab's shadow was clipped by the viewport edge.
+
+`WorksheetShell` is now a `h-dvh` flex column: bar first, iframe second at
+`flex-1 min-h-0`. **`min-h-0` is load-bearing** — a flex child will not shrink
+below its content's size without it, and an iframe told to fill the remainder
+would instead push the last centimetre of the worksheet off the bottom of the
+screen. It is `h-dvh` rather than PdfShell's `min-h-dvh` because canvases have
+an intrinsic height and an iframe has none: the pdf page scrolls, the worksheet
+page does not and its frame scrolls inside itself.
+
+Staying in flow is also what spares both callers the padding arithmetic a fixed
+bar would demand, and what lets a taller action — the pdf upload's drop zone —
+simply grow the bar and start the document lower.
 
 **The badge and the worksheet target are two different mechanisms, and their
 absence in the admin has two different causes — do not read them as one

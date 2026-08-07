@@ -117,9 +117,21 @@ export function WorksheetShell({
   const stuck = writable && ownExists && editable === false;
 
   return (
-    <>
+    // A COLUMN, NOT A LAYER. The bar used to `float` over an iframe pinned at
+    // `fixed inset-0`, which meant the document ran underneath it: the tab's
+    // own shadow was clipped by the viewport edge, and the worksheet's title
+    // sat behind a control it had nothing to do with.
+    //
+    // This is the shape PdfShell already had, arrived at for the same reason —
+    // the bar needs ground under it, and the document needs to start below it
+    // rather than behind it. The difference from PdfShell is `h-dvh` and not
+    // `min-h-dvh`: its canvases flow and the page scrolls, while an iframe has
+    // no intrinsic height and must be told to take exactly what the bar left.
+    // `min-h-0` is what lets it shrink to that — without it a flex child
+    // refuses to go below its content's size and the last centimetre of the
+    // worksheet falls off the bottom of the screen.
+    <div className="flex h-dvh flex-col overflow-hidden bg-[var(--card-paper-back)]">
       <ShellBar
-        variant="floating"
         ariaLabel={audience === "teacher" ? "Versions" : "Versions du devoir"}
         back={{
           href: `/g/${groupSlug}?tab=files`,
@@ -156,7 +168,7 @@ export function WorksheetShell({
         src={`/g/${groupSlug}/w/${pageSlug}/raw?v=${slot}`}
         title={title}
         sandbox="allow-scripts allow-modals"
-        className="fixed inset-0 h-full w-full border-0 bg-white"
+        className="min-h-0 w-full flex-1 border-0 bg-white"
         // Asked on load rather than announced by the document on its own: the
         // listener above is attached on mount, which is before this fires, so
         // there is no window in which an unprompted answer could be missed.
@@ -208,6 +220,6 @@ export function WorksheetShell({
           onSent={() => setAnnounced(true)}
         />
       </div>
-    </>
+    </div>
   );
 }
