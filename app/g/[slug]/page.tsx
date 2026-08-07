@@ -22,6 +22,18 @@ import { getCurrentTeacher } from "@/lib/session";
 import { authPanelMode, studentGate } from "@/lib/student-gate";
 import { StudentAuthPanel } from "@/components/student/StudentAuthPanel";
 import { listWhiteboards } from "@/lib/whiteboards";
+import { listFlashcards } from "@/lib/flashcards";
+import { listActionItems } from "@/lib/action-items";
+import { DeckTab } from "@/components/student/DeckTab";
+import { TodoTab } from "@/components/student/TodoTab";
+import {
+  addFlashcard,
+  deleteFlashcard,
+  markFlashcardViewed,
+  addActionItem,
+  setActionItemDone,
+  deleteActionItem,
+} from "@/app/deck-actions";
 import { boardLabels } from "@/lib/whiteboard-names";
 import { BoardTab } from "@/components/whiteboard/BoardTab";
 import { LiveBanner } from "@/components/whiteboard/LiveBanner";
@@ -123,6 +135,12 @@ export default async function GroupPage({
   // the first board, and the student needs it to watch the first being drawn.
   const boards = unlocked ? await listWhiteboards(group.id) : [];
   const labels = boardLabels(boards, locale);
+
+  // Both follow the same rule the shelf and the board already do: fetched only
+  // when the visitor is unlocked, because an untokened visitor has neither tab
+  // and a query for a list they cannot see is a query for nothing.
+  const flashcards = unlocked ? await listFlashcards(group.id) : [];
+  const actionItems = unlocked ? await listActionItems(group.id) : [];
 
   // Both extra tabs are present for anyone unlocked, empty state and all. A
   // student with an empty shelf otherwise has no way to reach the control that
@@ -236,6 +254,26 @@ export default async function GroupPage({
           onTogglePin={setShelfPin.bind(null, group.id)}
           onDeleteLink={deleteShelfLink.bind(null, group.id)}
           locale={locale}
+        />
+      ) : tab === "deck" ? (
+        <DeckTab
+          cards={flashcards}
+          isTeacher={viewerIsTeacher}
+          locale={locale}
+          onDelete={deleteFlashcard.bind(null, group.id)}
+          // The bound ACTION, not an arrow — a closure cannot cross the
+          // server/client boundary. DeckTab fires it without awaiting, from
+          // the handler that makes a card current.
+          onViewed={markFlashcardViewed.bind(null, group.id)}
+        />
+      ) : tab === "todo" ? (
+        <TodoTab
+          items={actionItems}
+          studentName={group.name}
+          locale={locale}
+          onAdd={addActionItem.bind(null, group.id)}
+          onSetDone={setActionItemDone.bind(null, group.id)}
+          onDelete={deleteActionItem.bind(null, group.id)}
         />
       ) : (
         <BoardTab
@@ -402,6 +440,7 @@ export default async function GroupPage({
               onAddLink={addShelfLink.bind(null, group.id)}
               onAddPage={addShelfPage.bind(null, group.id)}
               onAddPdf={addShelfPdf.bind(null, group.id)}
+              onAddFlashcard={addFlashcard.bind(null, group.id)}
               locale={locale}
             />
           )}
@@ -434,6 +473,7 @@ export default async function GroupPage({
             role="student"
             onAddLink={addShelfLink.bind(null, group.id)}
             onAddPdf={addShelfPdf.bind(null, group.id)}
+            onAddFlashcard={addFlashcard.bind(null, group.id)}
             locale={locale}
           />
         </StreamProvider>
