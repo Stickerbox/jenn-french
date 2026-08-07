@@ -44,19 +44,11 @@ export function ShellBar({
   back,
   center,
   actions,
-  variant,
   ariaLabel,
 }: {
   back: ShellBarBack;
   center: ReactNode;
   actions?: ReactNode;
-  // `floating` sits over a `fixed inset-0` document that scrolls inside
-  // itself, so it carries no background of its own and nothing beneath it
-  // moves. `sticky` sits over content in normal flow, so it needs a ground to
-  // stop the document sliding visibly under the words — and it reserves its
-  // own space by staying in flow until it starts sticking, which is what
-  // spares the caller the padding arithmetic a fixed bar would demand.
-  variant: "floating" | "sticky";
   ariaLabel: string;
 }) {
   return (
@@ -73,12 +65,18 @@ export function ShellBar({
       // Back sits in the FIRST track. Leaving is a backwards move and the
       // reading order should meet it first — and on the shelf this returns
       // to, the tile it came from is at the top left.
-      className={cn(
-        "z-10 grid grid-cols-[1fr_auto_1fr] items-start gap-2 px-4 print:hidden",
-        variant === "floating"
-          ? "fixed inset-x-0 top-0 pt-4"
-          : "sticky top-0 border-b border-[var(--card-line)] bg-[var(--card-paper-back)] py-4",
-      )}
+      // IT SITS IN FLOW AND HAS GROUND UNDER IT. There was a `floating`
+      // variant beside this until 2026-08-07 — `fixed inset-x-0 top-0`, no
+      // background — for a document pinned at `fixed inset-0` beneath it. It
+      // read as a control hovering over the worksheet rather than a bar above
+      // it: the tab's shadow was clipped by the viewport edge, and the
+      // document's own heading ran underneath the tab.
+      //
+      // Staying in flow is also what spares every caller the padding
+      // arithmetic a fixed bar demands, and what lets a taller action — the
+      // pdf upload's drop zone — simply grow the bar and push the document
+      // down.
+      className="sticky top-0 z-10 grid grid-cols-[1fr_auto_1fr] items-start gap-2 border-b border-[var(--card-line)] bg-[var(--card-paper-back)] px-4 py-4 print:hidden"
     >
       <div className="flex justify-start">
         {back.kind === "link" ? (
@@ -107,18 +105,25 @@ export function ShellBar({
         )}
       </div>
 
-      {/* `h-11` and `items-center`: the middle track used to align to the top
-          of a row whose other tracks are 44px tall, which left a title sitting
-          high and reading as though it belonged to nothing. */}
-      <div className="flex h-11 min-w-0 max-w-full items-center justify-center overflow-x-auto">
+      {/* `min-h-11` and `items-center`: the middle track used to align to the
+          top of a row whose other tracks are 44px tall, which left a title
+          sitting high and reading as though it belonged to nothing.
+
+          NOT `h-11`, AND NOT A SCROLL CONTAINER. It was both, and between them
+          they sliced the version strip: an element with `overflow-x-auto` gets
+          `overflow-y: auto` computed for free — CSS has no way to scroll one
+          axis and overflow the other — so a track fixed at exactly the strip's
+          own height clipped the strip's drop shadow flat. The strip already
+          scrolls itself and is already `max-w-full`, so this track never
+          needed to. */}
+      <div className="flex min-h-11 min-w-0 max-w-full items-center justify-center">
         {center}
       </div>
 
       {/* min-w-0 so a wide action — the worksheet upload's drop zone — can
-          shrink and wrap rather than forcing the row to overflow. With the
-          sticky variant a taller action simply grows the bar and the document
-          below starts lower, which is the other half of why that variant is
-          not `fixed`. */}
+          shrink and wrap rather than forcing the row to overflow. A taller
+          action simply grows the bar and the document below starts lower,
+          which is the other half of why this is not `fixed`. */}
       <div className="flex min-w-0 justify-end">{actions}</div>
     </nav>
   );

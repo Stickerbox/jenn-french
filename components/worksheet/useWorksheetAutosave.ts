@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DIRTY_MESSAGE, EDITABLE_MESSAGE } from "@/lib/printable-bootstrap";
 import { requestSnapshot, worksheetFrame } from "@/components/worksheet/frame";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 
 // Ten seconds is a compromise, not a measurement: short enough that a closed
 // laptop loses one sentence, long enough that a paragraph costs one write
@@ -20,6 +22,7 @@ export function useWorksheetAutosave({
   pageSlug,
   audience,
   writable,
+  locale,
   onSaved,
 }: {
   groupSlug: string;
@@ -29,6 +32,8 @@ export function useWorksheetAutosave({
   // types — text fields are browser behaviour, and stopping them would mean
   // rewriting the served document — so this gates the WRITE, not the typing.
   writable: boolean;
+  // The LOCALE, never a resolved Strings object — see lib/strings.ts.
+  locale: Locale;
   // Told after a write lands, never before. The shell adds the new tab and
   // moves the address on the first one.
   onSaved: () => void;
@@ -72,10 +77,7 @@ export function useWorksheetAutosave({
     setError(null);
 
     const html = await requestSnapshot();
-    const failed =
-      audience === "teacher"
-        ? "That didn't save. Try again."
-        : "L'enregistrement a échoué. Essaie encore.";
+    const failed = getStrings(locale).worksheet.saveFailed;
 
     if (html === null) {
       savingRef.current = false;
@@ -112,6 +114,11 @@ export function useWorksheetAutosave({
       // The route's own text is English and written for whoever is debugging
       // it. Jenn reads English, so her side keeps the specific reason; a
       // student gets one sentence instead of a leaked server string.
+      // The route's own text is English and written for whoever is debugging
+      // it. Jenn gets it verbatim because she is this site's OPERATOR — a
+      // role split, not a language one, and the only thing here still keyed
+      // to `audience`. A student gets the translated sentence rather than a
+      // leaked server string.
       const reason = await response.text();
       setStatus("error");
       setError(audience === "teacher" ? reason : failed);
@@ -126,7 +133,7 @@ export function useWorksheetAutosave({
     setDirty(false);
     onSaved();
     return true;
-  }, [audience, groupSlug, pageSlug, onSaved]);
+  }, [audience, groupSlug, pageSlug, locale, onSaved]);
 
   // Read inside the debounce callback instead of closing over `save`
   // directly. `save`'s identity changes when `onSaved`'s does — which

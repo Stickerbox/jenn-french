@@ -564,6 +564,62 @@ export type Strings = {
     back: string;
     pageAria: (page: number) => string;
   };
+
+  // The worksheet shell, its version tabs, and the two controls beside them.
+  //
+  // THIS AREA RETIRES THE AUDIENCE-KEYED COPY that lived inline in
+  // `components/worksheet/*` and in `versionLabel` — "French for the student,
+  // English for Jenn". That predated the Accept-Language convention and was
+  // the last place in the app still choosing a language by who was reading.
+  //
+  // `audience` survives, and means something narrower now: PERSPECTIVE, not
+  // language. Whose answers a tab holds is a different question from which
+  // language to say it in, and both are needed. Jenn on an fr-CA browser gets
+  // "Les réponses de Marie"; a student on an English browser gets "Jenn's
+  // correction". Neither of those is reachable if one key decides both.
+  worksheet: {
+    versionsLabel: string;
+    backToFiles: string;
+    readOnly: string;
+    // Shown beside the delete control when the reader's own saved copy has
+    // come back inert — a click-driven worksheet whose scripts the snapshot
+    // stripped. It points at the only way out, so it must name that control.
+    stuckHint: string;
+    saveFailed: string;
+
+    tabs: {
+      blank: string;
+      // The same row, from the two sides: `myAnswers` is the student looking
+      // at their own, `studentAnswers` is Jenn looking at theirs. Likewise
+      // `myCorrection` and `teacherCorrection`.
+      myAnswers: string;
+      studentAnswers: (name: string) => string;
+      myCorrection: string;
+      teacherCorrection: string;
+    };
+
+    send: {
+      toTeacher: string;
+      toStudent: (name: string) => string;
+      sending: string;
+      sent: string;
+      // The two disabled reasons. They carry the whole explanation, because a
+      // greyed control says nothing by itself and a phone has no hover.
+      nothingYet: string;
+      alreadySent: string;
+      // The two failures, which are different events: the write never landed,
+      // or the write landed and the notice did not.
+      notSaved: string;
+      failed: string;
+    };
+
+    reset: {
+      student: string;
+      teacher: string;
+      confirmStudent: string;
+      confirmTeacher: string;
+    };
+  };
 };
 
 const fr: Strings = {
@@ -1040,6 +1096,45 @@ const fr: Strings = {
     back: "Retour",
     pageAria: (page) => `Page ${page}`,
   },
+
+  worksheet: {
+    versionsLabel: "Versions du devoir",
+    backToFiles: "Les fichiers",
+    readOnly: "Lecture seule",
+    stuckHint:
+      "On ne peut plus écrire dans cette copie. Recommence pour la refaire.",
+    saveFailed: "L'enregistrement a échoué. Essaie encore.",
+
+    tabs: {
+      blank: "Le devoir",
+      myAnswers: "Mes réponses",
+      // The WHOLE name, and always "de" — the rule teacherPageLabel records.
+      // Two students can share a first name.
+      studentAnswers: (name) => `Les réponses de ${name}`,
+      myCorrection: "Ma correction",
+      // "Jenn" is hardcoded, exactly as versionNotice hardcodes it: there is
+      // exactly one teacher, and she has a name rather than a role.
+      teacherCorrection: "La correction de Jenn",
+    },
+
+    send: {
+      toTeacher: "Envoyer à Jenn",
+      toStudent: (name) => `Envoyer à ${name}`,
+      sending: "Envoi…",
+      sent: "Envoyé",
+      nothingYet: "Il n'y a rien à envoyer pour le moment",
+      alreadySent: "Déjà envoyé — modifie quelque chose pour renvoyer",
+      notSaved: "Enregistrement impossible. Rien n'a été envoyé.",
+      failed: "L'envoi a échoué. Essaie encore.",
+    },
+
+    reset: {
+      student: "Recommencer",
+      teacher: "Supprimer ma correction",
+      confirmStudent: "Recommencer ce devoir ? Tes réponses seront effacées.",
+      confirmTeacher: "Supprimer ta correction ? C'est définitif.",
+    },
+  },
 };
 
 const en: Strings = {
@@ -1493,6 +1588,44 @@ const en: Strings = {
     openInBrowser: "Open in browser",
     back: "Back",
     pageAria: (page) => `Page ${page}`,
+  },
+
+  worksheet: {
+    versionsLabel: "Worksheet versions",
+    backToFiles: "Back to files",
+    readOnly: "Read-only",
+    stuckHint:
+      "This copy can't be typed in any more. Start again to redo it.",
+    saveFailed: "That didn't save. Try again.",
+
+    tabs: {
+      blank: "The worksheet",
+      myAnswers: "My answers",
+      // The WHOLE name, and always 's — the rule teacherPageLabel records.
+      // Two students can share a first name, and "Jonas' answers" would be a
+      // second possessive rule for one apostrophe's worth of grammar.
+      studentAnswers: (name) => `${name}'s answers`,
+      myCorrection: "My correction",
+      teacherCorrection: "Jenn's correction",
+    },
+
+    send: {
+      toTeacher: "Send to Jenn",
+      toStudent: (name) => `Send to ${name}`,
+      sending: "Sending…",
+      sent: "Sent",
+      nothingYet: "Nothing saved to send yet",
+      alreadySent: "Already sent — change something to send again",
+      notSaved: "That didn't save, so nothing was sent.",
+      failed: "That didn't send. Try again.",
+    },
+
+    reset: {
+      student: "Start again",
+      teacher: "Delete correction",
+      confirmStudent: "Start this worksheet again? Your answers will be erased.",
+      confirmTeacher: "Delete your correction? This cannot be undone.",
+    },
   },
 };
 

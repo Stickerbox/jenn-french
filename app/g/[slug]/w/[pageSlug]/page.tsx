@@ -15,6 +15,7 @@ import {
 import { canSaveFromSlot, isWritableSlot } from "@/lib/worksheet-save-slots";
 import { visibleSlots } from "@/lib/worksheet-slots";
 import { currentLocale } from "@/lib/locale";
+import { getStrings } from "@/lib/strings";
 import { WorksheetShell } from "@/components/worksheet/WorksheetShell";
 import { PdfShell } from "@/components/pdf/PdfShell";
 import { WorksheetHeading } from "@/components/worksheet/WorksheetHeading";
@@ -26,11 +27,25 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// A student has no blank tab, so "blank" — and anything unrecognised — means
-// "my homework" for them. Jenn keeps the blank as her default, which is the
-// worksheet as she uploaded it.
-function readSlot(value: string | undefined, audience: VersionAudience): VersionSlot {
-  if (audience === "student") return value === "teacher" ? "teacher" : "student";
+// A student has no blank tab, so only "student" and "teacher" mean anything to
+// them; everything else — including no parameter at all, which is how the
+// shelf tile arrives — takes the default below. Jenn keeps the blank as her
+// default, which is the worksheet as she uploaded it.
+//
+// THE STUDENT'S DEFAULT IS THE CORRECTION WHEN THERE IS ONE. That is the new
+// thing, and it is what they opened the tile to see; landing on their own
+// answers would make them press a tab to reach the only part that changed
+// since last time. Their answers are one tab away, and the tabs only exist at
+// all once the correction does.
+function readSlot(
+  value: string | undefined,
+  audience: VersionAudience,
+  hasTeacher: boolean,
+): VersionSlot {
+  if (audience === "student") {
+    if (value === "student" || value === "teacher") return value;
+    return hasTeacher ? "teacher" : "student";
+  }
   if (value === "student" || value === "teacher") return value;
   return "blank";
 }
@@ -72,6 +87,10 @@ export default async function WorksheetPage({
 
   const versions = await listVersions(context.page.id, context.group.id);
   const audience = context.role === "teacher" ? "teacher" : "student";
+  // Resolved once, above the branch, because BOTH shells need it now — the
+  // language on this route follows the browser like everywhere else, and
+  // `audience` is left meaning only whose answers a tab holds.
+  const locale = await currentLocale();
   const hasStudent = versions.some((version) => !version.fromTeacher);
   const hasTeacher = versions.some((version) => version.fromTeacher);
 
@@ -94,20 +113,21 @@ export default async function WorksheetPage({
   if (context.page.kind === "pdf") {
     // "teacher" and not `audience`: the pdf branch wants the old three-slot
     // reading for both parties, unaffected by the html-only student rule.
-    const slot = readSlot(v, "teacher");
-    const locale = await currentLocale();
+    // `hasTeacher` is unread on that path — it only chooses a student's
+    // default — and is passed rather than faked so the argument list cannot
+    // drift from the real one.
+    const slot = readSlot(v, "teacher", hasTeacher);
     const pdfHref = `/g/${slug}/w/${pageSlug}/pdf?v=${slot}`;
-    // Matches WorksheetShell's own back control exactly — same target, same
-    // audience split — rather than a second copy keyed by locale. See
-    // CLAUDE.md's note on why the worksheet route still splits by audience
-    // instead of the browser's language: this predates that convention and
-    // migrating it is a separate decision from adding a pdf viewer beside it.
-    const backLabel = audience === "teacher" ? "Back to files" : "Les fichiers";
+    // One dictionary for both shells now. This used to read
+    // `audience === "teacher" ? "Back to files" : "Les fichiers"`, with a
+    // comment explaining that the worksheet route predated the
+    // Accept-Language convention. It no longer does.
+    const t = getStrings(locale).worksheet;
 
     return (
       <PdfShell
-        ariaLabel={audience === "teacher" ? "Versions" : "Versions du devoir"}
-        back={{ kind: "link", href: `/g/${slug}?tab=files`, label: backLabel }}
+        ariaLabel={t.versionsLabel}
+        back={{ kind: "link", href: `/g/${slug}?tab=files`, label: t.backToFiles }}
         center={
           <WorksheetHeading
             slots={pdfSlots}
@@ -115,6 +135,7 @@ export default async function WorksheetPage({
             audience={audience}
             studentName={context.group.name}
             title={context.page.title}
+            locale={locale}
           />
         }
         actions={
@@ -143,7 +164,7 @@ export default async function WorksheetPage({
   }
 
   const slots = visibleSlots({ audience, hasStudent, hasTeacher });
-  const asked = readSlot(v, audience);
+  const asked = readSlot(v, audience, hasTeacher);
   // A tab that is not drawn cannot be the current one. This catches a student
   // asking for "?v=teacher" before Jenn has corrected, and a bookmark to a tab
   // whose row has since been deleted — both of which would otherwise render a
@@ -167,6 +188,7 @@ export default async function WorksheetPage({
       slot={slot}
       slots={slots}
       writable={isWritableSlot({ slot, audience, hasTeacher })}
+      locale={locale}
       hasOwnVersion={Boolean(own)}
       // Reduced to a boolean HERE, on the server. A Date would serialise
       // across the boundary, but nothing in the client needs to know when —

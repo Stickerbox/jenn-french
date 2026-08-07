@@ -29,7 +29,6 @@ export function PdfShell({
   return (
     <div className="min-h-dvh bg-[var(--card-paper-back)]">
       <ShellBar
-        variant="sticky"
         ariaLabel={ariaLabel}
         back={back}
         center={center}

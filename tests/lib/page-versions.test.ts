@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyVersions, versionCount } from "@/lib/page-versions";
+import { applyVersions, shelfSlotCount } from "@/lib/page-versions";
 
 const A = new Date("2026-08-01T10:00:00Z");
 const B = new Date("2026-08-02T10:00:00Z");
@@ -51,12 +51,38 @@ describe("applyVersions", () => {
   });
 });
 
-describe("versionCount", () => {
-  it("counts the blank, which is not a row", () => {
-    // Page.html IS the first version. A count of 1 means nobody has saved
-    // anything, which is why the badge only shows from 2.
-    expect(versionCount([])).toBe(1);
-    expect(versionCount([{ fromTeacher: false }])).toBe(2);
-    expect(versionCount([{ fromTeacher: false }, { fromTeacher: true }])).toBe(3);
+describe("shelfSlotCount", () => {
+  const attempt = [{ fromTeacher: false }];
+  const both = [{ fromTeacher: false }, { fromTeacher: true }];
+
+  it("counts the blank for Jenn, who has a tab for it", () => {
+    // Page.html IS her first version, and her numbers are what they always
+    // were: 1 means nobody has saved anything.
+    expect(shelfSlotCount([], "teacher")).toBe(1);
+    expect(shelfSlotCount(attempt, "teacher")).toBe(2);
+    expect(shelfSlotCount(both, "teacher")).toBe(3);
+  });
+
+  it("never counts the blank for a student, who has no tab for it", () => {
+    // The bug this function was written for: a student who had saved once
+    // counted 2 under the old rule, so the shelf badged their homework "2"
+    // and the tile opened a chooser offering a blank they cannot reach.
+    expect(shelfSlotCount([], "student")).toBe(1);
+    expect(shelfSlotCount(attempt, "student")).toBe(1);
+  });
+
+  it("reaches 2 for a student only once Jenn has corrected", () => {
+    // Which is exactly when the badge should appear: it is the signal that
+    // there is something new to read.
+    expect(shelfSlotCount(both, "student")).toBe(2);
+    // Jenn can correct from the blank before the student has typed anything.
+    // The correction still counts; the missing attempt still does not.
+    expect(shelfSlotCount([{ fromTeacher: true }], "student")).toBe(2);
+  });
+
+  it("never lets a student's count reach Jenn's three", () => {
+    expect(shelfSlotCount(both, "student")).toBeLessThan(
+      shelfSlotCount(both, "teacher"),
+    );
   });
 });

@@ -11,6 +11,8 @@ import { sendState } from "@/lib/worksheet-send";
 import { SendVersionButton } from "@/components/worksheet/SendVersionButton";
 import { DeleteVersionButton } from "@/components/worksheet/DeleteVersionButton";
 import type { VersionSlot } from "@/lib/version-labels";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 
 // The full-screen sandboxed frame a student (or Jenn, correcting) fills in.
 // Modelled on /p/[slug]/page.tsx, whose sandbox comment this repeats because
@@ -29,6 +31,7 @@ export function WorksheetShell({
   writable,
   hasOwnVersion,
   sent,
+  locale,
 }: {
   groupSlug: string;
   pageSlug: string;
@@ -40,6 +43,8 @@ export function WorksheetShell({
   writable: boolean;
   hasOwnVersion: boolean;
   sent: boolean;
+  // The LOCALE, never a resolved Strings object — see lib/strings.ts.
+  locale: Locale;
 }) {
   // The server's answers, held locally because the first auto-save changes
   // both of them without a reload.
@@ -47,6 +52,7 @@ export function WorksheetShell({
   const [announced, setAnnounced] = useState(sent);
   const [tabs, setTabs] = useState(slots);
   const [current, setCurrent] = useState(slot);
+  const t = getStrings(locale).worksheet;
 
   const onSaved = useCallback(() => {
     // Every save clears sentAt on the server, so the button comes back to
@@ -82,6 +88,7 @@ export function WorksheetShell({
     pageSlug,
     audience,
     writable,
+    locale,
     onSaved,
   });
 
@@ -117,43 +124,64 @@ export function WorksheetShell({
   const stuck = writable && ownExists && editable === false;
 
   return (
-    <>
+    // A COLUMN, NOT A LAYER. The bar used to `float` over an iframe pinned at
+    // `fixed inset-0`, which meant the document ran underneath it: the tab's
+    // own shadow was clipped by the viewport edge, and the worksheet's title
+    // sat behind a control it had nothing to do with.
+    //
+    // This is the shape PdfShell already had, arrived at for the same reason —
+    // the bar needs ground under it, and the document needs to start below it
+    // rather than behind it. The difference from PdfShell is `h-dvh` and not
+    // `min-h-dvh`: its canvases flow and the page scrolls, while an iframe has
+    // no intrinsic height and must be told to take exactly what the bar left.
+    // `min-h-0` is what lets it shrink to that — without it a flex child
+    // refuses to go below its content's size and the last centimetre of the
+    // worksheet falls off the bottom of the screen.
+    <div className="flex h-dvh flex-col overflow-hidden bg-[var(--card-paper-back)]">
       <ShellBar
-        variant="floating"
-        ariaLabel={audience === "teacher" ? "Versions" : "Versions du devoir"}
+        ariaLabel={t.versionsLabel}
         back={{
           href: `/g/${groupSlug}?tab=files`,
-          label: audience === "teacher" ? "Back to files" : "Les fichiers",
+          label: t.backToFiles,
           kind: "link",
         }}
-        center={
-          <WorksheetHeading
-            slots={tabs}
-            slot={current}
-            audience={audience}
-            studentName={studentName}
-            title={title}
-          />
-        }
-        actions={
-          !writable && (
-            // Says what the tab cannot: it still TYPES, because text fields
-            // are browser behaviour and stopping them would mean rewriting
-            // the served document. Nothing typed here is kept.
-            //
-            // It sat beside the tabs until 2026-08-07, inside the middle
-            // track, where it competed with them for a width three French
-            // version labels already overflow on a phone — and pushed the
-            // strip off the centre the bar's equal `1fr` edges exist to keep.
-            // `h-11` because the track aligns to the top of a 44px row: the
-            // box is the row's height so the pill inside it lines up with the
-            // back control and the tabs, while staying a marker rather than
-            // growing into something that looks pressable.
-            <div className="flex h-11 items-center">
-              <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-3 py-1 font-[family-name:var(--card-font-serif)] text-xs text-[var(--card-moss)] shadow-[var(--card-shadow)]">
-                {audience === "teacher" ? "Read-only" : "Lecture seule"}
-              </span>
-            </div>
+center={
+            <WorksheetHeading
+              slots={tabs}
+              slot={current}
+              audience={audience}
+              studentName={studentName}
+              title={title}
+              locale={locale}
+              // A student sees "Mes réponses" from the very first opening,
+              // alone, and Jenn's correction joins it beside. Jenn keeps the
+              // old rule: her lone "The worksheet" tab is a control that
+              // cannot act, and the title is worth more in that space.
+              showWhenAlone={audience === "student"}
+            />
+          }
+          actions={
+            !writable && (
+              // Says what the tab cannot: it still TYPES, because text fields
+              // are browser behaviour and stopping them would mean rewriting
+              // the served document. Nothing typed here is kept.
+              //
+              // It sat beside the tabs until 2026-08-07, inside the middle
+              // track, where it competed with them for a width three French
+              // version labels already overflow on a phone — and pushed the
+              // strip off the centre the bar's equal `1fr` edges exist to keep.
+              // `h-11` because the track aligns to the top of a 44px row: the
+              // box is the row's height so the pill inside it lines up with the
+              // back control and the tabs, while staying a marker rather than
+              // growing into something that looks pressable.
+              <div className="flex h-11 items-center">
+                <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-3 py-1 font-[family-name:var(--card-font-serif)] 
+  text-xs text-[var(--card-moss)] shadow-[var(--card-shadow)]">
+                  {t.readOnly}
+                </span>
+              </div>
+            )
+          }
           )
         }
       />
@@ -162,7 +190,7 @@ export function WorksheetShell({
         src={`/g/${groupSlug}/w/${pageSlug}/raw?v=${slot}`}
         title={title}
         sandbox="allow-scripts allow-modals"
-        className="fixed inset-0 h-full w-full border-0 bg-white"
+        className="min-h-0 w-full flex-1 border-0 bg-white"
         // Asked on load rather than announced by the document on its own: the
         // listener above is attached on mount, which is before this fires, so
         // there is no window in which an unprompted answer could be missed.
@@ -186,9 +214,7 @@ export function WorksheetShell({
         )}
         {stuck && (
           <p className="max-w-xs rounded-lg bg-white px-3 py-2 text-sm text-[var(--card-moss)] shadow-[var(--card-shadow)]">
-            {audience === "teacher"
-              ? "This document can't be typed in any more. Delete it to start again."
-              : "On ne peut plus écrire dans cette copie. Recommence pour la refaire."}
+            {t.stuckHint}
           </p>
         )}
         <PrintButton className="static" frameId={WORKSHEET_FRAME_ID} />
@@ -202,6 +228,7 @@ export function WorksheetShell({
             pageSlug={pageSlug}
             audience={audience}
             cancel={cancel}
+            locale={locale}
           />
         )}
         <SendVersionButton
@@ -212,8 +239,9 @@ export function WorksheetShell({
           state={send}
           flush={flush}
           onSent={() => setAnnounced(true)}
+          locale={locale}
         />
       </div>
-    </>
+    </div>
   );
 }

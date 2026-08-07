@@ -4,6 +4,7 @@ import { getPagePdf } from "@/lib/pages";
 import { getVersionPdf } from "@/lib/version-store";
 import { contentDispositionInline } from "@/lib/pdf-filename";
 import { versionLabel, type VersionSlot } from "@/lib/version-labels";
+import { pickLocale } from "@/lib/i18n";
 
 function readSlot(value: string | null): VersionSlot {
   if (value === "student" || value === "teacher") return value;
@@ -44,10 +45,17 @@ export async function GET(
   // than three copies of one name. contentDispositionInline is what makes that
   // safe: a title reaching a response header is where a `"` ends the quoted form
   // early and a CR or LF is header injection.
+  //
+  // The language follows the browser here as it does on the page this
+  // download came from, so a French-reading teacher and an English-reading
+  // student each get a filename they can read. `pickLocale` rather than
+  // `currentLocale()`: this is a route handler with the request in hand, and
+  // `currentLocale()` reads `headers()`, which is the server-component half.
   const filename = `${context.page.title} — ${versionLabel(
     slot,
     context.role === "teacher" ? "teacher" : "student",
     context.group.name,
+    pickLocale(request.headers.get("accept-language")),
   )}`;
 
   return new NextResponse(Buffer.from(bytes), {

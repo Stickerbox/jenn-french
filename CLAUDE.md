@@ -267,6 +267,8 @@ Card text uses a deliberately tiny inline markup parser (`lib/inline-markup.ts`)
 not Markdown: `**bold**`, `*italic*`, `` `code` `` and nothing else. `**` is matched
 before `*`, and unclosed markers stay literal.
 
+All text should be localized to the browser. User-facing strings should not go into pure JS code, but instead into localization files for English and French translations.
+
 ### Subsystem rules, loaded on demand
 
 Four subsystems keep their full design rationale in `.claude/rules/`, which loads

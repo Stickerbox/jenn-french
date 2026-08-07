@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 
 // One control, two names, one rule: it deletes the caller's OWN row.
 //
@@ -17,6 +19,7 @@ export function DeleteVersionButton({
   pageSlug,
   audience,
   cancel,
+  locale,
 }: {
   groupSlug: string;
   pageSlug: string;
@@ -27,15 +30,19 @@ export function DeleteVersionButton({
   // marked clean with no timer left to catch it and no warning if they then
   // navigate away.
   cancel: () => void;
+  // The LOCALE, never a resolved Strings object — see lib/strings.ts.
+  locale: Locale;
 }) {
   const [busy, setBusy] = useState(false);
+  const t = getStrings(locale).worksheet.reset;
 
   async function remove() {
     // There is no version history behind this. The row is gone, so it asks.
+    // `audience` is PERSPECTIVE — whose row is about to go — and the language
+    // is the browser's. Both sentences name what is lost, because there is no
+    // version history behind either.
     const question =
-      audience === "teacher"
-        ? "Delete your correction? This cannot be undone."
-        : "Recommencer ce devoir ? Tes réponses seront effacées.";
+      audience === "teacher" ? t.confirmTeacher : t.confirmStudent;
     if (!window.confirm(question)) return;
 
     // A confirmed delete IS abandoning whatever the timer was about to
@@ -81,7 +88,7 @@ export function DeleteVersionButton({
       disabled={busy}
       className="rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-4 py-2 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)] shadow-[var(--card-shadow)] transition-opacity hover:opacity-90 motion-reduce:transition-none disabled:opacity-60"
     >
-      {audience === "teacher" ? "Delete correction" : "Recommencer"}
+      {audience === "teacher" ? t.teacher : t.student}
     </button>
   );
 }
