@@ -30,6 +30,21 @@ export async function GET(
       context.group.id,
       asked === "teacher",
     );
+    // THE SEED, and the condition is on the CALLER, not on the emptiness.
+    //
+    // A student who has typed nothing asks for their own slot and must receive
+    // the blank: to them "?v=student" means "my homework", not "a saved
+    // version", because they have no blank tab to ask for instead.
+    //
+    // The 404 below stands in every other case, on the grounds the comment
+    // there gives: answering a request for "Marie's answers" with an empty
+    // worksheet would be a working feature showing the wrong thing. Widening
+    // this to "fall back whenever the row is missing" would serve Jenn an
+    // empty document in place of a student's answers and let her correct it.
+    if (html === null && asked === "student" && context.role === "student") {
+      const page = await getPageBySlug(pageSlug);
+      html = page?.html ?? null;
+    }
   } else {
     // Anything else is the blank, including an absent parameter. A version that
     // does not exist falls back to nothing rather than to the blank: answering
