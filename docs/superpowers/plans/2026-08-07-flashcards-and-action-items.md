@@ -1832,10 +1832,28 @@ The dialog's `aria-label={card.front}` never changes, so it is wrong whenever th
 
 - [ ] **Step 4: Make the flip wrapper reachable**
 
-The wrapper is a plain `<div onClick>`. Once Step 1 lands, the accidental "any Enter anywhere flips" fallback is gone, so this becomes a real dead end for a keyboard user who has not found the Flip button. Give it `role="button"`, `tabIndex={0}`, an `aria-label` from the dictionary, and an `onKeyDown` that flips on Space or Enter with `preventDefault`.
+The wrapper is a plain `<div onClick>`. Once Step 1 lands, the accidental "any Enter anywhere flips" fallback is gone, so this becomes a real dead end for a keyboard user who has not found the Flip button.
 
 Add the string in all three places in `lib/strings.ts`, in the `deck` block beside `flip`:
 `flipHint` — French `"Retourner la carte"`, English `"Flip the card"`.
+
+**Written as: give the wrapper `role="button"`, `tabIndex={0}`, an `aria-label` and an `onKeyDown`. That was tried and reverted — do not put it back.** ARIA makes a button's children presentational, so the role plus a label exposes the whole card as the single word *Flip*: `front`, `back` and `note` all leave the accessibility tree, and Step 2's `aria-hidden` pair becomes dead code, since both faces were already excluded. A screen-reader user would press Space and hear nothing, which is the exact dead end this step exists to close.
+
+What shipped instead, in `b0a2954`. The wrapper stays a plain `<div onClick>`, and the keyboard is served by moving focus rather than by adding a control:
+
+- The dialog gets `tabIndex={-1}` and takes focus on mount, which `aria-modal` asks for anyway. Step 1's guard then passes, so Space and Enter flip. A click on the card — not itself focusable — returns focus to the dialog, so the mouse and the keyboard end in the same state.
+- Focus goes back to the opener on unmount, guarded by `isConnected` because the close may be a delete. `document.activeElement` rather than a `triggerRef`, since the trigger is one tile of a mapped grid; the cost is that Safari, which does not focus a button on click, restores nothing — and a reader who never had focus on the tile has none to give back.
+- **Step 1's guard had to change with it.** `closest("button")` is not enough: the browser drops focus to `<body>` whenever a focused control is disabled or unmounted, which `‹`, `›`, the trash and Confirm all do to themselves, and `<body>` is not a button. Paging to the last card with Enter then made the *next* Enter flip it. The test is `document.activeElement !== dialogRef.current`.
+- **Tab is trapped.** `aria-modal` is a hint to assistive tech and does nothing to the tab order, so Shift+Tab off the dialog reached the deck tile painted underneath the opaque overlay, where Enter fires `show()` and re-stamps another card's `lastViewedAt` — Step 1's failure arriving by the other door. The trap re-queries its stops on every keystroke, so the trash/Confirm swap and the disabled arrows are always current, and it pulls focus back in when it has fallen to `<body>`.
+- `flipHint` is still added, and is still used — as the Flip button's `aria-label`. Both dictionaries keep the visible label as the opening words of the spoken one, so WCAG 2.5.3 label-in-name holds.
+
+- [ ] **Step 4b: Announce the face that arrives, and reset the flip on delete**
+
+Two defects the steps above surface rather than cause.
+
+Step 2's `aria-hidden` swap changes which text is in the tree but announces nothing, and a dialog's name is read on open and never again — so a flip was silent. An `sr-only` `aria-live="polite"` region, empty until flipped, then holding `card.back`, fixes it: its nodes are genuinely **added** on the flip, which is the trigger every screen reader honours, where un-hiding a subtree is an attribute change iOS VoiceOver commonly ignores — and that is the device most of these students read on. The accepted cost is stated in the code: while flipped the answer is in the tree twice, because no region can announce without also being readable. The note is not repeated; it is the long half and it is on the face.
+
+And `remove()` closes over the pre-delete `cards`, so `onIndex(Math.min(index, cards.length - 2))` hands back the index it was already on for any card but the last. The prop does not change, the render-phase reset never fires, and `cards[index]` is a different card once the deck reloads — so deleting a flipped card showed the next one with its answer already up. `remove()` calls `setFlipped(false)` itself.
 
 - [ ] **Step 5: Verify**
 
