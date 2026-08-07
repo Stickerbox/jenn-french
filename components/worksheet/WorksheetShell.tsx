@@ -127,23 +127,34 @@ export function WorksheetShell({
           kind: "link",
         }}
         center={
-          <div className="flex min-w-0 items-center gap-2">
-            <WorksheetHeading
-              slots={tabs}
-              slot={current}
-              audience={audience}
-              studentName={studentName}
-              title={title}
-            />
-            {!writable && (
-              // Says what the tab cannot: it still TYPES, because text fields
-              // are browser behaviour and stopping them would mean rewriting
-              // the served document. Nothing typed here is kept.
-              <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--card-line)] px-3 py-1 text-xs text-[var(--card-moss)]">
+          <WorksheetHeading
+            slots={tabs}
+            slot={current}
+            audience={audience}
+            studentName={studentName}
+            title={title}
+          />
+        }
+        actions={
+          !writable && (
+            // Says what the tab cannot: it still TYPES, because text fields
+            // are browser behaviour and stopping them would mean rewriting
+            // the served document. Nothing typed here is kept.
+            //
+            // It sat beside the tabs until 2026-08-07, inside the middle
+            // track, where it competed with them for a width three French
+            // version labels already overflow on a phone — and pushed the
+            // strip off the centre the bar's equal `1fr` edges exist to keep.
+            // `h-11` because the track aligns to the top of a 44px row: the
+            // box is the row's height so the pill inside it lines up with the
+            // back control and the tabs, while staying a marker rather than
+            // growing into something that looks pressable.
+            <div className="flex h-11 items-center">
+              <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-3 py-1 font-[family-name:var(--card-font-serif)] text-xs text-[var(--card-moss)] shadow-[var(--card-shadow)]">
                 {audience === "teacher" ? "Read-only" : "Lecture seule"}
               </span>
-            )}
-          </div>
+            </div>
+          )
         }
       />
       <iframe
