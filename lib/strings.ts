@@ -114,6 +114,10 @@ export type Strings = {
 
     files: {
       searchLabel: string;
+      // The disclosure that holds the two chip rows below.
+      filterBy: string;
+      filterToggle: string;
+      filterActive: string;
       kindFilter: {
         group: string;
         all: string;
@@ -605,6 +609,12 @@ const fr: Strings = {
 
     files: {
       searchLabel: "Chercher",
+      filterBy: "Filtrer par :",
+      // A neutral noun, not an instruction to reveal: aria-expanded already
+      // carries open/closed, and "Afficher les filtres, développé" read like
+      // a contradiction to a screen reader.
+      filterToggle: "Filtres",
+      filterActive: "Filtres actifs",
       kindFilter: {
         group: "Filtrer par type",
         all: "Tout",
@@ -1047,6 +1057,12 @@ const en: Strings = {
 
     files: {
       searchLabel: "Search",
+      filterBy: "Filter by:",
+      // A neutral noun, not an instruction to reveal: aria-expanded already
+      // carries open/closed, and "Show filters, expanded" read like a
+      // contradiction to a screen reader.
+      filterToggle: "Filters",
+      filterActive: "Filters active",
       kindFilter: {
         group: "Filter by type",
         all: "All",
