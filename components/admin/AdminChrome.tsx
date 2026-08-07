@@ -14,6 +14,7 @@ import { NewGroupForm } from "@/components/admin/NewGroupForm";
 import { AddLinkForm } from "@/components/admin/AddLinkForm";
 import { NewPageForm } from "@/components/admin/NewPageForm";
 import { defaultGroupId } from "@/lib/default-audience";
+import { audienceOptions } from "@/lib/audience";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
 import type {
@@ -52,7 +53,11 @@ export function AdminChrome({
   locale,
   children,
 }: {
-  groups: { id: string; name: string }[];
+  // isEveryone rides along so the audience pill can be relabelled. It is not
+  // used for anything else here — defaultGroupId below still matches on name,
+  // against the real Group.name, and the chip it matches can never be the
+  // everyone group now that PageList does not draw one.
+  groups: { id: string; name: string; isEveryone: boolean }[];
   onCreateStudent: (name: string) => Promise<void>;
   onCreateLink: (input: LinkInput) => Promise<unknown>;
   onCreatePage: (input: NewPageInput) => Promise<PageSaveResult>;
@@ -71,6 +76,10 @@ export function AdminChrome({
   const [open, setOpen] = useState<Open>(null);
 
   const activeGroupId = defaultGroupId(chip, groups);
+
+  // Built once for both sheets rather than inside each: they must not disagree
+  // about what the everyone row is called.
+  const audience = audienceOptions(groups, strings.admin.pageForm.allStudents);
 
   // Land on the tab that shows what was just added, then refresh: these lists
   // are server-rendered, so the row appears because the server re-ran, not
@@ -122,7 +131,7 @@ export function AdminChrome({
           onClose={() => setOpen(null)}
         >
           <AddLinkForm
-            groups={groups}
+            audience={audience}
             defaultGroupId={activeGroupId}
             onSubmit={async (input) => {
               await onCreateLink(input);
@@ -140,7 +149,7 @@ export function AdminChrome({
           onClose={() => setOpen(null)}
         >
           <NewPageForm
-            groups={groups}
+            audience={audience}
             defaultGroupId={activeGroupId}
             onSubmit={onCreatePage}
             onSubmitPdf={onCreatePdfPage}

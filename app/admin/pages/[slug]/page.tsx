@@ -6,6 +6,7 @@ import { getPageForAdmin } from "@/lib/pages";
 import { updatePage, updatePdfPage, deletePage } from "@/app/page-actions";
 import { PageEditor } from "@/components/admin/PageEditor";
 import { TeacherInbox } from "@/components/chat/TeacherInbox";
+import { audienceOptions } from "@/lib/audience";
 import { currentLocale } from "@/lib/locale";
 import { getStrings } from "@/lib/strings";
 
@@ -33,7 +34,7 @@ export default async function AdminPageEditor({
 
   const groups = await prisma.group.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, isEveryone: true },
   });
 
   return (
@@ -62,7 +63,10 @@ export default async function AdminPageEditor({
         </p>
 
         <PageEditor
-          groups={groups}
+          audience={audienceOptions(
+            groups,
+            strings.admin.pageForm.allStudents,
+          )}
           initial={{
             title: page.title,
             // Empty for a pdf row, which has no document to hold. The kind

@@ -30,6 +30,7 @@ import {
   filterPagesByGroup,
   pageGroupNames,
 } from "@/lib/admin-search";
+import { visibleGroupChips } from "@/lib/audience";
 import { formatLongDate } from "@/lib/format";
 import { pageVersion } from "@/lib/page-version";
 import type { Locale } from "@/lib/i18n";
@@ -155,7 +156,11 @@ export function PageList({
   const [kind, setKind] = useState<Kind>("all");
   const [sort, setSort] = useState<PageSort>("created");
 
-  const groupNames = pageGroupNames(pages);
+  // The everyone chip is dropped, and the everyone NAME is still passed to
+  // filterPagesByGroup below. That is not an inconsistency: the name's job
+  // there is to widen a student's chip to include pages shared with everyone,
+  // which is how Jenn finds a shared page now that it has no chip of its own.
+  const groupNames = visibleGroupChips(pageGroupNames(pages), everyoneName);
   const visible = filterPagesByKind(
     filterPagesByGroup(
       filterPages(pages, query),

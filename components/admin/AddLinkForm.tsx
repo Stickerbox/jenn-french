@@ -15,6 +15,7 @@ import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { LinkInput } from "@/app/page-actions";
+import type { AudienceOption } from "@/lib/audience";
 
 // Reached from the FAB on the Daily-card and Students tabs as well as Pages,
 // where there is no student chip to inherit from — so the audience has to be
@@ -22,12 +23,14 @@ import type { LinkInput } from "@/app/page-actions";
 // same reason, rather than a note pointing at a control that may not be on
 // screen.
 export function AddLinkForm({
-  groups,
+  audience,
   defaultGroupId,
   onSubmit,
   locale,
 }: {
-  groups: { id: string; name: string }[];
+  // Already relabelled by audienceOptions, so this form never learns that one
+  // of these rows is the everyone group. See lib/audience.ts.
+  audience: AudienceOption[];
   defaultGroupId: string | null;
   onSubmit: (input: LinkInput) => Promise<unknown>;
   // This is a client component reached directly from AdminChrome, so it
@@ -84,17 +87,17 @@ export function AddLinkForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <fieldset className="text-sm font-medium text-[var(--card-ink)]">
         <legend className="mb-2">{strings.admin.pageForm.studentsLegend}</legend>
-        {groups.length === 0 ? (
+        {audience.length === 0 ? (
           <p className="text-sm font-normal text-[var(--color-ink-muted)]">
             {strings.admin.pageForm.noStudentsYet}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {groups.map((group) => {
-              const checked = groupIds.includes(group.id);
+            {audience.map((option) => {
+              const checked = groupIds.includes(option.id);
               return (
                 <label
-                  key={group.id}
+                  key={option.id}
                   className={cn(
                     audiencePill,
                     checked ? audiencePillChecked : audiencePillUnchecked,
@@ -104,9 +107,9 @@ export function AddLinkForm({
                     type="checkbox"
                     className="sr-only"
                     checked={checked}
-                    onChange={() => toggleGroup(group.id)}
+                    onChange={() => toggleGroup(option.id)}
                   />
-                  {group.name}
+                  {option.label}
                 </label>
               );
             })}

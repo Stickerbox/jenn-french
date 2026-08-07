@@ -236,6 +236,12 @@ export async function listPagesForGroup(groupId: string) {
       orderBy: { createdAt: "desc" },
       select: SHELF_SELECT,
     }),
+    // Defensive since 2026-08-07: when groupId names the everyone row, this
+    // can now never return a row — canPinToShelf (lib/page-pins.ts) refuses a
+    // pin there and the migration that shipped beside it deleted what existed.
+    // applyPins degrades correctly to pinnedAt: null for every page on that
+    // call, so the query is left general rather than branched on isEveryone;
+    // it is still exactly correct for every other shelf.
     prisma.pagePin.findMany({
       where: { groupId },
       select: { pageId: true, pinnedAt: true },
@@ -288,9 +294,14 @@ export async function listPagesForAdmin() {
     worksheet: page.worksheet,
     groupIds: page.groups.map((g) => g.group.id),
     groupNames: page.groups.map((g) => g.group.name),
-    // Drives both the tile's marker and the filter: a page shared with
-    // everyone is on every student's shelf, so it must survive a filter for
-    // any one of them.
+    // Drives the FILTER, and only the filter: a page shared with everyone is
+    // on every student's shelf, so it must survive a filter for any one of
+    // them. That matters more since 2026-08-07, when the everyone chip was
+    // removed — widening a student's chip is now the only way Jenn finds a
+    // shared page.
+    //
+    // It used to say it also drove "the tile's marker". PageList renders no
+    // such marker and never did.
     sharedWithEveryone: page.groups.some((g) => g.group.isEveryone),
     pins: page.pins,
   }));

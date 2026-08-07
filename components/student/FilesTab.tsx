@@ -22,6 +22,8 @@ import { orderPages, type PageSort } from "@/lib/page-sort";
 import { SortFilter } from "@/components/ui/SortFilter";
 import { filterPages } from "@/lib/admin-search";
 import { filterPagesByKind, type KindFilter as Kind } from "@/lib/page-filters";
+import { FilterDisclosure } from "@/components/ui/FilterDisclosure";
+import { DEFAULT_KIND, DEFAULT_SORT, filtersAreActive } from "@/lib/shelf-filters";
 import type { PageKind } from "@/lib/page-kind";
 import { pageTarget } from "@/lib/page-target";
 import { shelfSlotCount } from "@/lib/page-versions";
@@ -105,8 +107,8 @@ export function FilesTab({
 }) {
   const strings = getStrings(locale);
   const [query, setQuery] = useState("");
-  const [kind, setKind] = useState<Kind>("all");
-  const [sort, setSort] = useState<PageSort>("created");
+  const [kind, setKind] = useState<Kind>(DEFAULT_KIND);
+  const [sort, setSort] = useState<PageSort>(DEFAULT_SORT);
 
   // The same expression the chooser below already used for its labels, lifted
   // out because the badge and the chooser now both need it: `canEdit` is
@@ -134,18 +136,25 @@ export function FilesTab({
             onChange={setQuery}
             clearLabel={strings.common.clear}
           />
-          <KindFilter
-            value={kind}
-            onChange={setKind}
-            tone="card"
-            labels={strings.student.files.kindFilter}
-          />
-          <SortFilter
-            value={sort}
-            onChange={setSort}
-            tone="card"
-            labels={strings.student.files.sortFilter}
-          />
+          <FilterDisclosure
+            toggleLabel={strings.student.files.filterToggle}
+            label={strings.student.files.filterBy}
+            activeLabel={strings.student.files.filterActive}
+            active={filtersAreActive({ kind, sort })}
+          >
+            <KindFilter
+              value={kind}
+              onChange={setKind}
+              tone="card"
+              labels={strings.student.files.kindFilter}
+            />
+            <SortFilter
+              value={sort}
+              onChange={setSort}
+              tone="card"
+              labels={strings.student.files.sortFilter}
+            />
+          </FilterDisclosure>
         </div>
       )}
 

@@ -1,25 +1,40 @@
+import { toBCP47, type Locale } from "@/lib/i18n";
+
 export type NamedBoard = {
   id: string;
   date: Date;
   createdAt: Date;
 };
 
+// Built per call rather than once at module scope, because the locale is per
+// request. Two formatters cached in a Map would be the optimisation, and it is
+// not worth it: this runs once per render of one tab.
+//
 // timeZone: "UTC" like every other date in this codebase. Without it a board
 // stamped at UTC midnight renders as the previous day for anyone west of
 // Greenwich, which is everyone using this site.
-const dayFormat = new Intl.DateTimeFormat("fr-CA", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
+function dayFormatFor(locale: Locale) {
+  return new Intl.DateTimeFormat(toBCP47(locale), {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
 
 const dayKey = (date: Date) => date.toISOString().slice(0, 10);
 
 // Takes the whole set rather than one board, because "disambiguate only when
 // ambiguous" cannot be decided from a single row — and a per-board format call
 // would inevitably regress into either always suffixing or never doing it.
-export function boardLabels(boards: NamedBoard[]): Map<string, string> {
+//
+// The locale is OPTIONAL and defaults to French, which is this site's fallback
+// everywhere else too — see lib/i18n.ts. That default is also what keeps every
+// existing test calling this with one argument.
+export function boardLabels(
+  boards: NamedBoard[],
+  locale: Locale = "fr",
+): Map<string, string> {
   const byDay = new Map<string, NamedBoard[]>();
   for (const board of boards) {
     const key = dayKey(board.date);
@@ -29,6 +44,8 @@ export function boardLabels(boards: NamedBoard[]): Map<string, string> {
   }
 
   const labels = new Map<string, string>();
+
+  const dayFormat = dayFormatFor(locale);
 
   for (const day of byDay.values()) {
     // Oldest first, so the counter reads as the order she drew them. The id

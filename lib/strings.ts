@@ -114,6 +114,10 @@ export type Strings = {
 
     files: {
       searchLabel: string;
+      // The disclosure that holds the two chip rows below.
+      filterBy: string;
+      filterToggle: string;
+      filterActive: string;
       kindFilter: {
         group: string;
         all: string;
@@ -136,6 +140,33 @@ export type Strings = {
       unpinTitle: string;
       delete: (title: string) => string;
       deleteTitle: string;
+    };
+
+    // The whiteboard ARCHIVE and the viewer over it. The drawing surface
+    // (BoardEditor and its toolbar) is deliberately absent and stays French —
+    // it is teacher-only, reachable only by pressing "New board", and editing
+    // it means editing the leave-guard.
+    board: {
+      newBoard: string;
+      empty: string;
+      drawingPage: (page: number) => string;
+      liveNow: string;
+      openLive: string;
+      download: string;
+      downloadFailed: string;
+      delete: string;
+      pageCount: (count: number) => string;
+      viewer: {
+        open: (label: string) => string;
+        close: string;
+        position: (page: number, total: number) => string;
+        previous: string;
+        next: string;
+        zoomIn: string;
+        zoomOut: string;
+        resetZoom: string;
+        loadFailed: string;
+      };
     };
 
     shelf: {
@@ -338,6 +369,11 @@ export type Strings = {
     pageForm: {
       studentsLegend: string;
       noStudentsYet: string;
+      // The everyone group's pill in an audience form. From the dictionary and
+      // NOT from Group.name, for two reasons: renaming that row in the
+      // database must not change what this form says, and the word has to be
+      // translated like every other word on the screen. See lib/audience.ts.
+      allStudents: string;
     };
 
     // "Title" and "Preparing preview…" and "That PDF is larger than 3 MB." are
@@ -489,6 +525,7 @@ export type Strings = {
       studentNameRequired: string;
       nameTaken: string;
       everyoneCannotBeDeleted: string;
+      everyoneCannotBePinned: string;
       groupDeletedMidEdit: string;
       pdfRequired: string;
       fillFieldsFirst: string;
@@ -655,6 +692,12 @@ const fr: Strings = {
 
     files: {
       searchLabel: "Chercher",
+      filterBy: "Filtrer par :",
+      // A neutral noun, not an instruction to reveal: aria-expanded already
+      // carries open/closed, and "Afficher les filtres, développé" read like
+      // a contradiction to a screen reader.
+      filterToggle: "Filtres",
+      filterActive: "Filtres actifs",
       kindFilter: {
         group: "Filtrer par type",
         all: "Tout",
@@ -677,6 +720,35 @@ const fr: Strings = {
       unpinTitle: "Désépingler",
       delete: (title) => `Supprimer ${title}`,
       deleteTitle: "Supprimer",
+    },
+
+    board: {
+      newBoard: "Nouveau tableau",
+      // French typography puts a space before ! and ?, and it must be
+      // non-breaking or the punctuation can wrap onto its own line.
+      // BoardTab.tsx and LeaveBoardDialog.tsx already carry this convention
+      // (as the &nbsp; JSX entity); \u00A0 is the same character, written as
+      // an escape so the next reader can see it is deliberate and can grep
+      // for it rather than an invisible character nobody can find again.
+      empty: "Aucun tableau pour l'instant\u00A0!",
+      drawingPage: (page) => `Page ${page} — Jenn dessine…`,
+      liveNow: "Jenn dessine en ce moment",
+      openLive: "Ouvrir le tableau",
+      download: "Télécharger",
+      downloadFailed: "Échec",
+      delete: "Supprimer",
+      pageCount: (count) => (count === 1 ? "1 page" : `${count} pages`),
+      viewer: {
+        open: (label) => `Ouvrir le tableau du ${label}`,
+        close: "Fermer",
+        position: (page, total) => `Page ${page} sur ${total}`,
+        previous: "Page précédente",
+        next: "Page suivante",
+        zoomIn: "Agrandir",
+        zoomOut: "Réduire",
+        resetZoom: "Taille normale",
+        loadFailed: "Impossible d'ouvrir ce tableau.",
+      },
     },
 
     shelf: {
@@ -857,6 +929,7 @@ const fr: Strings = {
     pageForm: {
       studentsLegend: "Élèves",
       noStudentsYet: "Pas encore d'élèves.",
+      allStudents: "Tous les élèves",
     },
 
     titleLabel: "Titre",
@@ -988,6 +1061,7 @@ const fr: Strings = {
       studentNameRequired: "Un élève a besoin d'un nom.",
       nameTaken: "Ce nom est déjà pris — essayez d'ajouter un nom de famille.",
       everyoneCannotBeDeleted: "Tout le monde ne peut pas être supprimé.",
+      everyoneCannotBePinned: "On ne peut rien épingler pour tout le monde.",
       groupDeletedMidEdit:
         "Un de ces élèves vient d'être supprimé — rechargez la page et réessayez.",
       pdfRequired: "Un fichier PDF est requis.",
@@ -1134,6 +1208,12 @@ const en: Strings = {
 
     files: {
       searchLabel: "Search",
+      filterBy: "Filter by:",
+      // A neutral noun, not an instruction to reveal: aria-expanded already
+      // carries open/closed, and "Show filters, expanded" read like a
+      // contradiction to a screen reader.
+      filterToggle: "Filters",
+      filterActive: "Filters active",
       kindFilter: {
         group: "Filter by type",
         all: "All",
@@ -1156,6 +1236,29 @@ const en: Strings = {
       unpinTitle: "Unpin",
       delete: (title) => `Delete ${title}`,
       deleteTitle: "Delete",
+    },
+
+    board: {
+      newBoard: "New board",
+      empty: "No boards yet!",
+      drawingPage: (page) => `Page ${page} — Jenn is drawing…`,
+      liveNow: "Jenn is drawing right now",
+      openLive: "Open the board",
+      download: "Download",
+      downloadFailed: "Failed",
+      delete: "Delete",
+      pageCount: (count) => (count === 1 ? "1 page" : `${count} pages`),
+      viewer: {
+        open: (label) => `Open the board from ${label}`,
+        close: "Close",
+        position: (page, total) => `Page ${page} of ${total}`,
+        previous: "Previous page",
+        next: "Next page",
+        zoomIn: "Zoom in",
+        zoomOut: "Zoom out",
+        resetZoom: "Actual size",
+        loadFailed: "This board could not be opened.",
+      },
     },
 
     shelf: {
@@ -1331,6 +1434,7 @@ const en: Strings = {
     pageForm: {
       studentsLegend: "Students",
       noStudentsYet: "No students yet.",
+      allStudents: "All students",
     },
 
     titleLabel: "Title",
@@ -1459,6 +1563,7 @@ const en: Strings = {
       studentNameRequired: "A student needs a name.",
       nameTaken: "That name is already taken — try adding a surname.",
       everyoneCannotBeDeleted: "Everyone can't be deleted.",
+      everyoneCannotBePinned: "Nothing can be pinned for everyone.",
       groupDeletedMidEdit:
         "One of those groups was just deleted — reload the page and try again.",
       pdfRequired: "A PDF file is required.",

@@ -20,12 +20,11 @@ import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { PageInput, PageSaveResult } from "@/app/page-actions";
+import type { AudienceOption } from "@/lib/audience";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
 import { renderPdfThumbnail } from "@/components/pdf-thumbnail";
 import { captureAndStoreThumbnail } from "@/components/html-thumbnail";
 import { WORKSHEET_FIELD, worksheetFieldValue } from "@/lib/worksheet-field";
-
-export type PageEditorGroup = { id: string; name: string };
 
 // The edit form behind /admin/pages/[slug], and nothing else. Creating a page
 // lives in NewPageForm now, which is why `initial` is required here and why
@@ -35,15 +34,18 @@ export type PageEditorGroup = { id: string; name: string };
 // moves — students bookmark it — but the title itself is display text and
 // fixing a typo in one must remain possible.
 export function PageEditor({
-  groups,
+  audience,
   initial,
   submitLabel,
   onSubmit,
   onSubmitPdf,
   onDelete,
+  onSaved,
   locale,
 }: {
-  groups: PageEditorGroup[];
+  // Already relabelled by audienceOptions, so this form never learns that one
+  // of these rows is the everyone group. See lib/audience.ts.
+  audience: AudienceOption[];
   initial: {
     title: string;
     // Empty for a pdf row, which has no document to hold. `kind` is what
@@ -60,6 +62,10 @@ export function PageEditor({
   // shape: a document is a string and a PDF is bytes in FormData.
   onSubmitPdf: (formData: FormData) => Promise<unknown>;
   onDelete?: () => Promise<void>;
+  // Called after a save that left NOTHING on this form to read. The overlay
+  // passes its own close; the standalone route passes nothing, because a page
+  // has nothing to close and its "Saved" flag is the whole feedback there.
+  onSaved?: () => void;
   // This is a client component reached directly from two server components
   // (app/admin/pages/[slug]/page.tsx and, through PageEditOverlay, the Pages
   // tab and a student's shelf), so it takes `locale` rather than the resolved
@@ -112,6 +118,11 @@ export function PageEditor({
     // save would otherwise sit under a page that published cleanly.
     setSkipped([]);
     try {
+      // Whether this save has anything left for the form to show. A pdf never
+      // does: updatePdfPage returns void and reports no skipped assets, so
+      // there is nothing its branch could withhold the close for.
+      let clean = true;
+
       if (initial.kind === "pdf") {
         const formData = new FormData();
         formData.set("title", title);
@@ -132,6 +143,7 @@ export function PageEditor({
       } else {
         const result = await onSubmit({ title, html, groupIds, worksheet });
         setSkipped(result.skipped);
+        clean = result.skipped.length === 0;
 
         // The html branch only. A pdf save must never touch these columns —
         // its picture comes from renderPdfThumbnail inside its own submission
@@ -149,6 +161,21 @@ export function PageEditor({
       }
       setSaved(true);
       router.refresh();
+
+      // Last, and only when the form has nothing left to show. A save that
+      // skipped assets keeps the sheet open, because that list is stored
+      // NOWHERE ELSE — it exists only in the reply to this one request, and
+      // closing over it is the "warning nobody sees" the report was added to
+      // prevent. NewPageForm already behaves this way; this makes the two
+      // forms agree rather than adding a second rule.
+      //
+      // Fired before the finally below clears `saving`, which is safe only
+      // because the overlay's onClose is a router.push — a scheduled
+      // transition, not a synchronous unmount — so that setSaving(false)
+      // still lands on a mounted component. A close that unmounted
+      // synchronously would turn this ordering into a set-state-after-unmount
+      // warning.
+      if (clean) onSaved?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : strings.admin.genericError);
     } finally {
@@ -184,20 +211,20 @@ export function PageEditor({
 
       <fieldset className="text-sm font-medium text-[var(--card-ink)]">
         <legend className="mb-2">{strings.admin.pageForm.studentsLegend}</legend>
-        {groups.length === 0 ? (
+        {audience.length === 0 ? (
           <p className="text-sm font-normal text-[var(--color-ink-muted)]">
             {strings.admin.pageForm.noStudentsYet}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {groups.map((group) => {
-              const checked = groupIds.includes(group.id);
+            {audience.map((option) => {
+              const checked = groupIds.includes(option.id);
               return (
                 // A real checkbox, visually hidden inside its own label: the
                 // pill is appearance only, so keyboard and screen readers get
                 // the control they already understood.
                 <label
-                  key={group.id}
+                  key={option.id}
                   className={cn(
                     audiencePill,
                     checked ? audiencePillChecked : audiencePillUnchecked,
@@ -207,9 +234,9 @@ export function PageEditor({
                     type="checkbox"
                     className="sr-only"
                     checked={checked}
-                    onChange={() => toggleGroup(group.id)}
+                    onChange={() => toggleGroup(option.id)}
                   />
-                  {group.name}
+                  {option.label}
                 </label>
               );
             })}

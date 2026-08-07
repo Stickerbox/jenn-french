@@ -227,9 +227,15 @@ export function GroupList({
                         </button>
                       </div>
                     ) : (
-                      // The everyone row: canDeleteGroup refuses it, it has no
-                      // chatToken, and it can never be claimed — so it has nothing
-                      // any of the three icons act on.
+                      // GroupsTab no longer hands this list the everyone row
+                      // (see visibleStudents in lib/audience.ts), so in
+                      // practice canDeleteGroup never refuses here. The branch
+                      // stays anyway: canDeleteGroup is a shared predicate
+                      // re-checked server-side inside deleteGroup, and a list
+                      // component that renders something sensible for a row
+                      // it is handed — rather than three icons acting on
+                      // nothing — is more robust than one that trusts its
+                      // caller to have already filtered.
                       <span className="text-sm text-[var(--color-ink-muted)]">
                         {labels.everyoneLabel}
                       </span>

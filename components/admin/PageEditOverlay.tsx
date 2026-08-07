@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AddSheet } from "@/components/ui/AddSheet";
 import { PageEditor } from "@/components/admin/PageEditor";
+import { audienceOptions } from "@/lib/audience";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
 import {
@@ -119,7 +120,10 @@ export function PageEditOverlay({
         </p>
       ) : (
         <PageEditor
-          groups={loaded.groups}
+          audience={audienceOptions(
+            loaded.groups,
+            strings.admin.pageForm.allStudents,
+          )}
           initial={{
             title: loaded.page.title,
             // Empty for a pdf row, which has no document to hold. The kind is
@@ -133,6 +137,7 @@ export function PageEditOverlay({
           submitLabel={strings.admin.pageEditor.submitLabelOverlay}
           onSubmit={updatePage.bind(null, loaded.page.slug)}
           onSubmitPdf={updatePdfPage.bind(null, loaded.page.slug)}
+          onSaved={onClose}
           onDelete={async () => {
             await deletePage(loaded.page.slug);
             // Close and refresh rather than router.push("/admin?tab=pages"),

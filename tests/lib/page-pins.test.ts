@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPins } from "@/lib/page-pins";
+import { applyPins, canPinToShelf } from "@/lib/page-pins";
 
 const pinnedAt = new Date("2026-07-30T00:00:00Z");
 
@@ -36,5 +36,26 @@ describe("applyPins", () => {
     const pages = [{ id: "a" }];
     applyPins(pages, [{ pageId: "a", pinnedAt }]);
     expect(pages[0]).not.toHaveProperty("pinnedAt");
+  });
+});
+
+describe("canPinToShelf", () => {
+  it("allows a student's own shelf", () => {
+    expect(canPinToShelf({ isEveryone: false })).toBe(true);
+  });
+
+  it("refuses the shared shelf", () => {
+    // A pin orders ONE shelf, and the shared shelf is nobody's. Retired
+    // 2026-08-07 with the everyone chip that was the only way to reach it.
+    expect(canPinToShelf({ isEveryone: true })).toBe(false);
+  });
+
+  it("reads only the flag, so a group named 'all' is still pinnable", () => {
+    // Bound to a variable, not passed as a literal: TypeScript's
+    // excess-property check fires only on fresh literals at a call site, and
+    // the point is that the extra field is ignored rather than rejected. The
+    // same shape tests/lib/everyone.test.ts uses for canDeleteGroup.
+    const namedAll = { isEveryone: false, slug: "all" };
+    expect(canPinToShelf(namedAll)).toBe(true);
   });
 });

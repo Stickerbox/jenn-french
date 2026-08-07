@@ -17,6 +17,7 @@ import {
 import { MAX_PDF_BYTES } from "@/lib/page-pdf";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
+import type { AudienceOption } from "@/lib/audience";
 import { cn } from "@/lib/utils";
 import type { NewPageInput, PageSaveResult } from "@/app/page-actions";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
@@ -32,14 +33,16 @@ import { captureAndStoreThumbnail } from "@/components/html-thumbnail";
 // the sheet had already closed. So a staged PDF opens a title field and a Save
 // button, and choosing the file stages it and nothing else.
 export function NewPageForm({
-  groups,
+  audience,
   defaultGroupId,
   onSubmit,
   onSubmitPdf,
   onDone,
   locale,
 }: {
-  groups: { id: string; name: string }[];
+  // Already relabelled by audienceOptions, so this form never learns that one
+  // of these rows is the everyone group. See lib/audience.ts.
+  audience: AudienceOption[];
   // The Pages tab's active student chip. A new page defaults to whoever is
   // being looked at; null when the filter is "All".
   defaultGroupId: string | null;
@@ -205,17 +208,17 @@ export function NewPageForm({
     <div className="flex flex-col gap-5">
       <fieldset className="text-sm font-medium text-[var(--card-ink)]">
         <legend className="mb-2">{strings.admin.pageForm.studentsLegend}</legend>
-        {groups.length === 0 ? (
+        {audience.length === 0 ? (
           <p className="text-sm font-normal text-[var(--color-ink-muted)]">
             {strings.admin.pageForm.noStudentsYet}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {groups.map((group) => {
-              const checked = groupIds.includes(group.id);
+            {audience.map((option) => {
+              const checked = groupIds.includes(option.id);
               return (
                 <label
-                  key={group.id}
+                  key={option.id}
                   className={cn(
                     audiencePill,
                     checked ? audiencePillChecked : audiencePillUnchecked,
@@ -225,9 +228,9 @@ export function NewPageForm({
                     type="checkbox"
                     className="sr-only"
                     checked={checked}
-                    onChange={() => toggleGroup(group.id)}
+                    onChange={() => toggleGroup(option.id)}
                   />
-                  {group.name}
+                  {option.label}
                 </label>
               );
             })}
