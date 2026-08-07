@@ -10,7 +10,6 @@ import { PinIcon } from "@/components/ui/PinIcon";
 import { PencilIcon } from "@/components/ui/PencilIcon";
 import { KindFilter } from "@/components/ui/KindFilter";
 import { SearchField } from "@/components/admin/SearchField";
-import { VersionChooser } from "@/components/worksheet/VersionChooser";
 import {
   emptyStateText,
   pageGrid,
@@ -25,7 +24,7 @@ import { filterPages } from "@/lib/admin-search";
 import { filterPagesByKind, type KindFilter as Kind } from "@/lib/page-filters";
 import type { PageKind } from "@/lib/page-kind";
 import { pageTarget } from "@/lib/page-target";
-import { versionCount } from "@/lib/page-versions";
+import { shelfSlotCount } from "@/lib/page-versions";
 import { formatLongDate } from "@/lib/format";
 import { pageVersion } from "@/lib/page-version";
 import { cn } from "@/lib/utils";
@@ -56,7 +55,6 @@ export function FilesTab({
   canDeleteAny = false,
   canEdit = false,
   groupSlug,
-  studentName = "",
   onTogglePin,
   onDeleteLink,
   locale,
@@ -92,10 +90,10 @@ export function FilesTab({
   // student. Passing null there is what keeps a worksheet tile falling back to
   // the public page instead of linking a visible tile at a 404.
   groupSlug: string | null;
-  // The student whose shelf this is, for the chooser's teacher-facing labels
-  // ("Marie Dupont's answers"). Unused, and left empty, wherever groupSlug is
-  // null.
-  studentName?: string;
+  // `studentName` used to sit here, for the version dialog's teacher-facing
+  // labels ("Marie Dupont's answers"). The dialog is gone and the worksheet
+  // page builds those labels itself from the group it already resolved, so
+  // this shelf no longer needs to know whose it is.
   onTogglePin?: (slug: string, pinned: boolean) => Promise<void>;
   onDeleteLink?: (slug: string) => Promise<void>;
   // This is a client component, so it cannot call headers() itself — both
@@ -109,7 +107,11 @@ export function FilesTab({
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind>("all");
   const [sort, setSort] = useState<PageSort>("created");
-  const [chooserPage, setChooserPage] = useState<ShelfPage | null>(null);
+
+  // The same expression the chooser below already used for its labels, lifted
+  // out because the badge and the chooser now both need it: `canEdit` is
+  // already exactly "is the viewer the teacher, on a shelf that has one".
+  const audience = canEdit ? "teacher" : "student";
 
   const visible = filterPagesByKind(filterPages(pages, query), kind);
   // Groups form over the filtered set — a heading above nothing would be a
@@ -175,23 +177,23 @@ export function FilesTab({
                   const thumbVersion = page.thumbAt
                     ? new Date(page.thumbAt).getTime()
                     : null;
-                  // A worksheet tile opens the chooser instead of navigating
-                  // once there is more than the blank to pick from, or
-                  // ONE RULE FOR BOTH KINDS: a chooser only when there is
-                  // something to choose. It used to force the dialog for every
-                  // pdf worksheet even at a single version, because a PDF
-                  // opened top-level in the browser's own viewer and the
-                  // chooser was the only surface that could hold a save
-                  // control. PdfShell took that job (2026-08-06) — the
-                  // worksheet route carries the upload itself now — so the
-                  // clause outlived its reason and cost a tap and a dialog on
-                  // the way to a document with nothing to pick from.
-                  // `groupSlug` gates it the same way it gates pageTarget's
-                  // own worksheet branch: no shelf, no chooser.
-                  const dialogDue =
-                    Boolean(groupSlug) &&
-                    page.worksheet &&
-                    versionCount(page.versions) > 1;
+                  // A WORKSHEET TILE NAVIGATES. It used to intercept the click
+                  // and open a version-picker dialog once there was more than
+                  // one version, for both parties.
+                  //
+                  // That dialog is gone (2026-08-07) and neither party gets it
+                  // now. It was answering a question the destination already
+                  // answers better: the worksheet page carries the same
+                  // versions as tabs, in the same order, above the document
+                  // itself — so the dialog asked which version to open, and
+                  // then opened a page whose first control was the same
+                  // choice. For a student it was worse than redundant, since
+                  // it made "open my homework" a two-step with a question in
+                  // the middle that has one obvious answer.
+                  //
+                  // The tile is a plain anchor again, which the whiteboard's
+                  // capture-phase leave-guard protects for free — the reason
+                  // the version rows themselves had to stay anchors.
                   return (
                     <li key={page.id}>
                       <PageTile
@@ -199,14 +201,6 @@ export function FilesTab({
                         newTab={target.newTab}
                         title={page.title}
                         eyebrow={formatLongDate(page.createdAt, locale)}
-                        onClick={
-                          dialogDue
-                            ? (event) => {
-                                event.preventDefault();
-                                setChooserPage(page);
-                              }
-                            : undefined
-                        }
                         preview={
                           page.kind === "link" && page.url ? (
                             <LinkPreview url={page.url} />
@@ -225,17 +219,21 @@ export function FilesTab({
                           )
                         }
                         // A worksheet's version count wins over the pin
-                        // marker: versionCount starts at 1 (the blank is not a
-                        // row), so this never fires for a page nobody has
-                        // saved a version of. Gated on groupSlug the same way
-                        // dialogDue is above: /f/[token] passes null because
-                        // it is read-only, and the count badge implies a
-                        // chooser this tile does not open there — a badge
-                        // with no explanation is worse than none.
+                        // marker. The count is what THIS reader can open, so
+                        // it never fires for a page nobody has saved to — and,
+                        // for a student, never until Jenn has corrected. It
+                        // used to reach 2 the moment they saved their own
+                        // answers, badging their homework as though something
+                        // had arrived when the only thing there was their own
+                        // typing. Gated on groupSlug the same way dialogDue is
+                        // above: /f/[token] passes null because it is
+                        // read-only, and a count badge with nothing behind it
+                        // is worse than none.
                         badge={
-                          groupSlug && versionCount(page.versions) > 1 ? (
+                          groupSlug &&
+                          shelfSlotCount(page.versions, audience) > 1 ? (
                             <span className="rounded-full bg-[var(--card-bleu)] px-2 py-0.5 text-xs font-semibold text-white">
-                              {versionCount(page.versions)}
+                              {shelfSlotCount(page.versions, audience)}
                             </span>
                           ) : page.pinnedAt && !canWrite ? (
                             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--card-paper)] text-[var(--card-bleu)] shadow-[var(--card-shadow)]">
@@ -332,28 +330,6 @@ export function FilesTab({
         </div>
       )}
 
-      {chooserPage && groupSlug && (
-        <VersionChooser
-          groupSlug={groupSlug}
-          page={{
-            slug: chooserPage.slug,
-            title: chooserPage.title,
-            // worksheetOpenable already refuses "link", so a worksheet page
-            // reaching here is html or pdf; the fallback matches
-            // readPageKind's own default rather than inventing a third case.
-            kind: chooserPage.kind === "pdf" ? "pdf" : "html",
-            // What the dialog's own preview needs — the same fields the tile
-            // above already reads to build HtmlPreview/PdfPreview's props.
-            updatedAt: chooserPage.updatedAt,
-            thumbAt: chooserPage.thumbAt,
-            pdfSize: chooserPage.pdfSize,
-          }}
-          versions={chooserPage.versions}
-          audience={canEdit ? "teacher" : "student"}
-          studentName={studentName}
-          onClose={() => setChooserPage(null)}
-        />
-      )}
     </div>
   );
 }

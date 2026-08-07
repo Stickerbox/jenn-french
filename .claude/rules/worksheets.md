@@ -241,24 +241,54 @@ measures its own serialised string against it before posting, so an
 over-large save fails with a sentence in the shell rather than a raw 413
 nginx returns and Next never sees.
 
-The shelf tile carries a count badge once more than one version exists. That
-badge lives only in `FilesTab` (the student shelf), gated on `groupSlug &&
-versionCount(page.versions) > 1` — `/f/[token]` supplies no `groupSlug`, so
-its badge is off for that reason alone. Opening a tile goes straight to the
-shell for an html worksheet holding only the blank, but a pdf worksheet
-always opens the chooser (`components/worksheet/VersionChooser.tsx`), even at
-one version. Its rows now point at `/g/[slug]/w/[pageSlug]` — the same
-route an html worksheet's tile opens — rather than skipping ahead to the raw
-bytes, because that route no longer redirects a pdf row out to the browser's
-own viewer; it renders `PdfShell` over `PdfDocumentView` and carries the
-upload control itself (see `.claude/rules/files-pages-pdfs.md`'s "A PDF is
-never framed" for the fuller change). **The chooser now opens for one reason
-only, on both kinds: more than one version exists.** It used to force the
-dialog for every pdf worksheet even at a single version, because a PDF opened
-top-level with nowhere in it to put a Save control and the chooser was that
-control's only surface. `PdfShell` took that job, so the clause outlived its
-reason and cost a tap and a dialog on the way to a document with nothing to
-pick from. **The version tabs are one component now**, `WorksheetHeading`, shared by
+**THE VERSION-PICKER DIALOG IS GONE** (2026-08-07), for both parties.
+`components/worksheet/VersionChooser.tsx` is deleted and a worksheet tile is a
+plain anchor again. It was answering a question its own destination answers
+better: the worksheet page carries the same versions as tabs, in the same
+order, above the document — so the dialog asked which version to open and then
+opened a page whose first control was that same choice. For a student it was
+worse than redundant, since it turned "open my homework" into a two-step with
+a question in the middle that has one obvious answer. Do not reintroduce it as
+"just for the teacher"; her tabs are the same tabs.
+
+A consequence worth knowing: the tile being an anchor again is what puts it
+back under the whiteboard's capture-phase leave-guard, which is the reason the
+dialog's own rows had to be anchors while it existed.
+
+**The shelf tile still carries a count badge, and it counts what THIS reader
+can open** — `shelfSlotCount(page.versions, audience)` (`lib/page-versions.ts`),
+which goes through `visibleSlots` rather than counting rows. It lives only in
+`FilesTab`, gated on `groupSlug` as well, so `/f/[token]` has none.
+
+That count replaced a `versions.length + 1` that counted the blank for
+everybody. **That was right while both parties saw three tabs, and became a lie
+the day the student dropped to their own copy:** one saved attempt read as two,
+so the shelf badged a student's own typing as though something had arrived, and
+the tile opened a dialog offering a blank they cannot reach. Deriving badge,
+tabs and count from one module is the fix — the next change to who-sees-what
+cannot leave the shelf behind. Jenn's numbers are unchanged.
+
+So a student's badge appears **only once Jenn has corrected**, which is exactly
+when it means something: there is new work to read. Opening the tile then lands
+on the correction, not on their own answers (`readSlot`,
+`app/g/[slug]/w/[pageSlug]/page.tsx`) — it is the part that changed, and their
+answers are one tab away.
+
+**A student's version tabs are drawn even when there is only one of them**, via
+`WorksheetHeading`'s `showWhenAlone`. Their lone *Mes réponses* is a label
+saying whose copy this is, not a chooser that cannot act, and it is the anchor
+Jenn's correction appears beside — without it the strip materialises out of
+nothing the day she corrects, which reads as a glitch rather than as news. Jenn
+keeps the old rule and gets the document's title until a second version exists.
+A pdf worksheet keeps it too: `showWhenAlone` is a prop and not
+`audience === "student"` precisely so that path stays untouched.
+
+A pdf worksheet's tile points at `/g/[slug]/w/[pageSlug]` — the same route an
+html worksheet's tile opens — rather than skipping ahead to the raw bytes,
+because that route no longer redirects a pdf row out to the browser's own
+viewer; it renders `PdfShell` over `PdfDocumentView` and carries the upload
+control itself (see `.claude/rules/files-pages-pdfs.md`'s "A PDF is never
+framed" for the fuller change). **The version tabs are one component**, `WorksheetHeading`, shared by
 the html shell and the pdf one — they were written twice, with a comment on
 the second copy asking the reader to keep them in step by eye, and the two had
 already drifted. **The tabs hide when there is nothing to choose**: `slots`

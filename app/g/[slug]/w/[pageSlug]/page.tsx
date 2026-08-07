@@ -26,11 +26,25 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// A student has no blank tab, so "blank" — and anything unrecognised — means
-// "my homework" for them. Jenn keeps the blank as her default, which is the
-// worksheet as she uploaded it.
-function readSlot(value: string | undefined, audience: VersionAudience): VersionSlot {
-  if (audience === "student") return value === "teacher" ? "teacher" : "student";
+// A student has no blank tab, so only "student" and "teacher" mean anything to
+// them; everything else — including no parameter at all, which is how the
+// shelf tile arrives — takes the default below. Jenn keeps the blank as her
+// default, which is the worksheet as she uploaded it.
+//
+// THE STUDENT'S DEFAULT IS THE CORRECTION WHEN THERE IS ONE. That is the new
+// thing, and it is what they opened the tile to see; landing on their own
+// answers would make them press a tab to reach the only part that changed
+// since last time. Their answers are one tab away, and the tabs only exist at
+// all once the correction does.
+function readSlot(
+  value: string | undefined,
+  audience: VersionAudience,
+  hasTeacher: boolean,
+): VersionSlot {
+  if (audience === "student") {
+    if (value === "student" || value === "teacher") return value;
+    return hasTeacher ? "teacher" : "student";
+  }
   if (value === "student" || value === "teacher") return value;
   return "blank";
 }
@@ -94,7 +108,10 @@ export default async function WorksheetPage({
   if (context.page.kind === "pdf") {
     // "teacher" and not `audience`: the pdf branch wants the old three-slot
     // reading for both parties, unaffected by the html-only student rule.
-    const slot = readSlot(v, "teacher");
+    // `hasTeacher` is unread on that path — it only chooses a student's
+    // default — and is passed rather than faked so the argument list cannot
+    // drift from the real one.
+    const slot = readSlot(v, "teacher", hasTeacher);
     const locale = await currentLocale();
     const pdfHref = `/g/${slug}/w/${pageSlug}/pdf?v=${slot}`;
     // Matches WorksheetShell's own back control exactly — same target, same
@@ -143,7 +160,7 @@ export default async function WorksheetPage({
   }
 
   const slots = visibleSlots({ audience, hasStudent, hasTeacher });
-  const asked = readSlot(v, audience);
+  const asked = readSlot(v, audience, hasTeacher);
   // A tab that is not drawn cannot be the current one. This catches a student
   // asking for "?v=teacher" before Jenn has corrected, and a bookmark to a tab
   // whose row has since been deleted — both of which would otherwise render a

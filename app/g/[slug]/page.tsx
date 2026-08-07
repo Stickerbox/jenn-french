@@ -229,7 +229,6 @@ export default async function GroupPage({
           // else. This is where that gets closed: no shelf, no worksheet
           // route, so the tile falls back to the public page.
           groupSlug={group.isEveryone ? null : slug}
-          studentName={group.name}
           onTogglePin={setShelfPin.bind(null, group.id)}
           onDeleteLink={deleteShelfLink.bind(null, group.id)}
           locale={locale}

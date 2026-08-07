@@ -134,6 +134,11 @@ export function WorksheetShell({
               audience={audience}
               studentName={studentName}
               title={title}
+              // A student sees "Mes réponses" from the very first opening,
+              // alone, and Jenn's correction joins it beside. Jenn keeps the
+              // old rule: her lone "The worksheet" tab is a control that
+              // cannot act, and the title is worth more in that space.
+              showWhenAlone={audience === "student"}
             />
             {!writable && (
               // Says what the tab cannot: it still TYPES, because text fields
