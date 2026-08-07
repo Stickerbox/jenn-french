@@ -1,15 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { DIRTY_MESSAGE, EDITABLE_MESSAGE } from "@/lib/printable-bootstrap";
-import { canSaveFromSlot } from "@/lib/worksheet-save-slots";
+import { useCallback, useEffect, useState } from "react";
+import { EDITABLE_MESSAGE } from "@/lib/printable-bootstrap";
 import { ShellBar } from "@/components/ui/ShellBar";
 import { WorksheetHeading } from "@/components/worksheet/WorksheetHeading";
 import { PrintButton } from "@/components/PrintButton";
-import {
-  SaveVersionButton,
-  WORKSHEET_FRAME_ID,
-} from "@/components/worksheet/SaveVersionButton";
+import { WORKSHEET_FRAME_ID } from "@/components/worksheet/frame";
+import { useWorksheetAutosave } from "@/components/worksheet/useWorksheetAutosave";
 import type { VersionSlot } from "@/lib/version-labels";
 
 // The full-screen sandboxed frame a student (or Jenn, correcting) fills in.
@@ -26,6 +23,9 @@ export function WorksheetShell({
   studentName,
   slot,
   slots,
+  writable,
+  hasOwnVersion,
+  sent,
 }: {
   groupSlug: string;
   pageSlug: string;
@@ -34,79 +34,66 @@ export function WorksheetShell({
   studentName: string;
   slot: VersionSlot;
   slots: VersionSlot[];
+  writable: boolean;
+  hasOwnVersion: boolean;
+  sent: boolean;
 }) {
-  // null until the document has answered. Starts null on the server too, so
-  // there is nothing for hydration to disagree about — and a version tab draws
-  // no pill while the answer is outstanding, which is why this is three-valued
-  // rather than a boolean defaulting to false: a pill that appears and then
-  // vanishes reads as a fault, and one that appears late reads as loading.
-  const [editable, setEditable] = useState<boolean | null>(null);
-  // Somebody has changed something in the document since it loaded, or since
-  // the last successful save. The frame reports it; nothing out here can see
-  // into an opaque origin.
-  const [dirty, setDirty] = useState(false);
+  // The server's answers, held locally because the first auto-save changes
+  // both of them without a reload.
+  const [ownExists, setOwnExists] = useState(hasOwnVersion);
+  const [announced, setAnnounced] = useState(sent);
+  const [tabs, setTabs] = useState(slots);
+  const [current, setCurrent] = useState(slot);
 
-  useEffect(() => {
-    function onMessage(event: MessageEvent) {
-      const frame = document.getElementById(WORKSHEET_FRAME_ID);
-      if (!(frame instanceof HTMLIFrameElement)) return;
-      // The frame is the only window that may answer, and it has an opaque
-      // origin — so this checks the SOURCE, exactly as SaveVersionButton does.
-      if (event.source !== frame.contentWindow) return;
-      const data = event.data as { type?: string; editable?: boolean } | null;
-      if (!data) return;
-      if (data.type === EDITABLE_MESSAGE) setEditable(Boolean(data.editable));
-      // Idempotent, which is what lets the frame report every change rather
-      // than only the first.
-      if (data.type === DIRTY_MESSAGE) setDirty(true);
-    }
+  const onSaved = useCallback(() => {
+    // Every save clears sentAt on the server, so the button comes back to
+    // life here to match.
+    setAnnounced(false);
+    if (ownExists) return;
+    setOwnExists(true);
 
-    window.addEventListener("message", onMessage);
-
-    // ASKED HERE AS WELL AS ON THE IFRAME'S onLoad, and both are needed.
+    // THE FIRST SAVE MOVES THE SHELL IN PLACE, and does not reload. The frame's
+    // DOM already IS the new version — a reload would fetch the same bytes back
+    // and throw away any key pressed during it.
     //
-    // The version tabs and the back control are plain anchors, so moving
-    // between versions is a full document load — and on a full load the frame
-    // can finish loading BEFORE React hydrates and attaches onLoad, which
-    // React does not replay. The probe was then never sent, no answer ever
-    // came, and the Save pill never appeared on a saved version. Arriving
-    // from the shelf chooser hid it: that is a next/link navigation, so the
-    // handler is attached before the frame starts loading and the event is
-    // caught. Same URL, same document, opposite outcome — which is exactly how
-    // it read as "it works if I go straight there".
-    //
-    // This covers the frame that is ALREADY loaded; onLoad covers the frame
-    // that is not yet. A post to a frame still showing about:blank is
-    // harmless: nothing is listening in it, and onLoad follows.
-    const frame = document.getElementById(WORKSHEET_FRAME_ID);
-    if (frame instanceof HTMLIFrameElement) {
-      frame.contentWindow?.postMessage(EDITABLE_MESSAGE, "*");
-    }
+    // This is what Jenn sees: she starts on Marie's answers with no correction,
+    // types, and ten seconds later she is on "My correction" holding the
+    // document she has been typing in. The address now agrees with where her
+    // work went.
+    const mine: VersionSlot = audience === "teacher" ? "teacher" : "student";
+    setTabs((existing) =>
+      existing.includes(mine)
+        ? existing
+        : // Blank, then the student, then Jenn — the order visibleSlots and
+          // listVersions both keep, so the strip does not reshuffle on reload.
+          (["blank", "student", "teacher"] as VersionSlot[]).filter(
+            (candidate) => existing.includes(candidate) || candidate === mine,
+          ),
+    );
+    setCurrent(mine);
+    window.history.replaceState(null, "", `?v=${mine}`);
+  }, [audience, ownExists]);
 
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
+  const { dirty, editable, error, flush } = useWorksheetAutosave({
+    groupSlug,
+    pageSlug,
+    audience,
+    writable,
+    onSaved,
+  });
 
-  // Where the pill may be drawn at all. Jenn on every version, a student on
-  // the blank and their own answers — see lib/worksheet-save-slots.ts for why
-  // the two are not symmetric. The probe narrows it further on a saved
-  // version: a document whose answers were click-driven comes back inert, and
-  // a control that can never enable is worse than no control.
-  const canSave =
-    canSaveFromSlot(slot, audience) && (slot === "blank" || editable === true);
-
-  // The browser's own leave prompt, armed only while there is something to
-  // lose. Gated on `canSave` as well as on `dirty` deliberately: prompting
-  // about typing the reader has no way to save is a dead end, and the two
-  // conditions are the same question asked twice — "is there work here worth
-  // keeping?"
+  // The browser's own leave prompt, armed only while a write is outstanding.
+  // Auto-save shrinks the window it guards from "since you last pressed the
+  // pill" to "the last ten seconds", which is the point — but ten seconds of a
+  // student's answers is still worth a dialog.
   //
-  // beforeunload covers the version tabs, the back control and closing the
-  // tab, because every one of those is a real document navigation: the tabs
-  // and the back link are plain anchors, not next/link. It does NOT cover
-  // browser Back, which is the same accepted gap the whiteboard's leave-guard
-  // records — beforeunload does not fire for an App Router popstate.
+  // It covers the version tabs, the back control and closing the tab, because
+  // each is a real document navigation: those are plain anchors, not
+  // next/link. It does NOT cover browser Back — the same accepted gap the
+  // whiteboard's leave-guard records, since beforeunload does not fire for an
+  // App Router popstate.
   useEffect(() => {
-    if (!dirty || !canSave) return;
+    if (!dirty || !writable) return;
 
     function onBeforeUnload(event: BeforeUnloadEvent) {
       // Both, because browsers disagree about which one arms the dialog, and
@@ -117,7 +104,7 @@ export function WorksheetShell({
 
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty, canSave]);
+  }, [dirty, writable]);
 
   return (
     <>
@@ -131,8 +118,8 @@ export function WorksheetShell({
         }}
         center={
           <WorksheetHeading
-            slots={slots}
-            slot={slot}
+            slots={tabs}
+            slot={current}
             audience={audience}
             studentName={studentName}
             title={title}
@@ -162,29 +149,12 @@ export function WorksheetShell({
           language; a column has no such guess to make. */}
       <div className="fixed bottom-5 right-5 z-10 flex flex-col items-end gap-2 print:hidden">
         <PrintButton className="static" frameId={WORKSHEET_FRAME_ID} />
-        {/* Drawn per canSave above, and DISABLED until the document reports a
-            change. An enabled Save over an untouched worksheet promises work
-            that does not exist, and pressing it writes the slot with what is
-            already in it — which, on a student's own answers, costs a version
-            of their homework to say nothing new.
-            The route is untouched and still writes the caller's own slot from
-            whatever view called it, so this withholds a control and adds no
-            access rule. */}
-        {canSave && (
-          <SaveVersionButton
-            className="static"
-            groupSlug={groupSlug}
-            pageSlug={pageSlug}
-            audience={audience}
-            disabled={!dirty}
-            // Clears the flag, which both greys the pill again and disarms the
-            // leave prompt. The frame reports every subsequent change, so a
-            // second edit re-arms both.
-            onSaved={() => setDirty(false)}
-          />
+        {error && (
+          <p className="max-w-xs rounded-lg bg-white px-3 py-2 text-sm text-[var(--card-rouge)] shadow-[var(--card-shadow)]">
+            {error}
+          </p>
         )}
       </div>
     </>
   );
 }
-
