@@ -681,10 +681,35 @@ them through the everyone group, so a pin can exist for a pair that has no
 
 `applyPins` (`lib/page-pins.ts`) folds one shelf's pins on before `sectionPages`
 runs, which is why `sectionPages` is unchanged and still reads nothing but
-`pinnedAt`. In the admin, which pin applies depends on the active student chip,
-and the pin control is **disabled under "All"** — "All" is not a shelf, so with
-no student selected nothing is pinned and **the Pinned section does not appear
-at all**. That is correct, not a missing feature; it looks like a bug otherwise.
+`pinnedAt`. In the admin, which pin applies depends on the active student chip.
+
+**That chip row lost its "All" on 2026-08-07, and the pin is why it could go.**
+"All" was not a shelf, so under it nothing was pinned, the pin control was
+disabled and **the Pinned section did not appear at all** — correct, but it
+looked like a bug, and it was the one selection where a third of the chip's job
+was dead. Every page now reaches at least one student, because the three
+audience forms refuse to save with nobody ticked, so "everything" and "one
+student's shelf" stopped being a distinction worth a control.
+
+A chip is therefore **always** active. `resolveChip` (`lib/admin-chip.ts`)
+answers which one, from the row as drawn: the current chip if it is still in it,
+otherwise the first name — which covers both "nothing chosen yet" and a chip
+gone stale because the last page under that student was deleted. It is a
+**derivation and not a state write**: the chip lives in `AdminChrome`, one
+component up, and setting a parent's state from a child's render is an error
+rather than the render-phase correction `NewPageForm` and `PageEditor` use on
+their own state. `PagesTabClient` derives the row once and passes it to
+`PageList` as a prop, so the two cannot disagree about which chips exist —
+a resolved chip missing from the row would light nothing while filtering the
+list to nothing. Pressing the active chip now does nothing; the old
+clear-on-reclick existed so the row was not a trap you had to find "All" to
+escape, and there is nothing left to escape from.
+
+The accepted cost is that a page reaching **no** student is unreachable from
+this tab. That was checked before it shipped — no pages were assigned to the
+everyone row and none were unassigned — and the audience gate is what stops a
+new one being made. If one ever appears, the fix is a chip that collects them,
+not the return of "All".
 
 `sectionPages`
 (`lib/page-sections.ts`) splits a list into Pinned, This week, Last week, and

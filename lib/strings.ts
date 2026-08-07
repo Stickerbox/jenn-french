@@ -496,7 +496,6 @@ export type Strings = {
       filterToggle: string;
       filterActive: string;
       filterByStudentAria: string;
-      allChip: string;
       addedByStudent: string;
       editAria: (title: string) => string;
       downloadAria: (title: string) => string;
@@ -1086,7 +1085,6 @@ const fr: Strings = {
       filterToggle: "Filtres",
       filterActive: "Filtres actifs",
       filterByStudentAria: "Filtrer par élève",
-      allChip: "Tout",
       addedByStudent: "ajouté par l'élève",
       editAria: (title) => `Modifier ${title}`,
       downloadAria: (title) => `Télécharger ${title}`,
@@ -1627,7 +1625,6 @@ const en: Strings = {
       filterToggle: "Filters",
       filterActive: "Filters active",
       filterByStudentAria: "Filter by student",
-      allChip: "All",
       addedByStudent: "added by student",
       editAria: (title) => `Edit ${title}`,
       downloadAria: (title) => `Download ${title}`,
