@@ -5,6 +5,8 @@
 // testable with numbers instead of a layout engine, which the test environment
 // does not have.
 
+import { MAX_CANVAS_AREA } from "@/lib/whiteboard-export";
+
 export type Size = { width: number; height: number };
 export type Offset = { x: number; y: number };
 
@@ -84,4 +86,27 @@ export function clampPan(
     x: clampAxis(offset.x, viewport.width, drawn.width),
     y: clampAxis(offset.y, viewport.height, drawn.height),
   };
+}
+
+// How many backing-store pixels to allocate per CSS pixel.
+//
+// The viewer redraws at every zoom level rather than magnifying a picture, so
+// its canvas grows with the zoom — and runs into the same ceiling exportLayout
+// answers to. MAX_CANVAS_AREA is imported rather than repeated: two copies of
+// that number would drift, and the failure is silent on the device that
+// matters. iOS Safari returns a BLANK canvas past roughly 16.7M pixels, which
+// looks exactly like a board that failed to load.
+//
+// Downscaling rather than refusing: a slightly soft board at 8x is a board,
+// and a blank one is a bug report.
+export function rasterScale(drawn: Size, devicePixelRatio: number): number {
+  const dpr =
+    Number.isFinite(devicePixelRatio) && devicePixelRatio > 0
+      ? devicePixelRatio
+      : 1;
+  if (!usable(drawn)) return dpr;
+
+  const area = drawn.width * dpr * (drawn.height * dpr);
+  if (area <= MAX_CANVAS_AREA) return dpr;
+  return dpr * Math.sqrt(MAX_CANVAS_AREA / area);
 }
