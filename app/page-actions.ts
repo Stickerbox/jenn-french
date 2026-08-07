@@ -18,6 +18,7 @@ import { validatePageThumb } from "@/lib/page-thumb";
 import { parseLinkUrl } from "@/lib/link-url";
 import { readPageKind } from "@/lib/page-kind";
 import { canStudentDelete, shelfRole, type ShelfRole } from "@/lib/shelf-access";
+import { canPinToShelf } from "@/lib/page-pins";
 import { readToken, cookieNameFor } from "@/lib/student-tokens";
 import { titleFromUrl } from "@/lib/link-title";
 import { titleFromHtml } from "@/lib/page-title";
@@ -559,6 +560,21 @@ export async function setShelfPin(
   pinned: boolean,
 ): Promise<void> {
   await requireShelfRole(groupId);
+
+  // Checked here rather than only in the UI: hiding a control is not a guard,
+  // and this action is still reachable from a stale tab. A THROW rather than a
+  // silent return, matching deleteGroup's refusal of the same row: silence in
+  // this file means the resource is already gone (see the `if (!page) return`
+  // below, and deleteMany), and a pin refused on a shelf that exists is a
+  // policy answer, not an absence.
+  const shelf = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: { isEveryone: true },
+  });
+  if (shelf && !canPinToShelf(shelf)) {
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.everyoneCannotBePinned);
+  }
 
   const page = await prisma.page.findUnique({
     where: { slug },

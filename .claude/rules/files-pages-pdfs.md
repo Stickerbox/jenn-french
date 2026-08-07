@@ -635,10 +635,24 @@ order among themselves by *when they were pinned*, a boolean would leave them
 sorted by creation date, the ordering pinning exists to override, and re-pinning
 would do nothing.
 
-**Pins do not inherit.** A pin on the everyone shelf shows at `/g/all` and
-nowhere else, unlike the page itself. The cost is that pinning one reference for
-the whole class is one pin per student; the alternative was a second merge rule
-to keep in step with `effectivePages`, and two merge rules drift.
+**Pins do not inherit, and the shared shelf takes none at all.** A pin is a
+per-(page, student) ordering. Pinning one reference for the whole class is
+therefore one pin per student; the alternative was a second merge rule to keep
+in step with `effectivePages`, and two merge rules drift.
+
+The shared shelf used to be pinnable — a pin there showed at `/g/all` and
+nowhere else — and that was reachable only through the everyone chip on the
+admin Pages tab. That chip was removed on 2026-08-07 (see above), which left a
+capability no UI could reach, so `canPinToShelf` (`lib/page-pins.ts`) now
+refuses it and `20260807160000_drop_everyone_pins` deleted the rows. The visible
+cost was accepted: a page pinned at `/g/all` dropped back into date order for
+anyone with that page bookmarked.
+
+**`canPinToShelf` is not a clause inside `shelfRole`, and must not become one.**
+`shelfRole` answers *may this caller write to this shelf*, and it answers
+`"teacher"` **before** it tests `isEveryone` on purpose — its own comment says
+the shared shelf is Jenn's to fill. She must keep being able to put pages and
+links there. Only the ordering was withdrawn.
 
 `PagePin` is not a mirror of `PageGroup`. A student can pin a page that reaches
 them through the everyone group, so a pin can exist for a pair that has no

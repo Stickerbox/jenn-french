@@ -236,6 +236,12 @@ export async function listPagesForGroup(groupId: string) {
       orderBy: { createdAt: "desc" },
       select: SHELF_SELECT,
     }),
+    // Defensive since 2026-08-07: when groupId names the everyone row, this
+    // can now never return a row — canPinToShelf (lib/page-pins.ts) refuses a
+    // pin there and the migration that shipped beside it deleted what existed.
+    // applyPins degrades correctly to pinnedAt: null for every page on that
+    // call, so the query is left general rather than branched on isEveryone;
+    // it is still exactly correct for every other shelf.
     prisma.pagePin.findMany({
       where: { groupId },
       select: { pageId: true, pinnedAt: true },

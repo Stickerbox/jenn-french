@@ -45,10 +45,13 @@ export function PagesTabClient({
   const { chip, setChip } = useAdminChip();
   const activeGroupId = defaultGroupId(chip, groups);
   const activeGroup = groups.find((group) => group.id === activeGroupId) ?? null;
-  // The same rule pageTarget's caller applies on /g/[slug]: the everyone
-  // group's shelf is public and has no student for a version to belong to, so
-  // a worksheet tile filtered under its chip must fall back to the public
-  // page rather than link a tile at a route chatRole refuses.
+  // Defensive since 2026-08-07: `chip` is set only by PageList's chip row, and
+  // visibleGroupChips no longer offers the everyone name, so this cannot be the
+  // everyone group in practice. The clause stays because the rule behind it is
+  // still true — that shelf is public and has no student for a version to
+  // belong to, so a worksheet tile under it must fall back to the public page
+  // rather than link at a route chatRole refuses. The same reasoning keeps
+  // GroupList's canDeleteGroup fallback.
   const activeGroupSlug =
     activeGroup && !activeGroup.isEveryone ? activeGroup.slug : null;
 

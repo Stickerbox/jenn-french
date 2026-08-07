@@ -494,6 +494,7 @@ export type Strings = {
       studentNameRequired: string;
       nameTaken: string;
       everyoneCannotBeDeleted: string;
+      everyoneCannotBePinned: string;
       groupDeletedMidEdit: string;
       pdfRequired: string;
       fillFieldsFirst: string;
@@ -938,6 +939,7 @@ const fr: Strings = {
       studentNameRequired: "Un élève a besoin d'un nom.",
       nameTaken: "Ce nom est déjà pris — essayez d'ajouter un nom de famille.",
       everyoneCannotBeDeleted: "Tout le monde ne peut pas être supprimé.",
+      everyoneCannotBePinned: "On ne peut rien épingler pour tout le monde.",
       groupDeletedMidEdit:
         "Un de ces élèves vient d'être supprimé — rechargez la page et réessayez.",
       pdfRequired: "Un fichier PDF est requis.",
@@ -1371,6 +1373,7 @@ const en: Strings = {
       studentNameRequired: "A student needs a name.",
       nameTaken: "That name is already taken — try adding a surname.",
       everyoneCannotBeDeleted: "Everyone can't be deleted.",
+      everyoneCannotBePinned: "Nothing can be pinned for everyone.",
       groupDeletedMidEdit:
         "One of those groups was just deleted — reload the page and try again.",
       pdfRequired: "A PDF file is required.",
