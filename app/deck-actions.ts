@@ -1,0 +1,163 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
+import { getCurrentTeacher } from "@/lib/session";
+import { chatRole, type ChatRole } from "@/lib/chat-access";
+import { readToken, cookieNameFor } from "@/lib/student-tokens";
+import { currentStrings } from "@/lib/locale";
+
+// chatRole and NOT shelfRole, and the difference is the everyone group.
+// shelfRole answers "teacher" before it tests isEveryone, deliberately, because
+// the shared shelf is Jenn's to fill. Neither of these features has a shared
+// version: a deck is one student's vocabulary and a checklist is between two
+// people, so the everyone group must be refused for BOTH parties — which is
+// chatRole's first clause, and the same reuse the whiteboard makes.
+//
+// The token is read from the cookie here and never taken as an argument, so a
+// client cannot assert one. requireShelfRole in app/page-actions.ts is the
+// shape this follows.
+async function requireDeckRole(groupId: string): Promise<ChatRole> {
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: { slug: true, isEveryone: true, chatToken: true },
+  });
+  if (!group) {
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.unauthorized);
+  }
+
+  const teacher = await getCurrentTeacher();
+  const cookieStore = await cookies();
+  const role = chatRole({
+    isTeacher: Boolean(teacher),
+    isEveryone: group.isEveryone,
+    chatToken: group.chatToken,
+    presented: readToken(
+      undefined,
+      cookieStore.get(cookieNameFor(group.slug))?.value,
+    ),
+  });
+  if (!role) {
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.unauthorized);
+  }
+  return role;
+}
+
+// One path, revalidated by both features. A pattern rather than a slug: a card
+// and an item both live under /g/[slug], and the tab is a search param rather
+// than a segment.
+function revalidateDeck() {
+  revalidatePath("/g/[slug]", "page");
+}
+
+function requireText(value: string, max: number): string {
+  const text = value.trim();
+  // Bounded on the way in as well as by the column, because a client is not an
+  // authority on length. 0 is the real guard — an empty card or an empty
+  // checklist row is a row nobody can read or press.
+  if (!text) throw new Error("Empty");
+  return text.slice(0, max);
+}
+
+export async function addFlashcard(
+  groupId: string,
+  input: { front: string; back: string; note: string },
+): Promise<void> {
+  await requireDeckRole(groupId);
+
+  await prisma.flashcard.create({
+    data: {
+      groupId,
+      front: requireText(input.front, 200),
+      back: requireText(input.back, 200),
+      // An empty note is null, not "". The column is nullable so the viewer can
+      // ask one question — is there a note — rather than two.
+      note: input.note.trim() ? input.note.trim().slice(0, 500) : null,
+    },
+  });
+
+  revalidateDeck();
+}
+
+export async function deleteFlashcard(
+  groupId: string,
+  id: string,
+): Promise<void> {
+  await requireDeckRole(groupId);
+  // deleteMany, and scoped by groupId as well as id: a double-click or a stale
+  // tab is a no-op rather than a P2025, and a card id guessed from one
+  // student's deck cannot be deleted through another's.
+  await prisma.flashcard.deleteMany({ where: { id, groupId } });
+  revalidateDeck();
+}
+
+// THE WRITE ON READ. The only one in this codebase — every other write here is
+// a deliberate act, a save or a send or a pin.
+//
+// Two things about it are load-bearing. It is refused for the teacher, because
+// a card sits on one student's deck but two people can open it: if Jenn's
+// browsing stamped this, flicking through Marie's deck would tell Marie's app
+// that Marie revised everything, and the cards she is struggling with would
+// drop to the bottom of the list that exists to surface them.
+//
+// And it does NOT revalidate. The caller fires it without awaiting, and a
+// revalidation would re-render the deck underneath a reader who is mid-flip and
+// reorder it under them when the sort is "À réviser". The new timestamp is
+// picked up on the next navigation, which is when it matters.
+export async function markFlashcardViewed(
+  groupId: string,
+  id: string,
+): Promise<void> {
+  const role = await requireDeckRole(groupId);
+  if (role !== "student") return;
+
+  await prisma.flashcard.updateMany({
+    where: { id, groupId },
+    data: { lastViewedAt: new Date() },
+  });
+}
+
+export async function addActionItem(
+  groupId: string,
+  text: string,
+): Promise<void> {
+  const role = await requireDeckRole(groupId);
+
+  await prisma.actionItem.create({
+    data: {
+      groupId,
+      text: requireText(text, 300),
+      // From the ROLE the guard resolved, never from an argument. A client that
+      // could name its own author could put words in Jenn's mouth on a list she
+      // shares with a student.
+      fromTeacher: role === "teacher",
+    },
+  });
+
+  revalidateDeck();
+}
+
+export async function setActionItemDone(
+  groupId: string,
+  id: string,
+  done: boolean,
+): Promise<void> {
+  await requireDeckRole(groupId);
+  await prisma.actionItem.updateMany({
+    where: { id, groupId },
+    data: { doneAt: done ? new Date() : null },
+  });
+  revalidateDeck();
+}
+
+export async function deleteActionItem(
+  groupId: string,
+  id: string,
+): Promise<void> {
+  await requireDeckRole(groupId);
+  await prisma.actionItem.deleteMany({ where: { id, groupId } });
+  revalidateDeck();
+}
