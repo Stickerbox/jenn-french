@@ -50,7 +50,7 @@ Expected lint result throughout: **exactly one** pre-existing warning, `lib/snap
 | `lib/flashcards.ts` | The deck query |
 | `lib/action-items.ts` | The checklist query |
 | `app/deck-actions.ts` | Server actions for both features, behind one `chatRole` guard |
-| `components/student/CardsTab.tsx` | The deck grid and its sort chips |
+| `components/student/DeckTab.tsx` | The deck grid and its sort chips |
 | `components/student/FlashcardViewer.tsx` | The full-screen flipping overlay |
 | `components/student/AddFlashcardForm.tsx` | Front / back / note, inside the FAB's sheet |
 | `components/student/TodoTab.tsx` | The checklist, its inline add field and its rows |
@@ -60,9 +60,9 @@ Expected lint result throughout: **exactly one** pre-existing warning, `lib/snap
 | File | Change |
 |---|---|
 | `prisma/schema.prisma` | `Flashcard` and `ActionItem`, plus two relations on `Group` |
-| `lib/student-tab.ts` | `"cards"` and `"todo"` join `StudentTab` |
+| `lib/student-tab.ts` | `"deck"` and `"todo"` join `StudentTab` |
 | `tests/lib/student-tab.test.ts` | Cases for the two new tabs |
-| `lib/strings.ts` | `student.tabs.cards`, `student.tabs.todo`, `student.cards.*`, `student.todo.*` |
+| `lib/strings.ts` | `student.tabs.deck`, `student.tabs.todo`, `student.deck.*`, `student.todo.*` |
 | `components/student/StudentTabs.tsx` | Five tabs, and the strip scrolls |
 | `components/student/ShelfFab.tsx` | *Add a flashcard* joins the menu |
 | `app/g/[slug]/page.tsx` | Queries both lists, renders both tabs |
@@ -202,16 +202,16 @@ EOF
 Open `tests/lib/student-tab.test.ts` and read the existing cases first so your additions match their style and their helper shapes. The `available` record grows from three keys to five, so **every existing call site in that file needs the two new keys added** — do that first and confirm the suite still passes, then add these cases:
 
 ```ts
-  it("honours ?tab=cards when the deck is available", () => {
+  it("honours ?tab=deck when the deck is available", () => {
     expect(
-      parseStudentTab("cards", {
+      parseStudentTab("deck", {
         card: true,
         files: true,
         board: true,
-        cards: true,
+        deck: true,
         todo: true,
       }),
-    ).toBe("cards");
+    ).toBe("deck");
   });
 
   it("honours ?tab=todo when the checklist is available", () => {
@@ -220,7 +220,7 @@ Open `tests/lib/student-tab.test.ts` and read the existing cases first so your a
         card: true,
         files: true,
         board: true,
-        cards: true,
+        deck: true,
         todo: true,
       }),
     ).toBe("todo");
@@ -230,26 +230,53 @@ Open `tests/lib/student-tab.test.ts` and read the existing cases first so your a
     // A forwarded link. An untokened visitor has the card and nothing else,
     // and must land on it rather than on an empty deck.
     expect(
-      parseStudentTab("cards", {
+      parseStudentTab("deck", {
         card: true,
         files: false,
         board: false,
-        cards: false,
+        deck: false,
         todo: false,
       }),
     ).toBe("card");
   });
 
+  it("falls back to the deck when it is the first tab available", () => {
+    // The fallback path for `deck` specifically. Not reachable through today's
+    // only caller, which derives all four non-card flags from `unlocked` — but
+    // the function's own contract should not depend on one caller's habits.
+    expect(
+      parseStudentTab(undefined, {
+        card: false,
+        files: false,
+        board: false,
+        deck: true,
+        todo: true,
+      }),
+    ).toBe("deck");
+  });
+
+  it("falls back to the checklist when it is all that is left", () => {
+    expect(
+      parseStudentTab(undefined, {
+        card: false,
+        files: false,
+        board: false,
+        deck: false,
+        todo: true,
+      }),
+    ).toBe("todo");
+  });
+
   it("prefers the deck over the checklist for a teacher with no card tab", () => {
     // An unlocked teacher has no card tab, so the fallback order decides. It
-    // runs card, files, board, cards, todo — files first, because that is the
+    // runs card, files, board, deck, todo — files first, because that is the
     // tab she opens a student to see.
     expect(
       parseStudentTab(undefined, {
         card: false,
         files: true,
         board: true,
-        cards: true,
+        deck: true,
         todo: true,
       }),
     ).toBe("files");
@@ -269,7 +296,7 @@ Expected: FAIL — TypeScript rejects the extra `cards`/`todo` keys, or the two 
 Replace the whole of `lib/student-tab.ts` with:
 
 ```ts
-export type StudentTab = "card" | "files" | "board" | "cards" | "todo";
+export type StudentTab = "card" | "files" | "board" | "deck" | "todo";
 
 // A record rather than positional booleans: two flags called with the wrong
 // order is a silent bug, and five would make it certain.
@@ -287,14 +314,14 @@ export function parseStudentTab(
     card: boolean;
     files: boolean;
     board: boolean;
-    cards: boolean;
+    deck: boolean;
     todo: boolean;
   },
 ): StudentTab {
   if (value === "card" && available.card) return "card";
   if (value === "files" && available.files) return "files";
   if (value === "board" && available.board) return "board";
-  if (value === "cards" && available.cards) return "cards";
+  if (value === "deck" && available.deck) return "deck";
   if (value === "todo" && available.todo) return "todo";
 
   // The fallback order, and it is not the same as the strip's order by
@@ -303,7 +330,7 @@ export function parseStudentTab(
   if (available.card) return "card";
   if (available.files) return "files";
   if (available.board) return "board";
-  if (available.cards) return "cards";
+  if (available.deck) return "deck";
   if (available.todo) return "todo";
 
   // Unreachable: the card is only ever withheld from a teacher, who is unlocked
@@ -342,7 +369,7 @@ and replace with:
     board: unlocked,
     // Both new tabs follow the same rule Files and Whiteboard already use:
     // present for anyone unlocked, empty state and all.
-    cards: unlocked,
+    deck: unlocked,
     todo: unlocked,
   });
 ```
@@ -354,7 +381,7 @@ and replace with:
             card: showCard,
             files: unlocked || pages.length > 0,
             board: unlocked,
-            cards: unlocked,
+            deck: unlocked,
             todo: unlocked,
           }}
 ```
@@ -678,7 +705,7 @@ Find `tabs: {` inside the `Strings` type's `student` area — it is the one whos
 Directly after the `board: { … };` block in the `Strings` type's `student` area, add:
 
 ```ts
-    cards: {
+    deck: {
       empty: string;
       sort: {
         group: string;
@@ -728,7 +755,7 @@ In the French object's `student` area, add the two tab labels to its `tabs` bloc
 and, directly after its `board: { … },` block:
 
 ```ts
-    cards: {
+    deck: {
       empty: "Aucune carte pour l'instant !",
       sort: {
         group: "Trier par",
@@ -780,7 +807,7 @@ In the English object's `student` area, add to its `tabs` block:
 and, in the same position as the French:
 
 ```ts
-    cards: {
+    deck: {
       empty: "No cards yet!",
       sort: {
         group: "Sort by",
@@ -870,7 +897,7 @@ with:
     card: boolean;
     files: boolean;
     board: boolean;
-    cards: boolean;
+    deck: boolean;
     todo: boolean;
   };
 ```
@@ -878,8 +905,8 @@ with:
 Then extend the `tabs` array, after the `board` entry:
 
 ```tsx
-    ...(has.cards
-      ? [{ tab: "cards" as const, label: student.tabs.cards, href: `/g/${slug}?tab=cards` }]
+    ...(has.deck
+      ? [{ tab: "deck" as const, label: student.tabs.deck, href: `/g/${slug}?tab=deck` }]
       : []),
     ...(has.todo
       ? [{ tab: "todo" as const, label: student.tabs.todo, href: `/g/${slug}?tab=todo` }]
@@ -1275,7 +1302,7 @@ EOF
 ## Task 8: The deck tab and its viewer
 
 **Files:**
-- Create: `components/student/CardsTab.tsx`
+- Create: `components/student/DeckTab.tsx`
 - Create: `components/student/FlashcardViewer.tsx`
 
 - [ ] **Step 1: Write the viewer**
@@ -1324,13 +1351,13 @@ export function FlashcardViewer({
   // object holds functions and React cannot serialize a function across the
   // server/client boundary. See lib/strings.ts.
   locale: Locale;
-  // Stamping lastViewedAt happens in CardsTab's own handler, NOT here — see
+  // Stamping lastViewedAt happens in DeckTab's own handler, NOT here — see
   // its `show`. This component only reports which card should be current.
   onIndex: (next: number) => void;
   onClose: () => void;
   onDelete: (id: string) => Promise<void>;
 }) {
-  const t = getStrings(locale).student.cards;
+  const t = getStrings(locale).student.deck;
 
   // Hides the two fixed corner buttons below `md` for the life of this mount,
   // the rule AddSheet, ChatPanel and BoardViewer all follow. Without it the
@@ -1526,7 +1553,7 @@ function TrashIcon() {
 
 - [ ] **Step 2: Write the deck tab**
 
-Create `components/student/CardsTab.tsx`:
+Create `components/student/DeckTab.tsx`:
 
 ```tsx
 "use client";
@@ -1542,7 +1569,7 @@ import type { Locale } from "@/lib/i18n";
 import type { FlashcardRow } from "@/lib/flashcards";
 import { cn } from "@/lib/utils";
 
-export function CardsTab({
+export function DeckTab({
   cards,
   isTeacher,
   locale,
@@ -1558,7 +1585,7 @@ export function CardsTab({
   // deliberately does not await.
   onViewed: (id: string) => Promise<void>;
 }) {
-  const t = getStrings(locale).student.cards;
+  const t = getStrings(locale).student.deck;
   const [sort, setSort] = useState<FlashcardSort>("added");
   const [seed, setSeed] = useState(1);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -1680,7 +1707,7 @@ Expected: clean but for the known warning. Nothing renders these yet — Task 10
 - [ ] **Step 4: Commit**
 
 ```bash
-git add components/student/CardsTab.tsx components/student/FlashcardViewer.tsx
+git add components/student/DeckTab.tsx components/student/FlashcardViewer.tsx
 git commit -m "$(cat <<'EOF'
 Add the deck grid and its full-screen card
 
@@ -1740,7 +1767,7 @@ export function AddFlashcardForm({
   onAdd: (input: { front: string; back: string; note: string }) => Promise<void>;
   onDone: () => void;
 }) {
-  const t = getStrings(locale).student.cards;
+  const t = getStrings(locale).student.deck;
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [note, setNote] = useState("");
@@ -1852,7 +1879,7 @@ Add `onAddFlashcard,` to the destructured parameter list.
 Add the entry to **both** arms of the `choices` array, after `pdf`:
 
 ```ts
-          { key: "card", label: strings.student.cards.addTitle },
+          { key: "card", label: strings.student.deck.addTitle },
 ```
 
 so the teacher's arm reads link / page / pdf / card and the student's reads link / pdf / card.
@@ -1862,7 +1889,7 @@ Add the sheet, beside the existing `open === "pdf"` block:
 ```tsx
       {open === "card" && (
         <AddSheet
-          title={strings.student.cards.addTitle}
+          title={strings.student.deck.addTitle}
           closeLabel={strings.common.close}
           onClose={() => setOpen(null)}
         >
@@ -1874,7 +1901,7 @@ Add the sheet, beside the existing `open === "pdf"` block:
               // The deck is server-rendered, so a refresh is what makes the new
               // card appear rather than a local insert that could disagree
               // with it — the same reason `done()` above refreshes.
-              router.push("?tab=cards");
+              router.push("?tab=deck");
               router.refresh();
             }}
           />
@@ -2142,7 +2169,7 @@ EOF
 ```ts
 import { listFlashcards } from "@/lib/flashcards";
 import { listActionItems } from "@/lib/action-items";
-import { CardsTab } from "@/components/student/CardsTab";
+import { DeckTab } from "@/components/student/DeckTab";
 import { TodoTab } from "@/components/student/TodoTab";
 import {
   addFlashcard,
@@ -2178,14 +2205,14 @@ The tab body is a chain of ternaries ending in the `<BoardTab …/>`. Change tha
 and replace with:
 
 ```tsx
-      ) : tab === "cards" ? (
-        <CardsTab
+      ) : tab === "deck" ? (
+        <DeckTab
           cards={flashcards}
           isTeacher={viewerIsTeacher}
           locale={locale}
           onDelete={deleteFlashcard.bind(null, group.id)}
           // The bound ACTION, not an arrow — a closure cannot cross the
-          // server/client boundary. CardsTab fires it without awaiting, from
+          // server/client boundary. DeckTab fires it without awaiting, from
           // the handler that makes a card current.
           onViewed={markFlashcardViewed.bind(null, group.id)}
         />
@@ -2224,7 +2251,7 @@ Expected: clean but for the known warning. The `onAddFlashcard` error from Task 
 `npm run dev`, then as a signed-in student on `/g/<slug>`:
 
 - Five tabs. On a narrow window the strip scrolls horizontally rather than wrapping or squashing.
-- `?tab=cards` shows the empty state. The `+` FAB offers *Ajouter une carte*; add one with a front, a back and a note.
+- `?tab=deck` shows the empty state. The `+` FAB offers *Ajouter une carte*; add one with a front, a back and a note.
 - The tile shows the front and its added date. Open it: the front fills the screen, tapping flips to the back with the note greyed beneath.
 - Add three more cards. The arrows and the ← → keys move through them; each new card opens on its front.
 - Choose *Aléatoire*. The order changes. Press it again — it changes again. Open a card, close it, and confirm the order has not moved.
@@ -2300,7 +2327,7 @@ npx prisma generate && npm run lint && npm run typecheck && npm test && npm run 
 Expected:
 - `eslint .` reports exactly one warning, `lib/snapshot-dom.ts:77 'e' is defined but never used`. **Any other warning or error is yours.**
 - `tsc --noEmit` prints nothing.
-- Vitest passes every file: 1112 before this plan, plus 10 for `flashcard-order` and 4 added to `student-tab` — expect **1126**.
+- Vitest passes every file: 1112 before this plan, plus 10 for `flashcard-order` and 6 added to `student-tab` — expect **1128**.
 - `next build` completes. **It fetches Fraunces and Inter from `fonts.googleapis.com`**, so it needs network access; a sandbox that blocks that host fails with `Failed to fetch 'Fraunces' from Google Fonts`, which is not a code fault.
 
 - [ ] **Step 4: Commit**
