@@ -184,6 +184,7 @@ export type Strings = {
       };
       open: (front: string) => string;
       flip: string;
+      flipHint: string;
       previous: string;
       next: string;
       position: (index: number, total: number) => string;
@@ -804,6 +805,7 @@ const fr: Strings = {
       },
       open: (front) => `Ouvrir la carte «\u00A0${front}\u00A0»`,
       flip: "Retourner",
+      flipHint: "Retourner la carte",
       previous: "Carte précédente",
       next: "Carte suivante",
       position: (index, total) => `Carte ${index} sur ${total}`,
@@ -1352,6 +1354,7 @@ const en: Strings = {
       },
       open: (front) => `Open the card “${front}”`,
       flip: "Flip",
+      flipHint: "Flip the card",
       previous: "Previous card",
       next: "Next card",
       position: (index, total) => `Card ${index} of ${total}`,
