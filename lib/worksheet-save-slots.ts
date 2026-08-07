@@ -22,3 +22,39 @@ export function canSaveFromSlot(
   if (audience === "teacher") return true;
   return slot !== "teacher";
 }
+
+// THE HTML RULE. canSaveFromSlot above is THE PDF RULE, and they are both here
+// on purpose: they agree about a student and disagree about Jenn, because the
+// two page kinds now differ. A PDF version is an upload — a deliberate act she
+// performs from wherever she is standing — so she may upload from all three of
+// her tabs. An html version is auto-saved ten seconds after a keystroke, with
+// no press in which to reconsider, so she is confined to one.
+//
+// Do not delete either as a duplicate of the other.
+//
+// A student: their own copy, always, and Jenn's correction, never — the same
+// reason canSaveFromSlot gives, and it bites harder here. Under a pill they had
+// to press something to destroy their attempt; under auto-save a stray
+// keystroke on the correction would do it by itself.
+//
+// Jenn with no correction yet: any tab. Her typing seeds it — from the blank,
+// which makes an answer key, or from the student's attempt, which makes an
+// annotated attempt.
+//
+// Jenn with a correction: only her own tab. Without this she opens the
+// student's attempt a second time, types, and ten seconds later her first
+// correction is gone. There is no version history to recover it from. She gets
+// back to a writable blank by DELETING her correction, which is a confirmed
+// act — see the restart route.
+export function isWritableSlot({
+  slot,
+  audience,
+  hasTeacher,
+}: {
+  slot: VersionSlot;
+  audience: VersionAudience;
+  hasTeacher: boolean;
+}): boolean {
+  if (audience === "student") return slot === "student";
+  return hasTeacher ? slot === "teacher" : true;
+}
