@@ -986,8 +986,30 @@ EOF
 Prisma access lives in `lib/`, following `lib/whiteboards.ts`. Two files rather than one, because a card and a checklist item have nothing to do with each other and will not change together.
 
 **Files:**
+- Create: `lib/deck-limits.ts`
 - Create: `lib/flashcards.ts`
 - Create: `lib/action-items.ts`
+
+`lib/deck-limits.ts` holds three numbers and **imports nothing**. That matters:
+the server actions bound input against them and the forms cap their inputs with
+the same values, so it is reached from both sides of the server/client
+boundary. A module that imported `@/lib/prisma` to hold a constant would pull
+Prisma into the browser bundle.
+
+```ts
+// The bounds on a card and a checklist row, in characters.
+//
+// Imported by BOTH the server actions that enforce them and the forms that cap
+// their inputs, which is why this file imports nothing — anything reaching for
+// prisma here would drag it into the browser bundle.
+//
+// The form's maxLength is the courtesy and the action's check is the
+// authority: a client is not an authority on length, and the input attribute
+// is trivially removed.
+export const MAX_CARD_FACE = 200;
+export const MAX_CARD_NOTE = 500;
+export const MAX_ITEM_TEXT = 300;
+```
 
 Neither is unit-tested — this codebase does not unit-test Prisma access, only the pure modules underneath it. `lib/flashcard-order.ts` is where the rule lives and it already has tests.
 
@@ -1114,6 +1136,11 @@ import { getCurrentTeacher } from "@/lib/session";
 import { chatRole, type ChatRole } from "@/lib/chat-access";
 import { readToken, cookieNameFor } from "@/lib/student-tokens";
 import { currentStrings } from "@/lib/locale";
+import {
+  MAX_CARD_FACE,
+  MAX_CARD_NOTE,
+  MAX_ITEM_TEXT,
+} from "@/lib/deck-limits";
 
 // chatRole and NOT shelfRole, and the difference is the everyone group.
 // shelfRole answers "teacher" before it tests isEveryone, deliberately, because
@@ -1163,10 +1190,23 @@ function revalidateDeck() {
 function requireText(value: string, max: number): string {
   const text = value.trim();
   // Bounded on the way in as well as by the column, because a client is not an
-  // authority on length. 0 is the real guard — an empty card or an empty
-  // checklist row is a row nobody can read or press.
+  // authority on length. An empty card or an empty checklist row is a row
+  // nobody can read or press.
+  //
+  // REJECTS rather than truncating, which is what every other bounded input
+  // here does — validatePageHtml returns an error over MAX_PAGE_BYTES and
+  // parseMessageBody returns null, which the chat route turns into a 400.
+  // Truncating would save a teacher's 250-character card as 200 characters
+  // with no signal at all: the action resolves, the sheet closes, and the
+  // last fifty characters are simply gone.
+  //
+  // The message is internal and written for a stack trace. Both forms discard
+  // it and show their own dictionary sentence, the rule ShelfFab's catches
+  // already follow — and both cap their inputs with the same constant, so
+  // reaching this needs the attribute removed by hand.
   if (!text) throw new Error("Empty");
-  return text.slice(0, max);
+  if (text.length > max) throw new Error("Too long");
+  return text;
 }
 
 export async function addFlashcard(
@@ -1178,11 +1218,11 @@ export async function addFlashcard(
   await prisma.flashcard.create({
     data: {
       groupId,
-      front: requireText(input.front, 200),
-      back: requireText(input.back, 200),
+      front: requireText(input.front, MAX_CARD_FACE),
+      back: requireText(input.back, MAX_CARD_FACE),
       // An empty note is null, not "". The column is nullable so the viewer can
       // ask one question — is there a note — rather than two.
-      note: input.note.trim() ? input.note.trim().slice(0, 500) : null,
+      note: input.note.trim() ? requireText(input.note, MAX_CARD_NOTE) : null,
     },
   });
 
@@ -1210,6 +1250,13 @@ export async function deleteFlashcard(
 // that Marie revised everything, and the cards she is struggling with would
 // drop to the bottom of the list that exists to surface them.
 //
+// It returns SILENTLY for the teacher rather than throwing, which bends this
+// codebase's own rule that silence is for a resource already gone and a policy
+// refusal throws (see setShelfPin). The bend is deliberate: unlike deleteGroup
+// or setShelfPin, nobody pressed anything here — it is fired unawaited on every
+// card opened, so a throw would be an uncaught rejection in the browser for
+// every card Jenn looks at, with nothing to catch it and nothing to show.
+//
 // And it does NOT revalidate. The caller fires it without awaiting, and a
 // revalidation would re-render the deck underneath a reader who is mid-flip and
 // reorder it under them when the sort is "À réviser". The new timestamp is
@@ -1236,7 +1283,7 @@ export async function addActionItem(
   await prisma.actionItem.create({
     data: {
       groupId,
-      text: requireText(text, 300),
+      text: requireText(text, MAX_ITEM_TEXT),
       // From the ROLE the guard resolved, never from an argument. A client that
       // could name its own author could put words in Jenn's mouth on a list she
       // shares with a student.
@@ -1754,6 +1801,7 @@ import { useState, type FormEvent } from "react";
 import { fieldClassName } from "@/components/ui/field";
 import { cardFocusRing, formErrorText } from "@/components/card-styles";
 import { getStrings } from "@/lib/strings";
+import { MAX_CARD_FACE, MAX_CARD_NOTE } from "@/lib/deck-limits";
 import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -1806,6 +1854,10 @@ export function AddFlashcardForm({
           onChange={(event) => setFront(event.target.value)}
           required
           autoFocus
+          // The courtesy; the action is the authority. Without it an
+          // over-long card fails on submit with a generic sentence, which
+          // tells the writer nothing about what to shorten.
+          maxLength={MAX_CARD_FACE}
           className={cn(fieldClassName, "mt-1")}
         />
       </label>
@@ -1816,6 +1868,7 @@ export function AddFlashcardForm({
           value={back}
           onChange={(event) => setBack(event.target.value)}
           required
+          maxLength={MAX_CARD_FACE}
           className={cn(fieldClassName, "mt-1")}
         />
       </label>
@@ -1828,6 +1881,7 @@ export function AddFlashcardForm({
         <input
           value={note}
           onChange={(event) => setNote(event.target.value)}
+          maxLength={MAX_CARD_NOTE}
           className={cn(fieldClassName, "mt-1")}
         />
       </label>
@@ -1958,6 +2012,7 @@ import { useRouter } from "next/navigation";
 import { fieldClassName } from "@/components/ui/field";
 import { cardFocusRing, emptyStateText, formErrorText } from "@/components/card-styles";
 import { getStrings } from "@/lib/strings";
+import { MAX_ITEM_TEXT } from "@/lib/deck-limits";
 import type { Locale } from "@/lib/i18n";
 import type { ActionItemRow } from "@/lib/action-items";
 import { cn } from "@/lib/utils";
@@ -2114,6 +2169,8 @@ export function TodoTab({
           onChange={(event) => setText(event.target.value)}
           placeholder={t.addPlaceholder}
           aria-label={t.addPlaceholder}
+          // The courtesy; the action is the authority.
+          maxLength={MAX_ITEM_TEXT}
           className={cn(fieldClassName, "mt-0 flex-1")}
         />
         <button
