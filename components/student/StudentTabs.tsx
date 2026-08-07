@@ -19,7 +19,13 @@ export async function StudentTabs({
   slug: string;
   active: StudentTab;
   date: string;
-  has: { card: boolean; files: boolean; board: boolean };
+  has: {
+    card: boolean;
+    files: boolean;
+    board: boolean;
+    cards: boolean;
+    todo: boolean;
+  };
 }) {
   const { student } = await currentStrings();
 

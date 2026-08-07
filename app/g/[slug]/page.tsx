@@ -140,6 +140,10 @@ export default async function GroupPage({
     card: showCard,
     files: unlocked || pages.length > 0,
     board: unlocked,
+    // Both new tabs follow the same rule Files and Whiteboard already use:
+    // present for anyone unlocked, empty state and all.
+    cards: unlocked,
+    todo: unlocked,
   });
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -333,6 +337,8 @@ export default async function GroupPage({
             card: showCard,
             files: unlocked || pages.length > 0,
             board: unlocked,
+            cards: unlocked,
+            todo: unlocked,
           }}
         />
       )}
