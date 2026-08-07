@@ -207,7 +207,6 @@ export type Strings = {
       toggle: (text: string) => string;
       delete: (text: string) => string;
       byTeacher: string;
-      byStudent: string;
       error: string;
     };
 
@@ -828,7 +827,6 @@ const fr: Strings = {
       toggle: (text) => `Cocher «\u00A0${text}\u00A0»`,
       delete: (text) => `Supprimer «\u00A0${text}\u00A0»`,
       byTeacher: "Jenn",
-      byStudent: "Moi",
       error: "Ça n'a pas fonctionné. Réessayez.",
     },
 
@@ -1271,7 +1269,7 @@ const en: Strings = {
       files: "Files",
       board: "Board",
       deck: "Vocabulary",
-      todo: "To do",
+      todo: "To-do",
     },
 
     card: {
@@ -1377,7 +1375,6 @@ const en: Strings = {
       toggle: (text) => `Tick “${text}”`,
       delete: (text) => `Delete “${text}”`,
       byTeacher: "Jenn",
-      byStudent: "Me",
       error: "That did not work. Try again.",
     },
 

@@ -56,14 +56,22 @@ export async function StudentTabs({
       // that happened to be close.
       // SCROLLS RATHER THAN SQUASHING. Three tabs fit a phone and five do not:
       // the French labels are roughly 380px of text before padding, inside a
-      // strip that is the first thing on this page. `justify-start` below `sm`
-      // so the row begins at the left edge and can be swiped; centred from `sm`
-      // up, where there is room. A strip that shrank its padding to fit would
-      // look correct and be unusable — the same reason ShellBar's middle track
-      // scrolls rather than compressing three French version labels.
-      className="mx-auto mb-[var(--space-5)] flex max-w-[560px] justify-start overflow-x-auto sm:justify-center"
+      // strip that is the first thing on this page. A strip that shrank its
+      // padding to fit would look correct and be unusable — the same reason
+      // ShellBar's middle track scrolls rather than compressing three French
+      // version labels.
+      //
+      // Centring is `mx-auto` ON THE CHILD below, and deliberately NOT
+      // `justify-center` here. Combining justify-center with overflow-x-auto
+      // is a known trap: when the content is wider than the box, flexbox
+      // centres the overflow, so BOTH ends are clipped and scrollLeft starts
+      // in the middle — the reader has to scroll two directions to reach
+      // either end. Auto margins centre when there is room and collapse to
+      // zero when there is not, at every width, which also removes the need
+      // to guess with a breakpoint whether five labels happen to fit.
+      className="mx-auto mb-[var(--space-5)] flex max-w-[560px] overflow-x-auto"
     >
-      <div className="flex w-max shrink-0 gap-1 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1">
+      <div className="mx-auto flex w-max shrink-0 gap-1 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1">
         {tabs.map(({ tab, label, href }) => (
           <Link
             key={tab}
