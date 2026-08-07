@@ -39,6 +39,12 @@ export async function StudentTabs({
     ...(has.board
       ? [{ tab: "board" as const, label: student.tabs.board, href: `/g/${slug}?tab=board` }]
       : []),
+    ...(has.deck
+      ? [{ tab: "deck" as const, label: student.tabs.deck, href: `/g/${slug}?tab=deck` }]
+      : []),
+    ...(has.todo
+      ? [{ tab: "todo" as const, label: student.tabs.todo, href: `/g/${slug}?tab=todo` }]
+      : []),
   ];
 
   return (
@@ -48,9 +54,16 @@ export async function StudentTabs({
       // (app/g/[slug]/page.tsx) and the date nav below it (CardDateNav), so
       // the page's three major seams share one gap rather than three numbers
       // that happened to be close.
-      className="mx-auto mb-[var(--space-5)] flex max-w-[560px] justify-center"
+      // SCROLLS RATHER THAN SQUASHING. Three tabs fit a phone and five do not:
+      // the French labels are roughly 380px of text before padding, inside a
+      // strip that is the first thing on this page. `justify-start` below `sm`
+      // so the row begins at the left edge and can be swiped; centred from `sm`
+      // up, where there is room. A strip that shrank its padding to fit would
+      // look correct and be unusable — the same reason ShellBar's middle track
+      // scrolls rather than compressing three French version labels.
+      className="mx-auto mb-[var(--space-5)] flex max-w-[560px] justify-start overflow-x-auto sm:justify-center"
     >
-      <div className="flex gap-1 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1">
+      <div className="flex w-max shrink-0 gap-1 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1">
         {tabs.map(({ tab, label, href }) => (
           <Link
             key={tab}
@@ -60,7 +73,7 @@ export async function StudentTabs({
               // min-h-[44px] flex-centred rather than a bigger py-2: the pill
               // stays the same visual height, the tap target underneath it
               // does not.
-              "flex min-h-[44px] items-center rounded-full px-5 py-2 font-[family-name:var(--card-font-serif)] text-sm transition-colors duration-150 motion-reduce:transition-none",
+              "flex min-h-[44px] shrink-0 items-center whitespace-nowrap rounded-full px-5 py-2 font-[family-name:var(--card-font-serif)] text-sm transition-colors duration-150 motion-reduce:transition-none",
               tab === active
                 ? "bg-[var(--card-bleu)] text-white"
                 : "text-[var(--card-moss)] hover:text-[var(--card-bleu)]",
