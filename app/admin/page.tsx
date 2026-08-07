@@ -130,7 +130,11 @@ export default async function AdminPage({
         <AdminTabs active={active} date={selected} strings={strings} />
 
         <AdminChrome
-          groups={groups.map((g) => ({ id: g.id, name: g.name }))}
+          groups={groups.map((g) => ({
+            id: g.id,
+            name: g.name,
+            isEveryone: g.isEveryone,
+          }))}
           onCreateStudent={createGroup}
           onCreateLink={createLink}
           onCreatePage={createPage}

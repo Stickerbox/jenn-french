@@ -481,7 +481,7 @@ export async function addShelfPdf(
 // over a row that can never accept one is the failure both are avoiding.
 export async function loadPageForEdit(slug: string): Promise<{
   page: NonNullable<Awaited<ReturnType<typeof getPageForAdmin>>>;
-  groups: { id: string; name: string }[];
+  groups: { id: string; name: string; isEveryone: boolean }[];
 } | null> {
   await requireTeacher();
 
@@ -490,7 +490,10 @@ export async function loadPageForEdit(slug: string): Promise<{
 
   const groups = await prisma.group.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    // isEveryone so the editor's audience pill can be relabelled — see
+    // lib/audience.ts. It is not an authority signal and nothing here branches
+    // on it.
+    select: { id: true, name: true, isEveryone: true },
   });
 
   return { page, groups };

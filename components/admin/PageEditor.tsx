@@ -20,12 +20,11 @@ import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { PageInput, PageSaveResult } from "@/app/page-actions";
+import type { AudienceOption } from "@/lib/audience";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
 import { renderPdfThumbnail } from "@/components/pdf-thumbnail";
 import { captureAndStoreThumbnail } from "@/components/html-thumbnail";
 import { WORKSHEET_FIELD, worksheetFieldValue } from "@/lib/worksheet-field";
-
-export type PageEditorGroup = { id: string; name: string };
 
 // The edit form behind /admin/pages/[slug], and nothing else. Creating a page
 // lives in NewPageForm now, which is why `initial` is required here and why
@@ -35,7 +34,7 @@ export type PageEditorGroup = { id: string; name: string };
 // moves — students bookmark it — but the title itself is display text and
 // fixing a typo in one must remain possible.
 export function PageEditor({
-  groups,
+  audience,
   initial,
   submitLabel,
   onSubmit,
@@ -43,7 +42,9 @@ export function PageEditor({
   onDelete,
   locale,
 }: {
-  groups: PageEditorGroup[];
+  // Already relabelled by audienceOptions, so this form never learns that one
+  // of these rows is the everyone group. See lib/audience.ts.
+  audience: AudienceOption[];
   initial: {
     title: string;
     // Empty for a pdf row, which has no document to hold. `kind` is what
@@ -184,20 +185,20 @@ export function PageEditor({
 
       <fieldset className="text-sm font-medium text-[var(--card-ink)]">
         <legend className="mb-2">{strings.admin.pageForm.studentsLegend}</legend>
-        {groups.length === 0 ? (
+        {audience.length === 0 ? (
           <p className="text-sm font-normal text-[var(--color-ink-muted)]">
             {strings.admin.pageForm.noStudentsYet}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {groups.map((group) => {
-              const checked = groupIds.includes(group.id);
+            {audience.map((option) => {
+              const checked = groupIds.includes(option.id);
               return (
                 // A real checkbox, visually hidden inside its own label: the
                 // pill is appearance only, so keyboard and screen readers get
                 // the control they already understood.
                 <label
-                  key={group.id}
+                  key={option.id}
                   className={cn(
                     audiencePill,
                     checked ? audiencePillChecked : audiencePillUnchecked,
@@ -207,9 +208,9 @@ export function PageEditor({
                     type="checkbox"
                     className="sr-only"
                     checked={checked}
-                    onChange={() => toggleGroup(group.id)}
+                    onChange={() => toggleGroup(option.id)}
                   />
-                  {group.name}
+                  {option.label}
                 </label>
               );
             })}
