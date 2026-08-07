@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { PageTile } from "@/components/ui/PageTile";
 import { HtmlPreview } from "@/components/ui/HtmlPreview";
@@ -106,6 +107,14 @@ export function FilesTab({
   locale: Locale;
 }) {
   const strings = getStrings(locale);
+  // framer-motion does NOT read prefers-reduced-motion by itself — the
+  // `motion-reduce:` utilities elsewhere in this codebase are CSS and reach
+  // none of this. Asking for it and zeroing the duration is the equivalent.
+  const reduceMotion = useReducedMotion();
+  const motionTransition = {
+    duration: reduceMotion ? 0 : 0.3,
+    ease: [0.4, 0.15, 0.2, 1] as const,
+  };
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind>(DEFAULT_KIND);
   const [sort, setSort] = useState<PageSort>(DEFAULT_SORT);
@@ -138,7 +147,6 @@ export function FilesTab({
           />
           <FilterDisclosure
             toggleLabel={strings.student.files.filterToggle}
-            label={strings.student.files.filterBy}
             activeLabel={strings.student.files.filterActive}
             active={filtersAreActive({ kind, sort })}
           >
@@ -179,6 +187,11 @@ export function FilesTab({
               )}
 
               <ul className={pageGrid}>
+                {/* `initial={false}` so a shelf of twenty tiles does not replay
+                    twenty entrances on every mount, or on every keystroke in
+                    the search field above. Only a page that arrives while this
+                    list is on screen animates. */}
+                <AnimatePresence initial={false}>
                 {group.pages.map((page) => {
                   const target = pageTarget(page, groupSlug);
                   // One expression for both previews; see PageList, which
@@ -204,7 +217,14 @@ export function FilesTab({
                   // capture-phase leave-guard protects for free — the reason
                   // the version rows themselves had to stay anchors.
                   return (
-                    <li key={page.id}>
+                    <motion.li
+                      key={page.id}
+                      layout={reduceMotion ? false : "position"}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={motionTransition}
+                    >
                       <PageTile
                         href={target.href}
                         newTab={target.newTab}
@@ -330,9 +350,10 @@ export function FilesTab({
                           ) : undefined
                         }
                       />
-                    </li>
+                    </motion.li>
                   );
                 })}
+                </AnimatePresence>
               </ul>
             </section>
           ))}

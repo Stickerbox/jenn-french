@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AddSheet } from "@/components/ui/AddSheet";
 import { PageEditor } from "@/components/admin/PageEditor";
-import { audienceOptions } from "@/lib/audience";
+import { studentAudienceOptions } from "@/lib/audience";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
 import {
@@ -120,10 +120,7 @@ export function PageEditOverlay({
         </p>
       ) : (
         <PageEditor
-          audience={audienceOptions(
-            loaded.groups,
-            strings.admin.pageForm.allStudents,
-          )}
+          audience={studentAudienceOptions(loaded.groups)}
           initial={{
             title: loaded.page.title,
             // Empty for a pdf row, which has no document to hold. The kind is

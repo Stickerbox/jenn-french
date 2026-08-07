@@ -8,6 +8,7 @@ import { LinkPreview } from "@/components/ui/LinkPreview";
 import { PdfPreview } from "@/components/ui/PdfPreview";
 import { PinIcon } from "@/components/ui/PinIcon";
 import { PencilIcon } from "@/components/ui/PencilIcon";
+import { TrashIcon } from "@/components/ui/TrashIcon";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { KindFilter } from "@/components/ui/KindFilter";
 import { filterPagesByKind, type KindFilter as Kind } from "@/lib/page-filters";
@@ -22,15 +23,12 @@ import {
 import { sectionLabel } from "@/lib/page-section-labels";
 import { orderPages, type PageSort } from "@/lib/page-sort";
 import { SortFilter } from "@/components/ui/SortFilter";
+import { FilterDisclosure } from "@/components/ui/FilterDisclosure";
+import { DEFAULT_KIND, DEFAULT_SORT, filtersAreActive } from "@/lib/shelf-filters";
 import { pageAudienceLabel } from "@/lib/page-tile";
 import { pageTarget } from "@/lib/page-target";
 import { SearchField } from "@/components/admin/SearchField";
-import {
-  filterPages,
-  filterPagesByGroup,
-  pageGroupNames,
-} from "@/lib/admin-search";
-import { visibleGroupChips } from "@/lib/audience";
+import { filterPages, filterPagesByGroup } from "@/lib/admin-search";
 import { formatLongDate } from "@/lib/format";
 import { pageVersion } from "@/lib/page-version";
 import type { Locale } from "@/lib/i18n";
@@ -79,33 +77,11 @@ function DownloadIcon() {
   );
 }
 
-// A lid, a can, and the two ribs. Same stroke idiom as the two above, so the
-// three read as one set in a tile's action row.
-function TrashIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 6h18" />
-      <path d="M8 6V4h8v2" />
-      <path d="m19 6-1 14H6L5 6" />
-      <path d="M10 11v6M14 11v6" />
-    </svg>
-  );
-}
-
 export function PageList({
   pages,
   everyoneName,
   group,
+  groupNames,
   groupSlug,
   onGroup,
   canPin,
@@ -123,15 +99,24 @@ export function PageList({
   // filter, which shelf a pin lands on, and a new page's default audience — so
   // it cannot live in here any more.
   group: string | null;
+  // The chip row, derived in PagesTabClient. A PROP rather than computed here,
+  // because resolveChip up there has to answer against this exact list — two
+  // derivations could disagree, and a resolved chip missing from the row would
+  // light nothing while filtering the list to nothing.
+  groupNames: string[];
   // The chip's group, as a slug rather than the name `group` carries — what
-  // pageTarget needs to build a worksheet route. Null under "All", where there
-  // is no shelf, and null for the everyone chip too: /g/all is public and has
-  // no student for a version to belong to, the same reason the everyone
-  // group's own shelf never sends one.
+  // pageTarget needs to build a worksheet route. Null only when there is no row
+  // to resolve a chip from, which is the no-pages-yet case answered by the
+  // empty state below: /g/all is public and has no student for a version to
+  // belong to, the same reason the everyone group's own shelf never sends one.
   groupSlug: string | null;
+  // Still takes a null, because `setChip` is AdminChrome's setter and its state
+  // is genuinely nullable — but this row never passes one now that there is no
+  // "All" chip to clear to.
   onGroup: (group: string | null) => void;
-  // False when no student chip is active. "All" is not a shelf, so there is no
-  // pin to toggle.
+  // False only when no chip could be resolved at all, i.e. there are no pages.
+  // It used to be false under "All", which was not a shelf and therefore had
+  // nothing to pin to.
   canPin: boolean;
   onTogglePin: (slug: string, pinned: boolean) => Promise<void>;
   // Links only, in the UI below. It is the plain teacher-only deletePage, which
@@ -153,14 +138,17 @@ export function PageList({
   const strings = getStrings(locale);
   const labels = strings.admin.pageList;
   const [query, setQuery] = useState("");
-  const [kind, setKind] = useState<Kind>("all");
-  const [sort, setSort] = useState<PageSort>("created");
+  // The shared defaults, not two literals. The disclosure's dot compares
+  // against exactly these, and a default that moved here and not there would
+  // light the dot on a list nobody had touched — the reason lib/shelf-filters
+  // names them at all.
+  const [kind, setKind] = useState<Kind>(DEFAULT_KIND);
+  const [sort, setSort] = useState<PageSort>(DEFAULT_SORT);
 
-  // The everyone chip is dropped, and the everyone NAME is still passed to
-  // filterPagesByGroup below. That is not an inconsistency: the name's job
-  // there is to widen a student's chip to include pages shared with everyone,
-  // which is how Jenn finds a shared page now that it has no chip of its own.
-  const groupNames = visibleGroupChips(pageGroupNames(pages), everyoneName);
+  // The everyone NAME is still passed to filterPagesByGroup below, even though
+  // no chip is drawn for it. That is not an inconsistency: the name's job there
+  // is to widen a student's chip to include pages shared with everyone, which
+  // is how Jenn finds a shared page now that it has no chip of its own.
   const visible = filterPagesByKind(
     filterPagesByGroup(
       filterPages(pages, query),
@@ -194,21 +182,38 @@ export function PageList({
           clearLabel={strings.common.clear}
         />
 
-        {/* tone="card": KindFilter/FilterChip already had both skins (see
+        {/* Behind the icon since 2026-08-07, the same disclosure the student
+            shelf uses — three stacked control rows above the tiles was most of
+            a screen of chrome over the thing Jenn opened the tab to see.
+
+            ONLY THE KIND AND SORT ROWS. The student chip row below stays where
+            it is, and that is the whole of the exception this file used to
+            claim outright: that row is not only a filter — the same selection
+            decides which shelf a pin lands on and the default audience for a
+            new page, so folding it away would hide a control that does more
+            than narrow a list. The two rows in here do nothing but narrow one.
+
+            tone="card": KindFilter/FilterChip already had both skins (see
             FilterChip's own comment) — the student shelf's kind filter uses
             "card" too, so this is a caller-side flip, not a new capability. */}
-        <KindFilter
-          value={kind}
-          onChange={setKind}
-          tone="card"
-          labels={labels.kindFilter}
-        />
-        <SortFilter
-          value={sort}
-          onChange={setSort}
-          tone="card"
-          labels={labels.sortFilter}
-        />
+        <FilterDisclosure
+          toggleLabel={labels.filterToggle}
+          activeLabel={labels.filterActive}
+          active={filtersAreActive({ kind, sort })}
+        >
+          <KindFilter
+            value={kind}
+            onChange={setKind}
+            tone="card"
+            labels={labels.kindFilter}
+          />
+          <SortFilter
+            value={sort}
+            onChange={setSort}
+            tone="card"
+            labels={labels.sortFilter}
+          />
+        </FilterDisclosure>
 
         {groupNames.length > 0 && (
           <div
@@ -216,21 +221,25 @@ export function PageList({
             aria-label={labels.filterByStudentAria}
             className="mb-5 flex flex-wrap justify-center gap-2"
           >
-            <FilterChip
-              tone="card"
-              active={group === null}
-              onClick={() => onGroup(null)}
-            >
-              {labels.allChip}
-            </FilterChip>
+            {/* No "All" chip since 2026-08-07. Every page now reaches at least
+                one student — the three audience forms refuse to save otherwise
+                — so "everything" and "one student's shelf" stopped being a
+                distinction worth a control. It was also the one selection where
+                pinning was dead and the Pinned section silently absent, because
+                "All" is not a shelf.
+
+                A chip is therefore always active (resolveChip, one level up),
+                and pressing the active one does NOTHING rather than clearing
+                it: there is no unselected state left to clear to. The old
+                clear-on-reclick existed so the row was not a trap you had to
+                find "All" to escape, and with a chip always lit there is
+                nothing to escape from. */}
             {groupNames.map((name) => (
               <FilterChip
                 key={name}
                 tone="card"
                 active={group === name}
-                // Clicking the active chip clears it, so the row never becomes
-                // a trap she has to find "All" to escape.
-                onClick={() => onGroup(group === name ? null : name)}
+                onClick={() => onGroup(name)}
               >
                 {name}
               </FilterChip>

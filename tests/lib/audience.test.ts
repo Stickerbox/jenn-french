@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   visibleStudents,
   audienceOptions,
+  hasAudienceSelection,
+  studentAudienceOptions,
   visibleGroupChips,
 } from "@/lib/audience";
 
@@ -90,5 +92,53 @@ describe("visibleGroupChips", () => {
     expect(visibleGroupChips(["Everyone", "Luc", "Everyone"], "Everyone")).toEqual(
       ["Luc"],
     );
+  });
+});
+
+describe("studentAudienceOptions", () => {
+  it("withholds the everyone row", () => {
+    expect(studentAudienceOptions(groups)).toEqual([
+      { id: "g2", label: "Luc" },
+      { id: "g3", label: "Marie" },
+    ]);
+  });
+
+  it("takes the label from Group.name, with nothing to relabel", () => {
+    // Unlike audienceOptions, which substitutes a dictionary string for the
+    // everyone row. There is no such row left here to need one.
+    expect(studentAudienceOptions([groups[1]])).toEqual([
+      { id: "g2", label: "Luc" },
+    ]);
+  });
+
+  it("is empty when there are no students yet", () => {
+    expect(studentAudienceOptions([groups[0]])).toEqual([]);
+  });
+});
+
+describe("hasAudienceSelection", () => {
+  const options = studentAudienceOptions(groups);
+
+  it("is false with nothing selected", () => {
+    expect(hasAudienceSelection([], options)).toBe(false);
+  });
+
+  it("is true once a drawn option is selected", () => {
+    expect(hasAudienceSelection(["g2"], options)).toBe(true);
+    expect(hasAudienceSelection(["g2", "g3"], options)).toBe(true);
+  });
+
+  it("ignores a selection with no pill on screen", () => {
+    // A page already shared with the everyone group carries g1 in its stored
+    // groupIds, and the edit form draws no pill for it. Counting it would
+    // satisfy the rule with every pill still grey, which reads as the form
+    // being broken. THIS IS THE POINT OF THE FUNCTION.
+    expect(hasAudienceSelection(["g1"], options)).toBe(false);
+    expect(hasAudienceSelection(["g1", "g2"], options)).toBe(true);
+  });
+
+  it("is false when the form draws no options at all", () => {
+    // No students yet: there is nobody to publish to, so Save stays shut.
+    expect(hasAudienceSelection(["g2"], [])).toBe(false);
   });
 });

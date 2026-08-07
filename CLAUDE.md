@@ -45,7 +45,7 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the student's own chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included, who once unlocked also gets *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. **Jenn's own chat is her inbox FAB and follows her session, not the token** — the only thing on this page that does, and it carries the delete and read-marker controls with it. Everything the gate controls is unchanged. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding to the shelf is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. **Its menu depends on who is looking**: a student gets *Ajouter un lien* and *Ajouter un PDF*, Jenn gets *Add a link*, *Add a page* and *Add a PDF* — she keeps the full admin menu on the one screen where "put this on Marie's shelf" is the obvious act, and the student loses the HTML paste box, because they may upload a PDF and not a website. `addShelfPage` keeps its guard and its tests; what changed is which control is drawn. Jenn also gets a pencil on each editable tile. The card tab carries the week's five day dots, a week-range line that opens a month calendar, and *Aujourd'hui*; a day with no card cannot be selected. The shelf's kind and sort chips sit behind a filter icon, closed by default, with a dot on the icon — and an `sr-only` *Filtres actifs* / *Filters active* beside it, following `ConversationList`'s unread-dot precedent — while a hidden filter is narrowing the list (`lib/shelf-filters.ts`); the admin Pages tab deliberately keeps its rows visible, because its student chip also decides pin target and default audience. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing. Two more tabs as of 2026-08-07, both gated on `unlocked` like Files and Whiteboard. **Vocabulaire** is a deck of two-sided cards either party may add and delete, opened in a full-screen overlay that reuses the daily card's flip; it sorts by Ajout, Aléatoire or À réviser (`lib/flashcard-order.ts`). It is called *Vocabulaire* and not *Les cartes* because the daily-card tab is *La carte* and two adjacent tabs one letter apart is a trap. The overlay takes focus on open and traps Tab: `aria-modal` is a hint to assistive tech and does nothing to the tab order, so without it Shift+Tab reached the deck tile painted underneath and re-stamped another card's `lastViewedAt`. **À faire** is one shared checklist — either party adds, ticks and deletes, and a done row is struck through **in place** rather than moved, so an accidental tick is easy to undo. Both use `chatRole`, so the everyone group has neither. The tab strip scrolls horizontally now: three tabs fit a phone and five do not |
 | `/signin` | students | sign in with an email address and a password, from anywhere |
 | `/login` | teacher | passkey register/authenticate |
-| `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages. **The everyone group is not drawn as a student on any of them** as of 2026-08-07: no row in Students, no chip on Pages. It keeps one pill in the three audience forms, labelled *All students* from the dictionary rather than from `Group.name` — see `lib/audience.ts`. The consequence is that the admin has no link to `/g/all`; shared pages are found under any student's chip, which `filterPagesByGroup` already widens for exactly that reason |
+| `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages. **The everyone group is not drawn as a student on any of them** as of 2026-08-07: no row in Students, no chip on Pages. It keeps one pill in the **two create** forms — `NewPageForm` and `AddLinkForm` — labelled *All students* from the dictionary rather than from `Group.name`; `PageEditor` withheld it as of 2026-08-07 and takes `studentAudienceOptions` instead, so sharing with the class is decided when a page is made and not afterwards. A page already assigned to that row **keeps the assignment through a save** and cannot be unshared from that form, which is why `hasAudienceSelection` compares against the pills on screen rather than counting ids — see `lib/audience.ts`. All three forms now refuse to submit with nobody ticked. The consequence is that the admin has no link to `/g/all`; shared pages are found under any student's chip, which `filterPagesByGroup` already widens for exactly that reason. The Pages tab's kind and sort rows sit behind the shelf's own `FilterDisclosure` now, but **the student chip row stays visible** — it also decides pin target and default audience — and it has **no *All* chip**: a chip is always active (`resolveChip`, `lib/admin-chip.ts`), because every page reaches at least one student |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe; a pdf row renders `PdfShell` over `PdfDocumentView` — pdf.js rasterises each page onto its own canvas in-site rather than redirecting out to the browser's own viewer, still never in an iframe |
 | `/p/[slug]/pdf` | public | the raw PDF bytes — `/p/[slug]`'s byte source and its fallback on a render failure |
 | `GET /p/[slug]/thumb` | public | a page's cached preview picture — a pdf's first page, or an html page's captured top |
@@ -74,9 +74,38 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 
 A card belongs to a date, and every student sees the same one: `getEffectiveCard`
 (`lib/cards.ts`) reads the `GlobalCard` row for that date and takes no student
-or group id at all. A date with no row resolves to `null` and the page says
-nothing was posted — it deliberately does **not** fall back to an earlier day,
-because that made the week picker lie.
+or group id at all. A date with no row resolves to `null`, and
+**`getEffectiveCard` itself still never falls back to an earlier day** — that
+fallback was removed on 2026-07-31 because it made the week picker lie, and
+resurrecting it inside the resolver would bring the lie back.
+
+What exists instead, as of 2026-08-07, is a **revision card**, composed one
+layer up in `app/g/[slug]/page.tsx` from `pickRevisionDate`
+(`lib/card-revision.ts`) plus a second `getEffectiveCard` call. Three things
+keep it from being the old fallback wearing a new name, and none may be relaxed
+alone:
+
+- **It applies to one date only** — `selected === latestStr`, the latest day a
+  student may open. A past date they navigated to still says nothing was
+  posted, which is what lets the calendar go on disabling those days honestly.
+  The old fallback's failure was the page and the picker disagreeing; widening
+  this to every empty day recreates it exactly.
+- **It is labelled.** Both card faces draw a *Révision* chip beside the date
+  (`cardRevisionChip`), and the card keeps its **own** date, not today's. A
+  student can therefore see which day it came from and go back to it.
+- **`cardDates` is not told about it.** Today still has no card, so the day dot
+  and the calendar cell stay disabled and the archive is unchanged.
+
+The pick is **stable and cycles oldest-first**: the index is the count of
+teaching days since the newest eligible card, modulo the archive length, so
+every card comes round before any repeats and a reload never swaps it. It is
+deliberately not random — a random pick differs between renders and reads as
+the page losing its place. Only cards **strictly before** the date are
+eligible, which is what stops a pre-posted card leaking through this door.
+
+Nothing is needed for "if Jenn posts one that day, show hers instead": the
+whole thing resolves at read time, so a real row makes `card` non-null and none
+of it runs.
 
 Per-student overrides used to exist — a `Card` model unique on `(groupId, date)`,
 a `pickEffectiveCard` resolution rule, and an `/admin/[slug]` route to edit one —
@@ -439,6 +468,36 @@ file first — each of these records a failure that already happened.**
   Anything that animates carries `motion-reduce:animate-none`, anything that
   transitions carries `motion-reduce:transition-none`, and there are no
   keyframes beyond the three in `app/globals.css`.
+- **Two things must animate: a popover opening, and a row joining a list.**
+  Neither is decoration. A panel that is simply *there* on the frame after a
+  press reads as a repaint rather than as something that opened, and a row that
+  appears in a list gives the reader nothing to follow from the field they
+  typed in to the place their work landed. Every overlay in the app obeys the
+  first — `AddSheet`, `AddMenu`, `ChatPanel`, `MonthCalendar`,
+  `LeaveBoardDialog`, `FlashcardViewer`, `BoardViewer` — and the shelf, the
+  deck and the to-do list obey the second. **Add the animation when you add the
+  surface or the list**; retrofitting it is what left four overlays without one
+  until 2026-08-07.
+
+  **Which tool depends on what is moving, and the split is not a preference.**
+  A pure entrance is CSS: reuse `panel-rise` (mobile) and `panel-pop` (desktop)
+  from `app/globals.css`, which is the pair `AddSheet` established, and take
+  `motion-reduce:animate-none` for free. Anything that needs to know *where an
+  element used to be* — a list re-flowing, a control sliding down because a row
+  was inserted above it — is framer-motion's `layout`, because no keyframe can
+  express a distance that is only known at runtime. Adding a fourth keyframe is
+  not the answer to that; it is the thing the rule above forbids.
+
+  **framer-motion does not read `prefers-reduced-motion` by itself.** The
+  `motion-reduce:` utilities are CSS and reach none of it, so every component
+  that uses `motion.*` calls `useReducedMotion` and zeroes its own duration.
+  A `motion.*` element with a hardcoded duration and no such hook is a bug,
+  not a style choice.
+
+  `AnimatePresence` takes `initial={false}` on any list rendered from the
+  server. Without it a tab switch replays an entrance for every row already
+  there, which says "twenty things just arrived" when nothing did — the point
+  is the *one* row the reader added.
 - **Imports** use the `@/` alias for repo-root-relative paths.
 - Server actions call `revalidatePath` for the page they affect. Deletes use
   `deleteMany` so a double-click or stale tab is a no-op rather than a P2025.

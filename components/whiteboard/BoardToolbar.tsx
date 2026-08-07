@@ -111,11 +111,20 @@ export function BoardToolbar({
   tool,
   colour,
   hasSelection,
-  // The selected text element's current size, or null when nothing selected
-  // is text. Gates the whole size group: there is nothing for A−/A+ to act
-  // on otherwise, and showing them disabled all the time would waste the
-  // toolbar's width on a control that is inert far more often than not.
+  // The size A−/A+ act on, or null when they would act on nothing — which
+  // gates the whole group, because showing them disabled all the time would
+  // waste the toolbar's width on a control that is inert far more often than
+  // not.
+  //
+  // It is the SELECTED text element's size when one is selected, and the size
+  // armed for the next one when the text tool is on. Until 2026-08-07 it was
+  // only the first, so the controls appeared after typing and never before —
+  // there was no way to choose a size and then write at it.
   textSize,
+  // Which of those two this is. Same split the colour swatches below make,
+  // and it changes the labels for the same reason: the button's effect is not
+  // the same act in the two states.
+  textSizeArmsNext,
   saving,
   onTool,
   onColour,
@@ -130,6 +139,7 @@ export function BoardToolbar({
   colour: Colour;
   hasSelection: boolean;
   textSize: number | null;
+  textSizeArmsNext: boolean;
   saving: boolean;
   onTool: (tool: Tool) => void;
   onColour: (colour: Colour) => void;
@@ -189,10 +199,32 @@ export function BoardToolbar({
         <>
           <Divider />
           <div className="flex items-center gap-0.5">
-            <SizeButton label="Réduire le texte" onClick={() => onStepTextSize(-1)}>
+            <SizeButton
+              label={
+                textSizeArmsNext ? "Réduire la taille du texte" : "Réduire le texte"
+              }
+              onClick={() => onStepTextSize(-1)}
+            >
               A−
             </SizeButton>
-            <SizeButton label="Agrandir le texte" onClick={() => onStepTextSize(1)}>
+            {/* The number, because arming a size is otherwise invisible: with
+                nothing selected these two buttons change a value that will not
+                appear until she has typed a word at it. The selected-element
+                case gets it for free and is no worse for it. aria-hidden — the
+                two buttons are the controls, and a screen reader reading a bare
+                "44" between them describes nothing. */}
+            <span
+              aria-hidden="true"
+              className="min-w-7 text-center font-[family-name:var(--card-font-mono)] text-xs text-[var(--card-moss)]"
+            >
+              {textSize}
+            </span>
+            <SizeButton
+              label={
+                textSizeArmsNext ? "Agrandir la taille du texte" : "Agrandir le texte"
+              }
+              onClick={() => onStepTextSize(1)}
+            >
               A+
             </SizeButton>
           </div>

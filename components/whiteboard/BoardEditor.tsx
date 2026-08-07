@@ -12,6 +12,7 @@ import {
   type Colour,
   type DrawOp,
   type Op,
+  type TextOp,
 } from "@/lib/whiteboard-ops";
 import { navigationTarget, shouldGuardNavigation } from "@/lib/leave-guard";
 import { LeaveBoardDialog } from "@/components/whiteboard/LeaveBoardDialog";
@@ -193,6 +194,13 @@ export function BoardEditor({
   const [eraserAt, setEraserAt] = useState<[number, number] | null>(null);
 
   const [selected, setSelected] = useState<string | null>(null);
+  // The size the NEXT text element opens at, armed by A−/A+ while nothing is
+  // selected. It was a hardcoded 44 in the open-text branch below, which meant
+  // the size controls could only ever act on text that already existed — she
+  // had to type a word, select it and resize it, every time. Exactly the shape
+  // `colour` beside it already had: one control, two behaviours, decided by
+  // whether something is selected.
+  const [nextTextSize, setNextTextSize] = useState(44);
   const [draft, setDraft] = useState<TextDraft | null>(null);
   // The surface's rect, captured when a draft opens rather than read during
   // render: TextLayer positions itself from it, and the element's geometry is
@@ -262,13 +270,30 @@ export function BoardEditor({
         return;
       }
       case "open-text": {
+        // A click that LANDS ON existing text edits it rather than stacking a
+        // second element on top of it. Until 2026-08-07 this branch always
+        // opened an empty draft, so the only way to correct a word with the
+        // text tool in hand was to switch to select, double-click, and switch
+        // back — and the obvious gesture instead wrote a new element over the
+        // old one, where it read as the text having been mangled.
+        //
+        // The test lives HERE and not in pointerDownIntent, which stays pure
+        // and keeps its tests: the intent is still "open a text editor", and
+        // *which* text is a question that needs `visible` and `measure`.
+        const existing = textUnder(x, y);
+        if (existing) {
+          openExistingText(existing, x, y);
+          return;
+        }
+
         setDraftBox(boxOf());
         setDraft({
           x,
           y,
           value: "",
           colour,
-          size: 44,
+          // The armed size, not a hardcoded 44 — see nextTextSize.
+          size: nextTextSize,
           bold: false,
           italic: false,
           underline: false,
@@ -434,21 +459,17 @@ export function BoardEditor({
     });
   }
 
-  // Double-click a text element to retype it. MouseEvent, not PointerEvent —
-  // that is what onDoubleClick provides. Select only: in pen mode a double
-  // click has already drawn two dots, and opening an editor over them is not
-  // what she asked for.
-  function handleDoubleClick(event: React.MouseEvent) {
-    if (tool !== "select") return;
-    const [x, y] = pointer(event);
-    const id = hitTest(visible, x, y, measure);
-    const target = visible.find((op) => op.id === id);
-    if (!target || target.kind !== "text") return;
-    setSelected(id);
+  // Reopens an existing text element for typing, with the caret where the
+  // click landed. TWO ways in now — a double-click in select mode, and a
+  // single click with the text tool on — so it is one function rather than two
+  // copies of a nine-field draft that would drift the first time one of them
+  // gained a field.
+  function openExistingText(target: TextOp, x: number, y: number) {
+    setSelected(target.id);
     setDraftBox(boxOf());
-    // Where inside the text the double-click actually landed, so reopening an
-    // element is a real edit — caret near the word she clicked — rather than
-    // always jumping to the end. See caretIndexInText's comment.
+    // Where inside the text the click actually landed, so reopening an element
+    // is a real edit — caret near the word she clicked — rather than always
+    // jumping to the end. See caretIndexInText's comment.
     const caret = caretIndexInText(
       target.text,
       target.size,
@@ -469,6 +490,27 @@ export function BoardEditor({
       editing: target.id,
       caret,
     });
+  }
+
+  // The text element under a point, or null. Shared by the double-click below
+  // and the text tool's own pointer-down, which must not stack a second
+  // element on top of one that is already there.
+  function textUnder(x: number, y: number): TextOp | null {
+    const id = hitTest(visible, x, y, measure);
+    const target = visible.find((op) => op.id === id);
+    return target && target.kind === "text" ? target : null;
+  }
+
+  // Double-click a text element to retype it. MouseEvent, not PointerEvent —
+  // that is what onDoubleClick provides. Select only: in pen mode a double
+  // click has already drawn two dots, and opening an editor over them is not
+  // what she asked for.
+  function handleDoubleClick(event: React.MouseEvent) {
+    if (tool !== "select") return;
+    const [x, y] = pointer(event);
+    const target = textUnder(x, y);
+    if (!target) return;
+    openExistingText(target, x, y);
   }
 
   // The popover's buttons and the textarea's own Cmd/Ctrl+B/I/U both call
@@ -747,7 +789,13 @@ export function BoardEditor({
         tool={tool}
         colour={colour}
         hasSelection={selected !== null}
-        textSize={selectedTextOp?.size ?? null}
+        // A selected text element's own size, or — with the text tool in hand
+        // and nothing selected — the size the next one will open at. Null in
+        // every other state, which is what hides the group.
+        textSize={
+          selectedTextOp?.size ?? (tool === "text" ? nextTextSize : null)
+        }
+        textSizeArmsNext={selectedTextOp === null}
         saving={saving}
         onTool={(next) => {
           setTool(next);
@@ -758,9 +806,17 @@ export function BoardEditor({
         onColour={handleColour}
         onUndo={undo}
         onClearPage={clearPage}
+        // With a text element selected this resizes it; with nothing selected
+        // it arms the next one. The same two-behaviours-one-control split
+        // handleColour makes, and for the same reason.
         onStepTextSize={(direction) => {
-          if (!selectedTextOp) return;
-          revise(selectedTextOp.id, { size: stepTextSize(selectedTextOp.size, direction) });
+          if (selectedTextOp) {
+            revise(selectedTextOp.id, {
+              size: stepTextSize(selectedTextOp.size, direction),
+            });
+            return;
+          }
+          setNextTextSize((current) => stepTextSize(current, direction));
         }}
         onAddPage={addPage}
         onSave={save}

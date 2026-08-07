@@ -15,7 +15,8 @@ import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { LinkInput } from "@/app/page-actions";
-import type { AudienceOption } from "@/lib/audience";
+import { hasAudienceSelection, type AudienceOption } from "@/lib/audience";
+import { AudienceRequiredNotice } from "@/components/admin/AudienceRequiredNotice";
 
 // Reached from the FAB on the Daily-card and Students tabs as well as Pages,
 // where there is no student chip to inherit from — so the audience has to be
@@ -49,6 +50,10 @@ export function AddLinkForm({
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // A link with no audience lands on nobody's shelf. See lib/audience.ts on
+  // why this compares against the drawn options rather than counting ids.
+  const hasAudience = hasAudienceSelection(groupIds, audience);
 
   // Adjusted during render rather than in an effect: this is state derived from
   // a prop, and react-hooks/set-state-in-effect rejects the effect form for
@@ -126,10 +131,18 @@ export function AddLinkForm({
           required
           className={cardFieldSkin}
         />
-        <Button type="submit" disabled={saving || url.trim() === ""}>
+        <Button
+          type="submit"
+          disabled={saving || url.trim() === "" || !hasAudience}
+        >
           {saving ? strings.common.adding : strings.admin.addLinkForm.addButton}
         </Button>
       </div>
+
+      <AudienceRequiredNotice
+        show={!hasAudience}
+        label={strings.admin.pageForm.pickAtLeastOne}
+      />
 
       {error && (
         <p role="alert" className={formErrorText}>

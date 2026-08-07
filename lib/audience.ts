@@ -43,6 +43,46 @@ export function audienceOptions(
   }));
 }
 
+// The EDIT form's pills, and only that form's. `audienceOptions` above still
+// carries the everyone row for the two create forms, so sharing one page with
+// the whole class is still a thing Jenn can do — she just does it when the page
+// is made, not afterwards.
+//
+// The consequence is stated plainly and was chosen knowingly: a page already
+// assigned to the everyone group shows NO pill for it here, and saving keeps
+// that assignment anyway, because `groupIds` starts from the stored list and
+// nothing in this form can remove an id it never drew. So an everyone-share
+// survives an edit and cannot be undone from this screen. The alternative —
+// dropping ids with no pill — would mean a save meant to fix a typo silently
+// pulled a page off every student's shelf, which is worse.
+//
+// That invisible id is also why `hasAudienceSelection` below compares against
+// the DRAWN options rather than counting `groupIds`: without that, a page
+// shared only with everyone would satisfy the "pick a student" rule while not
+// a single pill was lit, which reads as the form being broken.
+export function studentAudienceOptions(
+  groups: { id: string; name: string; isEveryone: boolean }[],
+): AudienceOption[] {
+  return visibleStudents(groups).map((group) => ({
+    id: group.id,
+    label: group.name,
+  }));
+}
+
+// Has she picked anybody? The three audience forms gate their submit on this.
+//
+// Against the OPTIONS ON SCREEN, not against `selected.length`. A selection
+// the form cannot show is a selection she cannot change, so counting it would
+// disable the message while leaving every pill grey — see the note above. It
+// also means a form rendering no options at all answers false, which is
+// correct: there is nobody to publish to yet.
+export function hasAudienceSelection(
+  selected: readonly string[],
+  options: readonly AudienceOption[],
+): boolean {
+  return options.some((option) => selected.includes(option.id));
+}
+
 // The Pages tab's student chips.
 //
 // Names, not rows, because that is the shape this list already has:

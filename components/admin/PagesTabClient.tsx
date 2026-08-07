@@ -4,6 +4,9 @@ import { PageList, type PageSummary } from "@/components/admin/PageList";
 import { PageEditOverlay } from "@/components/admin/PageEditOverlay";
 import { useAdminChip } from "@/components/admin/AdminChrome";
 import { defaultGroupId } from "@/lib/default-audience";
+import { resolveChip } from "@/lib/admin-chip";
+import { visibleGroupChips } from "@/lib/audience";
+import { pageGroupNames } from "@/lib/admin-search";
 import type { Locale } from "@/lib/i18n";
 
 type AdminPage = Omit<PageSummary, "pinnedAt"> & {
@@ -43,7 +46,17 @@ export function PagesTabClient({
   locale: Locale;
 }) {
   const { chip, setChip } = useAdminChip();
-  const activeGroupId = defaultGroupId(chip, groups);
+
+  // The chip row as PageList draws it. Derived HERE rather than inside it,
+  // because resolveChip has to answer against the same list — a resolved chip
+  // that was not in the row would light nothing and filter to nothing.
+  const groupNames = visibleGroupChips(pageGroupNames(pages), everyoneName);
+  // There is no "All" chip any more, so a chip is always active. See
+  // lib/admin-chip.ts on why this derives rather than writing state: `chip`
+  // belongs to AdminChrome, and setting a parent's state from a child's render
+  // is an error rather than a pattern.
+  const activeChip = resolveChip(chip, groupNames);
+  const activeGroupId = defaultGroupId(activeChip, groups);
   const activeGroup = groups.find((group) => group.id === activeGroupId) ?? null;
   // Defensive since 2026-08-07: `chip` is set only by PageList's chip row, and
   // visibleGroupChips no longer offers the everyone name, so this cannot be the
@@ -55,9 +68,11 @@ export function PagesTabClient({
   const activeGroupSlug =
     activeGroup && !activeGroup.isEveryone ? activeGroup.slug : null;
 
-  // Which pin applies depends on the chip. With "All" selected nothing is
-  // pinned, because "All" is not a shelf — so the Pinned section does not
-  // appear at all, which is correct rather than a missing feature.
+  // Which pin applies depends on the chip. A chip is always active now that
+  // "All" is gone, so the null branch below is only the no-pages-yet case —
+  // where PageList renders its empty state and nothing reads this at all. It
+  // used to be the "All" selection, which was not a shelf and therefore had no
+  // pins and no Pinned section.
   const withPins: PageSummary[] = pages.map(({ pins, ...page }) => ({
     ...page,
     pinnedAt: activeGroupId
@@ -70,8 +85,9 @@ export function PagesTabClient({
       <PageList
         pages={withPins}
         everyoneName={everyoneName}
-        group={chip}
+        group={activeChip}
         groupSlug={activeGroupSlug}
+        groupNames={groupNames}
         onGroup={setChip}
         canPin={activeGroupId !== null}
         onTogglePin={

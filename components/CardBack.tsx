@@ -15,6 +15,7 @@ import {
   cardHeaderRow,
   cardPanelBack,
   cardProse,
+  cardRevisionChip,
   cardSectionHeading,
   cardSubjectPill,
 } from "@/components/card-styles";
@@ -47,18 +48,30 @@ export function CardBack({
   card,
   strings,
   locale,
+  revision,
   className,
 }: {
   card: CardContent;
   strings: Strings;
   locale: Locale;
+  // See CardFront's own note. Both faces carry it, because a chip that
+  // vanished on the flip would say the card had stopped being revision
+  // halfway through reading it.
+  revision?: boolean;
   className?: string;
 }) {
   return (
     <div className={cn(cardPanelBack, className)}>
       <span className={accentBarClass} style={accentBarStyle} />
       <div className={cardHeaderRow}>
-        <span className={cardDateLabel}>{formatCardDate(card.date, locale)}</span>
+        <span className="flex items-baseline gap-2">
+          <span className={cardDateLabel}>
+            {formatCardDate(card.date, locale)}
+          </span>
+          {revision && (
+            <span className={cardRevisionChip}>{strings.common.card.revision}</span>
+          )}
+        </span>
         {card.subject && (
           <span className={cardSubjectPill}>
             <InlineMarkup text={card.subject} style={FIELD_STYLES.subject} />

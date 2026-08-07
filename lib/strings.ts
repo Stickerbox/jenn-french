@@ -63,6 +63,10 @@ export type Strings = {
       sayItInFrench: string;
       tapToReveal: string;
       answer: string;
+      // The chip on a card being shown again because Jenn posted nothing
+      // today. It is what keeps this from being the silent fallback that was
+      // removed on 2026-07-31 — see lib/card-revision.ts.
+      revision: string;
     };
   };
 
@@ -119,8 +123,11 @@ export type Strings = {
 
     files: {
       searchLabel: string;
-      // The disclosure that holds the two chip rows below.
-      filterBy: string;
+      // The disclosure that holds the two chip rows below. It had a `filterBy`
+      // caption ("Filtrer par :") until 2026-08-07, drawn beside the icon only
+      // while the panel was open — it named controls that were already there
+      // and labelled themselves, and being conditional it shifted the icon
+      // sideways on every press.
       filterToggle: string;
       filterActive: string;
       kindFilter: {
@@ -416,6 +423,10 @@ export type Strings = {
       // database must not change what this form says, and the word has to be
       // translated like every other word on the screen. See lib/audience.ts.
       allStudents: string;
+      // Under the submit button while no student is ticked. All three audience
+      // forms refuse to save without one, and a disabled button with no reason
+      // beside it reads as a broken form.
+      pickAtLeastOne: string;
     };
 
     // "Title" and "Preparing preview…" and "That PDF is larger than 3 MB." are
@@ -455,10 +466,6 @@ export type Strings = {
       replacePdfLabel: string;
       pdfReplaceInputLabel: string;
       pdfExistingHint: string;
-      replacePageLabel: string;
-      pastePromptReplace: string;
-      pasteAcceptedReplace: (size: string) => string;
-      pasteAriaLabelReplace: string;
       saved: string;
       deleteLabel: string;
       deleteError: string;
@@ -484,8 +491,11 @@ export type Strings = {
         created: string;
         modified: string;
       };
+      // The disclosure over the kind and sort rows. The student chip row
+      // below it is deliberately NOT inside it — see PageList.
+      filterToggle: string;
+      filterActive: string;
       filterByStudentAria: string;
-      allChip: string;
       addedByStudent: string;
       editAria: (title: string) => string;
       downloadAria: (title: string) => string;
@@ -685,6 +695,7 @@ const fr: Strings = {
       sayItInFrench: "Dites-le en français",
       tapToReveal: "touchez pour révéler la réponse",
       answer: "La réponse",
+      revision: "Révision",
     },
   },
 
@@ -736,7 +747,6 @@ const fr: Strings = {
 
     files: {
       searchLabel: "Chercher",
-      filterBy: "Filtrer par :",
       // A neutral noun, not an instruction to reveal: aria-expanded already
       // carries open/closed, and "Afficher les filtres, développé" read like
       // a contradiction to a screen reader.
@@ -1011,6 +1021,7 @@ const fr: Strings = {
       studentsLegend: "Élèves",
       noStudentsYet: "Pas encore d'élèves.",
       allStudents: "Tous les élèves",
+      pickAtLeastOne: "Choisissez au moins un élève.",
     },
 
     titleLabel: "Titre",
@@ -1049,11 +1060,6 @@ const fr: Strings = {
       replacePdfLabel: "Remplacer le PDF",
       pdfReplaceInputLabel: "PDF pour remplacer celui-ci",
       pdfExistingHint: "Un PDF est publié. Déposez-en un nouveau pour le remplacer.",
-      replacePageLabel: "Remplacer la page",
-      pastePromptReplace: "Collez le code HTML de la page ici (⌘V) pour la remplacer",
-      pasteAcceptedReplace: (size) =>
-        `Nouvelle version en attente — ${size}. Enregistrez pour la publier.`,
-      pasteAriaLabelReplace: "Code HTML pour remplacer cette page",
       saved: "Enregistré",
       deleteLabel: "Supprimer la page",
       deleteError: "La page n'a pas pu être supprimée",
@@ -1076,8 +1082,9 @@ const fr: Strings = {
         created: "Ajout",
         modified: "Modification",
       },
+      filterToggle: "Filtres",
+      filterActive: "Filtres actifs",
       filterByStudentAria: "Filtrer par élève",
-      allChip: "Tout",
       addedByStudent: "ajouté par l'élève",
       editAria: (title) => `Modifier ${title}`,
       downloadAria: (title) => `Télécharger ${title}`,
@@ -1239,6 +1246,7 @@ const en: Strings = {
       sayItInFrench: "Say it in French",
       tapToReveal: "tap to reveal the answer",
       answer: "The answer",
+      revision: "Revision",
     },
   },
 
@@ -1291,7 +1299,6 @@ const en: Strings = {
 
     files: {
       searchLabel: "Search",
-      filterBy: "Filter by:",
       // A neutral noun, not an instruction to reveal: aria-expanded already
       // carries open/closed, and "Show filters, expanded" read like a
       // contradiction to a screen reader.
@@ -1555,6 +1562,7 @@ const en: Strings = {
       studentsLegend: "Students",
       noStudentsYet: "No students yet.",
       allStudents: "All students",
+      pickAtLeastOne: "Choose at least one student.",
     },
 
     titleLabel: "Title",
@@ -1592,11 +1600,6 @@ const en: Strings = {
       replacePdfLabel: "Replace the PDF",
       pdfReplaceInputLabel: "PDF to replace this one with",
       pdfExistingHint: "A PDF is published. Drop a new one to replace it.",
-      replacePageLabel: "Replace the page",
-      pastePromptReplace: "Paste the page's HTML here (⌘V) to replace it",
-      pasteAcceptedReplace: (size) =>
-        `New version staged — ${size}. Save to publish it.`,
-      pasteAriaLabelReplace: "HTML to replace this page with",
       saved: "Saved",
       deleteLabel: "Delete page",
       deleteError: "Could not delete the page",
@@ -1619,8 +1622,9 @@ const en: Strings = {
         created: "Added",
         modified: "Modified",
       },
+      filterToggle: "Filters",
+      filterActive: "Filters active",
       filterByStudentAria: "Filter by student",
-      allChip: "All",
       addedByStudent: "added by student",
       editAria: (title) => `Edit ${title}`,
       downloadAria: (title) => `Download ${title}`,
