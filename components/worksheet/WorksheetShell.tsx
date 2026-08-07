@@ -7,6 +7,9 @@ import { WorksheetHeading } from "@/components/worksheet/WorksheetHeading";
 import { PrintButton } from "@/components/PrintButton";
 import { WORKSHEET_FRAME_ID } from "@/components/worksheet/frame";
 import { useWorksheetAutosave } from "@/components/worksheet/useWorksheetAutosave";
+import { sendState } from "@/lib/worksheet-send";
+import { SendVersionButton } from "@/components/worksheet/SendVersionButton";
+import { DeleteVersionButton } from "@/components/worksheet/DeleteVersionButton";
 import type { VersionSlot } from "@/lib/version-labels";
 
 // The full-screen sandboxed frame a student (or Jenn, correcting) fills in.
@@ -106,6 +109,13 @@ export function WorksheetShell({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty, writable]);
 
+  const send = sendState({ hasOwnVersion: ownExists, sent: announced, dirty });
+
+  // The student's own copy has come back inert. This is the case Recommencer
+  // exists for, and a disabled document with no explanation beside it reads as
+  // a broken page rather than a worksheet that cannot be re-typed.
+  const stuck = writable && ownExists && editable === false;
+
   return (
     <>
       <ShellBar
@@ -117,13 +127,23 @@ export function WorksheetShell({
           kind: "link",
         }}
         center={
-          <WorksheetHeading
-            slots={tabs}
-            slot={current}
-            audience={audience}
-            studentName={studentName}
-            title={title}
-          />
+          <div className="flex min-w-0 items-center gap-2">
+            <WorksheetHeading
+              slots={tabs}
+              slot={current}
+              audience={audience}
+              studentName={studentName}
+              title={title}
+            />
+            {!writable && (
+              // Says what the tab cannot: it still TYPES, because text fields
+              // are browser behaviour and stopping them would mean rewriting
+              // the served document. Nothing typed here is kept.
+              <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--card-line)] px-3 py-1 text-xs text-[var(--card-moss)]">
+                {audience === "teacher" ? "Read-only" : "Lecture seule"}
+              </span>
+            )}
+          </div>
         }
       />
       <iframe
@@ -148,12 +168,39 @@ export function WorksheetShell({
           A fixed horizontal offset is a guess about the longest string in any
           language; a column has no such guess to make. */}
       <div className="fixed bottom-5 right-5 z-10 flex flex-col items-end gap-2 print:hidden">
-        <PrintButton className="static" frameId={WORKSHEET_FRAME_ID} />
         {error && (
           <p className="max-w-xs rounded-lg bg-white px-3 py-2 text-sm text-[var(--card-rouge)] shadow-[var(--card-shadow)]">
             {error}
           </p>
         )}
+        {stuck && (
+          <p className="max-w-xs rounded-lg bg-white px-3 py-2 text-sm text-[var(--card-moss)] shadow-[var(--card-shadow)]">
+            {audience === "teacher"
+              ? "This document can't be typed in any more. Delete it to start again."
+              : "On ne peut plus écrire dans cette copie. Recommence pour la refaire."}
+          </p>
+        )}
+        <PrintButton className="static" frameId={WORKSHEET_FRAME_ID} />
+        {/* Both follow the caller's OWN row, never the tab that is open. Jenn
+            reading Marie's attempt on a read-only tab still gets a live Send
+            if her correction is unannounced, and still gets the delete that
+            unlocks the tab she is standing on. */}
+        {ownExists && (
+          <DeleteVersionButton
+            groupSlug={groupSlug}
+            pageSlug={pageSlug}
+            audience={audience}
+          />
+        )}
+        <SendVersionButton
+          groupSlug={groupSlug}
+          pageSlug={pageSlug}
+          audience={audience}
+          studentName={studentName}
+          state={send}
+          flush={flush}
+          onSent={() => setAnnounced(true)}
+        />
       </div>
     </>
   );

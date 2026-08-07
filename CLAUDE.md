@@ -302,6 +302,9 @@ file first — each of these records a failure that already happened.**
 - **A student never saves from Jenn's correction** (`canSaveFromSlot`). A save
   writes the caller's own slot from whatever view called it, so it would file her
   marks as their attempt and lose what they handed in.
+- **`canSaveFromSlot` and `isWritableSlot` are two rules, not one.** The first
+  governs PDF uploads, the second html auto-save. They disagree about Jenn on
+  purpose, because a press and a ten-second timer are not the same act.
 - **`snapshotDocument` stays self-contained ES5** — no imports, no closure over
   module scope. It is the bundled output, inlined into the page via `toString()`.
 - **Brotli and bcrypt through the async API only.** One pm2 fork process serves
