@@ -7,6 +7,36 @@ import {
   type DrawOp,
 } from "@/lib/whiteboard-ops";
 
+// The exact CSS font shorthand used to both DRAW text (here) and MEASURE it
+// (BoardEditor's hit-test measurer, in lib/whiteboard-hit.ts's Measure). Style
+// before weight before size/family is the shorthand grammar — an out-of-order
+// string is not an error, canvas just silently ignores the whole thing and
+// falls back to its default font, so a hit box would go on being computed
+// against Georgia at the default weight while the drawn text turned bold and
+// visibly wider. One function rather than two copies of this recipe is what
+// keeps them from drifting apart the way TextLayer's font already has to be
+// kept in step with this one by hand (see the comment there).
+export function textFont(
+  size: number,
+  style?: { bold?: boolean; italic?: boolean },
+): string {
+  const parts: string[] = [];
+  if (style?.italic) parts.push("italic");
+  if (style?.bold) parts.push("bold");
+  parts.push(`${size}px`);
+  return `${parts.join(" ")} Georgia, "Times New Roman", serif`;
+}
+
+// A line's underline thickness and vertical offset, as fractions of the font
+// size rather than fixed pixels — the A-/A+ ladder changes `size` by up to
+// 3.4x between its smallest and largest rung, and a hardcoded pixel offset
+// would sit visibly wrong at either end of it. 0.85 approximates Georgia's
+// baseline as a fraction of the em box below the "top" baseline drawOps
+// already renders at; there is no canvas API to ask a loaded font for its
+// real metrics.
+const UNDERLINE_OFFSET_RATIO = 0.85;
+const UNDERLINE_THICKNESS_RATIO = 0.06;
+
 // Drawing is factored out of the component so the export can call it against
 // an offscreen canvas at a different scale. Ops are in the fixed 1600x1000
 // logical space, so every caller sets its own transform and then draws
@@ -64,10 +94,29 @@ export function drawOps(
     }
 
     // Georgia to match the flashcard's serif, since the board sits beside one.
-    context.font = `${op.size}px Georgia, "Times New Roman", serif`;
+    context.font = textFont(op.size, { bold: op.bold, italic: op.italic });
     context.textBaseline = "top";
     op.text.split("\n").forEach((line, index) => {
-      context.fillText(line, op.x, op.y + index * op.size * 1.25);
+      const lineY = op.y + index * op.size * 1.25;
+      context.fillText(line, op.x, lineY);
+
+      // Canvas has no underline primitive — the closest thing, strokeText,
+      // still only outlines glyphs. So this draws the rule by hand: one
+      // stroke per rendered line, since a multi-line text op already commits
+      // to one segment per "\n" for fillText above, and an underline that
+      // spanned every line as a single stroke would run under the gaps
+      // between them too.
+      if (op.underline && line.length > 0) {
+        const width = context.measureText(line).width;
+        const underlineY = lineY + op.size * UNDERLINE_OFFSET_RATIO;
+        context.save();
+        context.lineWidth = Math.max(1, op.size * UNDERLINE_THICKNESS_RATIO);
+        context.beginPath();
+        context.moveTo(op.x, underlineY);
+        context.lineTo(op.x + width, underlineY);
+        context.stroke();
+        context.restore();
+      }
     });
   }
 }

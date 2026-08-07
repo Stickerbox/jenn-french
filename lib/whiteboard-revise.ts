@@ -11,6 +11,9 @@ export type Revision = {
   colour?: Colour;
   text?: string;
   size?: number;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
 };
 
 // Every edit in the editor funnels through here. The log is append-only, so a
@@ -48,6 +51,12 @@ export function reviseOp(
         colour,
         text: change.text ?? op.text,
         size: change.size ?? op.size,
+        // `??`, not `||` — a deliberate toggle to false must survive. `||`
+        // would read a false change as "not given" and fall back to the old
+        // value, so unbolding a bold element would do nothing.
+        bold: change.bold ?? op.bold,
+        italic: change.italic ?? op.italic,
+        underline: change.underline ?? op.underline,
       },
     ];
   }

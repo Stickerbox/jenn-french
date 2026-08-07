@@ -66,7 +66,45 @@ its first letter.
 
 Text is typed inline through `TextLayer`, a transparent `<textarea>` positioned
 over the canvas. Its font family, size and 1.25 line height must stay in step
-with what `drawOps` renders, or committing makes the text visibly jump.
+with what `drawOps` renders, or committing makes the text visibly jump — and
+since 2026-08-06 that includes **weight, slant and underline**.
+
+A text op carries optional `bold`, `italic` and `underline`. **Optional is
+load-bearing**: boards already saved hold text ops without them, and `readOps`
+discards anything malformed, so a required field would have made every existing
+text element silently vanish from every stored board. A bad value on one flag
+drops that flag alone rather than the op — a corrupted `bold` must not cost real
+typed text. `textFont` builds the canvas shorthand once for both `drawOps` and
+the hit-test measurer, and **underline has no canvas primitive**, so it is a
+stroked line per rendered line, offset and thickness derived from the size
+rather than hardcoded.
+
+Bold changes advance widths, so `Measure` now carries the style: an element
+measured as plain text gets a hit box and a selection outline narrower than
+what is drawn. Formatting applies to the whole element, not a character range —
+a range would need a rich-text model this codebase does not have.
+
+**The B/I/U popover must never take focus.** BoardEditor commits an open draft
+when the textarea blurs — the trap `pointerDownIntent` already documents from
+the other side — so every control in it calls `preventDefault()` on
+*pointerdown*, not on click. A button that took focus would commit the draft
+mid-word, every time. Cmd/Ctrl+B/I/U do the same thing from the keyboard and
+must `preventDefault()` so the browser's own bold does not fire.
+
+**The eraser erases along the path, not at the event.** A fast drag delivers
+pointermove events tens of logical units apart, so testing only those positions
+lets an element sitting between two of them survive untouched;
+`lib/whiteboard-erase.ts` walks the segment at `ERASE_STEP` and hit-tests each
+sample, with the step chosen against `hitTest`'s own `TOLERANCE` so no gap can
+open between samples. A gesture keeps a set of what it has already taken, so a
+`remove` naming the same id twice never ships. Removes are appended DURING the
+drag rather than batched at the end, so a watching student sees the board
+cleaned as it happens; `flushSoon` already coalesces a 150ms window, so it costs
+no extra traffic. The cost that bought is that a sweep is many ops where a click
+was one, which made Undo give back a single dab — `undoLength` closes that by
+taking the whole sweep back while it is still the last thing in the log, and
+falling back to popping one op the moment anything else is drawn, because then
+the reader's last action was that other thing.
 
 A live board is an in-memory record in `lib/whiteboard-live.ts`, keyed by group
 id and held on `globalThis` like `lib/prisma.ts` and `lib/chat-bus.ts`. **It

@@ -94,6 +94,34 @@ describe("reviseOp", () => {
     const [, next] = reviseOp(text, {}, "n");
     expect(next).toMatchObject({ x: 100, y: 200, text: "bonjour", size: 44 });
   });
+
+  it("applies bold, italic and underline to a text op", () => {
+    const [, next] = reviseOp(text, { bold: true, italic: true, underline: true }, "n");
+    expect(next).toMatchObject({ bold: true, italic: true, underline: true });
+  });
+
+  // `??`, not `||`: an explicit false must turn a style OFF. `||` would treat
+  // false as "no change requested" and the toolbar's toggle would get stuck on.
+  it("turns a style off with an explicit false, not just leaving it unset", () => {
+    const bold: DrawOp = { ...text, bold: true };
+    const [, next] = reviseOp(bold, { bold: false }, "n");
+    expect(next).toMatchObject({ bold: false });
+  });
+
+  it("preserves style fields that are not part of the revision", () => {
+    const styled: DrawOp = { ...text, bold: true, underline: true };
+    const [, next] = reviseOp(styled, { dx: 5 }, "n");
+    expect(next).toMatchObject({ bold: true, underline: true });
+  });
+
+  // A stroke has no style either, and silently growing one onto it would
+  // produce an op readOps then discards for its own shape reasons — but
+  // reviseOp itself should not even try.
+  it("ignores style changes on a non-text op", () => {
+    const [, next] = reviseOp(stroke, { bold: true, underline: true }, "n");
+    expect(next).not.toHaveProperty("bold");
+    expect(next).not.toHaveProperty("underline");
+  });
 });
 
 describe("stepTextSize", () => {

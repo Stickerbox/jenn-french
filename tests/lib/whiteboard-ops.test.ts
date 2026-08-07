@@ -75,6 +75,63 @@ describe("readOps", () => {
       readOps([{ id: "t", page: 0, kind: "text", x: 0, y: 0, text: "", colour: PALETTE[0], size: 32 }]),
     ).toEqual([]);
   });
+
+  // A board saved before bold/italic/underline existed has text ops with none
+  // of these fields. A required field here would make readOps' discard-on-
+  // malformed contract silently erase every one of them.
+  it("reads an old-shaped text op with no style fields", () => {
+    const op = { id: "t", page: 0, kind: "text", x: 0, y: 0, text: "bonjour", colour: PALETTE[0], size: 32 };
+    const [read] = readOps([op]);
+    expect(read).toMatchObject({ text: "bonjour" });
+    expect(read).not.toHaveProperty("bold");
+    expect(read).not.toHaveProperty("italic");
+    expect(read).not.toHaveProperty("underline");
+  });
+
+  it("reads a text op carrying bold, italic and underline", () => {
+    const op = {
+      id: "t",
+      page: 0,
+      kind: "text",
+      x: 0,
+      y: 0,
+      text: "bonjour",
+      colour: PALETTE[0],
+      size: 32,
+      bold: true,
+      italic: false,
+      underline: true,
+    };
+    expect(readOps([op])).toEqual([op]);
+  });
+
+  // The case that decides how a bad value behaves: it must not become `true`,
+  // which a naive `Boolean(value)` coercion would do for any non-empty
+  // string. The text itself must still come through — see the comment on
+  // readOp's text case for why a corrupted style flag does not cost it.
+  it("does not coerce a non-boolean style value to true", () => {
+    const op = {
+      id: "t",
+      page: 0,
+      kind: "text",
+      x: 0,
+      y: 0,
+      text: "bonjour",
+      colour: PALETTE[0],
+      size: 32,
+      bold: "yes",
+      italic: 1,
+      underline: null,
+    };
+    const [read] = readOps([op]);
+    expect(read).toMatchObject({ text: "bonjour" });
+    expect(read?.kind).toBe("text");
+    if (read?.kind === "text") {
+      expect(read.bold).not.toBe(true);
+      expect(read.italic).not.toBe(true);
+      expect(read.underline).not.toBe(true);
+    }
+  });
 });
 
 // foldPage is the primitive: it folds ONE page's log and ignores page numbers,
@@ -188,6 +245,28 @@ describe("normaliseOps", () => {
       { id: "t", page: 0, kind: "text", x: 0, y: 0, text: " bonjour ", colour: PALETTE[3], size: 32 },
     ]);
     expect(ops[0]).toMatchObject({ id: "t", text: " bonjour ", colour: PALETTE[3] });
+  });
+
+  // normaliseOps' text branch spreads the op before overriding x and y, so
+  // bold/italic/underline ride along for free — this pins that rather than
+  // trusting the spread never grows a narrower destructure later.
+  it("carries bold, italic and underline through unchanged", () => {
+    const ops = normaliseOps([
+      {
+        id: "t",
+        page: 0,
+        kind: "text",
+        x: 1.4,
+        y: 2.6,
+        text: "bonjour",
+        colour: PALETTE[0],
+        size: 32,
+        bold: true,
+        italic: false,
+        underline: true,
+      },
+    ]);
+    expect(ops[0]).toMatchObject({ bold: true, italic: false, underline: true });
   });
 });
 

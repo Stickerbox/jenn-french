@@ -15,16 +15,29 @@ import {
 } from "@/lib/whiteboard-ops";
 import { navigationTarget, shouldGuardNavigation } from "@/lib/leave-guard";
 import { LeaveBoardDialog } from "@/components/whiteboard/LeaveBoardDialog";
-import { hitTest, opBounds } from "@/lib/whiteboard-hit";
+import {
+  caretIndexInText,
+  hitTest,
+  opBounds,
+  TOLERANCE,
+  type TextMeasureStyle,
+} from "@/lib/whiteboard-hit";
+import {
+  ERASE_STEP,
+  idsAlongErasePath,
+  undoLength,
+} from "@/lib/whiteboard-erase";
 import { toLogical, type Box } from "@/lib/whiteboard-geometry";
 import { reviseOp, stepTextSize, type Revision } from "@/lib/whiteboard-revise";
 import { pointerDownIntent } from "@/lib/whiteboard-tools";
 import { BoardToolbar, type Tool } from "@/components/whiteboard/BoardToolbar";
 import { TextLayer, type TextDraft } from "@/components/whiteboard/TextLayer";
+import { TextStylePopover } from "@/components/whiteboard/TextStylePopover";
 import {
   BOARD_PAPER,
   BoardCanvas,
   drawOps,
+  textFont,
 } from "@/components/whiteboard/BoardCanvas";
 
 const THUMBNAIL_WIDTH = 320;
@@ -35,12 +48,15 @@ const THUMBNAIL_WIDTH = 320;
 // measuring cache is not component state, so holding it in a ref would mean
 // reading a ref during render to draw the selection outline.
 let scratch: CanvasRenderingContext2D | null = null;
-function measure(text: string, size: number): number {
+function measure(text: string, size: number, style?: TextMeasureStyle): number {
   if (!scratch) {
     scratch = document.createElement("canvas").getContext("2d");
   }
   if (!scratch) return text.length * size * 0.5; // rough, but never NaN
-  scratch.font = `${size}px Georgia, "Times New Roman", serif`;
+  // textFont, not a hand-rolled string here: a bold element's hit box has to
+  // widen by the SAME amount drawOps actually draws it wider by, and the only
+  // way to guarantee that is one function building the font string for both.
+  scratch.font = textFont(size, style);
   const context = scratch;
   return Math.max(
     ...text.split("\n").map((line) => context.measureText(line).width),
@@ -159,6 +175,23 @@ export function BoardEditor({
   const drawing = useRef<number[] | null>(null);
   const [preview, setPreview] = useState<number[] | null>(null);
 
+  // The eraser's own drag state. `erasing` is the last point sampled — set on
+  // pointer-down, advanced on every pointer-move, cleared on pointer-up — so
+  // each move only has to walk the segment since the last one. `erased` is
+  // every id this gesture has removed so far, so a path that loops back over
+  // itself does not send a second remove naming an id that is already gone.
+  // Neither is component state: they change on every pointer-move and a
+  // render does not need to know their value directly, only the ops it caused.
+  const erasing = useRef<[number, number] | null>(null);
+  const erased = useRef<Set<string>>(new Set());
+  // Where the current erase drag started in the log, and where it ended, so
+  // one press of Undo answers one sweep rather than one dab of it. Read only
+  // in handlers, never during render — `react-hooks/refs` forbids the latter.
+  const eraseGesture = useRef<{ start: number; end: number } | null>(null);
+  // Purely visual — where to draw the "what this will take" circle. Null
+  // hides it, including whenever the pointer is not over the surface at all.
+  const [eraserAt, setEraserAt] = useState<[number, number] | null>(null);
+
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<TextDraft | null>(null);
   // The surface's rect, captured when a draft opens rather than read during
@@ -230,12 +263,36 @@ export function BoardEditor({
       }
       case "open-text": {
         setDraftBox(boxOf());
-        setDraft({ x, y, value: "", colour, size: 44, editing: null });
+        setDraft({
+          x,
+          y,
+          value: "",
+          colour,
+          size: 44,
+          bold: false,
+          italic: false,
+          underline: false,
+          editing: null,
+          // Nothing to be "near" in an empty box — see TextDraft's comment.
+          caret: null,
+        });
         return;
       }
       case "erase": {
-        const id = hitTest(visible, x, y, measure);
-        if (id) append({ id: nextId(), page, kind: "remove", targets: [id] });
+        // A fresh gesture: nothing erased yet, and the first sample is this
+        // point against itself — erasePath's zero-length case — so a click
+        // with no drag still erases exactly what it lands on.
+        erased.current = new Set();
+        erasing.current = [x, y];
+        // Opened here and closed on every append below, so Undo can treat the
+        // whole sweep as the one action the reader performed.
+        eraseGesture.current = { start: ops.length, end: ops.length };
+        const found = idsAlongErasePath(visible, [x, y], [x, y], ERASE_STEP, measure, erased.current);
+        if (found.length > 0) {
+          for (const id of found) erased.current.add(id);
+          append({ id: nextId(), page, kind: "remove", targets: found });
+          if (eraseGesture.current) eraseGesture.current.end = ops.length + 1;
+        }
         return;
       }
       case "start-stroke": {
@@ -251,6 +308,40 @@ export function BoardEditor({
       if (!dragFrom.current) return;
       const [x, y] = pointer(event);
       setDragBy([x - dragFrom.current[0], y - dragFrom.current[1]]);
+      return;
+    }
+
+    if (tool === "eraser") {
+      const [x, y] = pointer(event);
+      setEraserAt([x, y]);
+      if (!erasing.current) return; // hovering, not dragging
+
+      // Walk from where the last move (or the pointer-down) left off, not
+      // from wherever this event landed — a fast drag delivers events tens of
+      // logical units apart, and testing only the endpoints would let an
+      // element sitting between two of them survive untouched.
+      const found = idsAlongErasePath(
+        visible,
+        erasing.current,
+        [x, y],
+        ERASE_STEP,
+        measure,
+        erased.current,
+      );
+      erasing.current = [x, y];
+      if (found.length === 0) return;
+
+      for (const id of found) erased.current.add(id);
+      // The sweep grows by one op, and Undo tracks its far end so a single
+      // press answers the whole gesture — see undoLength.
+      if (eraseGesture.current) eraseGesture.current.end = ops.length + 1;
+      // Appended now, not batched to pointer-up: the live viewer should see
+      // the board being cleaned as the gesture happens, the same as a stroke
+      // growing under her cursor. flushSoon (above, triggered by the ops/page
+      // effect) already coalesces everything appended within a 150ms window
+      // into one request, so this costs no more traffic than emitting at the
+      // end would.
+      append({ id: nextId(), page, kind: "remove", targets: found });
       return;
     }
 
@@ -297,6 +388,14 @@ export function BoardEditor({
       if (selected && offset && (Math.abs(offset[0]) > 2 || Math.abs(offset[1]) > 2)) {
         revise(selected, { dx: offset[0], dy: offset[1] });
       }
+      return;
+    }
+
+    if (tool === "eraser") {
+      // The gesture is over; the next pointer-down starts a new one with its
+      // own fresh `erased` set. Leaving these set would make the NEXT drag's
+      // first segment think it started from wherever this one ended.
+      erasing.current = null;
       return;
     }
 
@@ -347,20 +446,43 @@ export function BoardEditor({
     if (!target || target.kind !== "text") return;
     setSelected(id);
     setDraftBox(boxOf());
+    // Where inside the text the double-click actually landed, so reopening an
+    // element is a real edit — caret near the word she clicked — rather than
+    // always jumping to the end. See caretIndexInText's comment.
+    const caret = caretIndexInText(
+      target.text,
+      target.size,
+      { bold: target.bold, italic: target.italic },
+      x - target.x,
+      y - target.y,
+      measure,
+    );
     setDraft({
       x: target.x,
       y: target.y,
       value: target.text,
       colour: target.colour,
       size: target.size,
+      bold: Boolean(target.bold),
+      italic: Boolean(target.italic),
+      underline: Boolean(target.underline),
       editing: target.id,
+      caret,
     });
+  }
+
+  // The popover's buttons and the textarea's own Cmd/Ctrl+B/I/U both call
+  // this. It only ever touches the open draft's state — never focus — which
+  // is what lets both paths leave the textarea's caret and selection alone.
+  function toggleDraftStyle(style: "bold" | "italic" | "underline") {
+    setDraft((current) => (current ? { ...current, [style]: !current[style] } : current));
   }
 
   function commitDraft() {
     if (!draft) return;
     const value = draft.value.trim();
     const editing = draft.editing;
+    const { bold, italic, underline } = draft;
     setDraft(null);
 
     if (value.length === 0) {
@@ -372,7 +494,7 @@ export function BoardEditor({
     }
 
     if (editing) {
-      revise(editing, { text: value });
+      revise(editing, { text: value, bold, italic, underline });
       return;
     }
 
@@ -386,6 +508,9 @@ export function BoardEditor({
       text: value,
       colour: draft.colour,
       size: draft.size,
+      bold,
+      italic,
+      underline,
     });
     setSelected(id);
   }
@@ -402,7 +527,13 @@ export function BoardEditor({
   }
 
   function undo() {
-    setOps((current) => current.slice(0, -1));
+    setOps((current) => {
+      const next = current.slice(0, undoLength(current.length, eraseGesture.current));
+      // Spent. Pressing Undo twice must not take the same sweep back a second
+      // time and eat whatever came before it.
+      eraseGesture.current = null;
+      return next;
+    });
   }
 
   function clearPage() {
@@ -601,13 +732,23 @@ export function BoardEditor({
 
   const selectedOp = selected ? visible.find((op) => op.id === selected) : undefined;
   const selectedBounds = selectedOp ? opBounds(selectedOp, measure) : null;
+  // Narrowed once here rather than at each of the toolbar's two call sites
+  // (the size prop and the step handler), so both agree by construction about
+  // what "a text element is selected" means.
+  const selectedTextOp = selectedOp?.kind === "text" ? selectedOp : null;
 
   return (
-    <div className="mx-auto w-full max-w-[1100px]">
+    // The floating card: --card-paper against the page's own ground, with
+    // --card-shadow lifting it off — "Google Docs" here means the board reads
+    // as a surface sitting ON the page, not flush with it. Both are existing
+    // flashcard tokens; nothing new was added to app/globals.css for this.
+    <div className="mx-auto w-full max-w-[1100px] rounded-2xl border border-[var(--card-line)] bg-[var(--card-paper)] p-3 shadow-[var(--card-shadow)] sm:p-5">
       <BoardToolbar
         tool={tool}
         colour={colour}
         hasSelection={selected !== null}
+        textSize={selectedTextOp?.size ?? null}
+        saving={saving}
         onTool={(next) => {
           setTool(next);
           // Leaving select mode drops the selection, so its outline and size
@@ -617,6 +758,16 @@ export function BoardEditor({
         onColour={handleColour}
         onUndo={undo}
         onClearPage={clearPage}
+        onStepTextSize={(direction) => {
+          if (!selectedTextOp) return;
+          revise(selectedTextOp.id, { size: stepTextSize(selectedTextOp.size, direction) });
+        }}
+        onAddPage={addPage}
+        onSave={save}
+        onDiscard={() => {
+          discard();
+          onCancel();
+        }}
       />
 
       <div
@@ -625,12 +776,24 @@ export function BoardEditor({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        // Purely cosmetic: hides the "what this will take" circle once the
+        // pointer is no longer over the surface, so it does not appear to
+        // linger over a stale spot. Erasing itself does not depend on this —
+        // pointer capture keeps handlePointerMove firing regardless.
+        onPointerLeave={() => setEraserAt(null)}
         onDoubleClick={handleDoubleClick}
         // Without this a drag on a touch screen scrolls the page instead of
         // drawing, and the stroke is lost.
         style={{ touchAction: "none", aspectRatio: `${BOARD_WIDTH} / ${BOARD_HEIGHT}` }}
         className={`relative w-full overflow-hidden rounded-xl border border-[var(--card-line)] bg-[var(--card-paper-back)] ${
-          tool === "select" ? "cursor-default" : "cursor-crosshair"
+          tool === "select"
+            ? "cursor-default"
+            : // The eraser draws its own circle below in place of a system
+              // cursor — this is the one tool with no other trace of what it
+              // is about to do, and a crosshair would say nothing about reach.
+              tool === "eraser"
+              ? "cursor-none"
+              : "cursor-crosshair"
         }`}
       >
         <BoardCanvas
@@ -676,6 +839,27 @@ export function BoardEditor({
             ]}
           />
         )}
+        {tool === "eraser" && eraserAt && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: `${(eraserAt[0] / BOARD_WIDTH) * 100}%`,
+              top: `${(eraserAt[1] / BOARD_HEIGHT) * 100}%`,
+              // Percentages of BOARD_WIDTH and BOARD_HEIGHT separately, the
+              // same trick selectedBounds below uses — the surface's own
+              // aspect-ratio CSS keeps those two scale factors equal, which
+              // is what keeps this a circle rather than an ellipse.
+              width: `${((TOLERANCE * 2) / BOARD_WIDTH) * 100}%`,
+              height: `${((TOLERANCE * 2) / BOARD_HEIGHT) * 100}%`,
+              transform: "translate(-50%, -50%)",
+              borderRadius: "9999px",
+              border: "2px solid var(--card-ink)",
+              background: "rgb(31 42 46 / 0.08)",
+              pointerEvents: "none",
+            }}
+          />
+        )}
         {selectedBounds && (
           <div
             aria-hidden="true"
@@ -694,13 +878,19 @@ export function BoardEditor({
           />
         )}
         {draft && draftBox && (
-          <TextLayer
-            draft={draft}
-            box={draftBox}
-            onChange={(value) => setDraft({ ...draft, value })}
-            onCommit={commitDraft}
-            onCancel={() => setDraft(null)}
-          />
+          <>
+            <TextLayer
+              draft={draft}
+              box={draftBox}
+              onChange={(value) => setDraft({ ...draft, value })}
+              onCommit={commitDraft}
+              onCancel={() => setDraft(null)}
+              onToggleStyle={toggleDraftStyle}
+            />
+            {/* Renders only while a draft is open — there is nothing for it
+                to apply to otherwise. */}
+            <TextStylePopover draft={draft} box={draftBox} onToggle={toggleDraftStyle} />
+          </>
         )}
       </div>
 
@@ -715,36 +905,6 @@ export function BoardEditor({
           <button type="button" onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={page === pageCount - 1} className="rounded-full border border-[var(--card-line)] px-3 py-1 disabled:opacity-40">
             ›
           </button>
-          <button type="button" onClick={addPage} className="rounded-full border border-[var(--card-line)] px-3 py-1">
-            + Page
-          </button>
-
-          {selectedOp?.kind === "text" && (
-            <span className="flex items-center gap-1">
-              <button
-                type="button"
-                aria-label="Réduire le texte"
-                title="Réduire le texte"
-                onClick={() =>
-                  revise(selectedOp.id, { size: stepTextSize(selectedOp.size, -1) })
-                }
-                className="rounded-full border border-[var(--card-line)] px-3 py-1 text-xs"
-              >
-                A−
-              </button>
-              <button
-                type="button"
-                aria-label="Agrandir le texte"
-                title="Agrandir le texte"
-                onClick={() =>
-                  revise(selectedOp.id, { size: stepTextSize(selectedOp.size, 1) })
-                }
-                className="rounded-full border border-[var(--card-line)] px-3 py-1 text-sm"
-              >
-                A+
-              </button>
-            </span>
-          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -755,19 +915,6 @@ export function BoardEditor({
               l&apos;enregistrement.
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              discard();
-              onCancel();
-            }}
-            className="rounded-full border border-[var(--card-line)] px-4 py-2 text-sm"
-          >
-            Annuler
-          </button>
-          <button type="button" onClick={save} disabled={saving} className="rounded-full bg-[var(--card-bleu)] px-5 py-2 text-sm text-white disabled:opacity-50">
-            {saving ? "Enregistrement…" : "Terminé"}
-          </button>
         </div>
       </div>
 

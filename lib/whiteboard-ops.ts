@@ -40,6 +40,18 @@ export type TextOp = {
   text: string;
   colour: Colour;
   size: number;
+  // Three flat optional booleans, not a nested `style: {...}` object — colour
+  // and size, the two attributes already on this op, are flat fields too, and
+  // a nested object would need its own reader instead of falling out of the
+  // same shape every other field here already uses. Optional, and NOT
+  // `bold: boolean`, because a required field fails readOp's shape check on
+  // every text op saved before this existed, which readOps then silently
+  // drops — the same trap the rest of this file's comments warn about for
+  // readSections and readPageKind. Absent means "off", the same as it always
+  // rendered.
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
 };
 
 export type ArrowOp = {
@@ -112,11 +124,23 @@ function readOp(value: unknown): Op | null {
     }
 
     case "text": {
-      const { x, y, text, colour, size } = op;
+      const { x, y, text, colour, size, bold, italic, underline } = op;
       if (typeof text !== "string" || text.length === 0) return null;
       if (!isNumber(x) || !isNumber(y) || !isNumber(size)) return null;
       if (!isColour(colour)) return null;
-      return { id: op.id, page: op.page, kind: "text", x, y, text, colour, size };
+      const result: TextOp = { id: op.id, page: op.page, kind: "text", x, y, text, colour, size };
+      // Each flag is read independently and simply OMITTED on a bad value,
+      // rather than failing the whole op the way a bad x or colour does. A
+      // corrupted `bold` must not cost the text itself — the same
+      // degrade-rather-than-discard contract readPageKind and the asset
+      // fetcher already carry for a field that is nice-to-have, not
+      // load-bearing for rendering anything at all. A non-boolean (a stray
+      // string, a 1, a null) is therefore never coerced to true; it reads as
+      // absent, i.e. false.
+      if (typeof bold === "boolean") result.bold = bold;
+      if (typeof italic === "boolean") result.italic = italic;
+      if (typeof underline === "boolean") result.underline = underline;
+      return result;
     }
 
     case "arrow": {

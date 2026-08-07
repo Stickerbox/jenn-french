@@ -10,9 +10,20 @@ export type TextDraft = {
   value: string;
   colour: Colour;
   size: number;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
   // Set when re-editing an existing op, so the commit knows to revise rather
   // than to append.
   editing: string | null;
+  // Where to place the caret on mount, in characters into `value`. Null for a
+  // freshly-opened empty box, where there is nothing to be "near" and the
+  // start is the only sensible place. For a reopened element it is computed
+  // from where the double-click landed (BoardEditor.handleDoubleClick, via
+  // lib/whiteboard-hit's caretIndexInText) — without it every retype put the
+  // caret at the very end, which turned "fix the middle word" into "delete
+  // everything after it and retype".
+  caret: number | null;
 };
 
 export function TextLayer({
@@ -21,6 +32,7 @@ export function TextLayer({
   onChange,
   onCommit,
   onCancel,
+  onToggleStyle,
 }: {
   draft: TextDraft;
   // The canvas element's own rect. Positions here are relative to it, so the
@@ -29,15 +41,21 @@ export function TextLayer({
   onChange: (value: string) => void;
   onCommit: () => void;
   onCancel: () => void;
+  onToggleStyle: (style: "bold" | "italic" | "underline") => void;
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     ref.current?.focus();
-    // Caret to the end, so re-editing continues rather than overwrites.
+    // draft.caret if the popover/double-click computed one, otherwise the end
+    // — the original behaviour, and still correct for a brand-new empty box.
     const length = ref.current?.value.length ?? 0;
-    ref.current?.setSelectionRange(length, length);
-    // Only on mount: refocusing on every keystroke would fight the caret.
+    const pos = draft.caret ?? length;
+    ref.current?.setSelectionRange(pos, pos);
+    // Only on mount: refocusing on every keystroke would fight the caret, and
+    // re-running this for a style toggle would blow away a selection she just
+    // made to retype one word.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fontSize = logicalToPx(draft.size, box.width);
@@ -60,6 +78,20 @@ export function TextLayer({
         if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
           event.preventDefault();
           onCommit();
+          return;
+        }
+        // Cmd/Ctrl+B/I/U toggle THIS element's style, the same one thing the
+        // popover's buttons do. preventDefault is required — without it
+        // Chrome still tries (and fails, silently, since this is a plain
+        // textarea with no execCommand target) to run its own bold command,
+        // and Firefox's would visibly do nothing either way, which reads as a
+        // broken shortcut rather than a missing one.
+        if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+          const key = event.key.toLowerCase();
+          if (key === "b" || key === "i" || key === "u") {
+            event.preventDefault();
+            onToggleStyle(key === "b" ? "bold" : key === "i" ? "italic" : "underline");
+          }
         }
       }}
       // Stops a click inside the textarea reaching the canvas underneath and
@@ -73,10 +105,15 @@ export function TextLayer({
         top,
         color: draft.colour,
         fontSize,
-        // Matches drawOps exactly: the same family, and the same 1.25 line
-        // height, or the text shifts the instant it commits.
+        // Matches drawOps/textFont exactly: the same family, the same 1.25
+        // line height, and now the same weight, style and underline — or the
+        // text visibly reflows or restyles itself the instant it commits, the
+        // same jump CLAUDE.md already calls out for family/size/line-height.
         fontFamily: 'Georgia, "Times New Roman", serif',
         lineHeight: 1.25,
+        fontWeight: draft.bold ? "bold" : "normal",
+        fontStyle: draft.italic ? "italic" : "normal",
+        textDecorationLine: draft.underline ? "underline" : "none",
         background: "transparent",
         border: "none",
         outline: "none",
