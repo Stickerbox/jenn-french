@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
-import { cardFocusRing } from "@/components/card-styles";
 import { DIRTY_MESSAGE, EDITABLE_MESSAGE } from "@/lib/printable-bootstrap";
 import { canSaveFromSlot } from "@/lib/worksheet-save-slots";
+import { ShellBar } from "@/components/ui/ShellBar";
+import { WorksheetHeading } from "@/components/worksheet/WorksheetHeading";
 import { PrintButton } from "@/components/PrintButton";
 import {
   SaveVersionButton,
   WORKSHEET_FRAME_ID,
 } from "@/components/worksheet/SaveVersionButton";
-import { versionLabel, type VersionSlot } from "@/lib/version-labels";
+import type { VersionSlot } from "@/lib/version-labels";
 
 // The full-screen sandboxed frame a student (or Jenn, correcting) fills in.
 // Modelled on /p/[slug]/page.tsx, whose sandbox comment this repeats because
@@ -121,75 +121,24 @@ export function WorksheetShell({
 
   return (
     <>
-      <nav
-        aria-label={audience === "teacher" ? "Versions" : "Versions du devoir"}
-        // Three tracks rather than a centred row with the back control laid
-        // over it. The two `1fr` edges are equal, so the strip is centred on
-        // the VIEWPORT and not on the space left over — but they are `1fr`
-        // and not `minmax(0,1fr)`, so neither can shrink below its content
-        // and let the control overlap the tabs. The strip absorbs the
-        // shortfall instead, by scrolling: three French labels are wider than
-        // a phone, and a control painted over "La correction de Jenn" is the
-        // same collision as the two pills below.
-        //
-        // Back sits in the FIRST track. Leaving is a backwards move and the
-        // reading order should meet it first — and on the shelf this returns
-        // to, the tile it came from is at the top left.
-        className="fixed inset-x-0 top-0 z-10 grid grid-cols-[1fr_auto_1fr] items-start gap-2 px-4 pt-4 print:hidden"
-      >
-        <div className="flex justify-start">
-          <a
-            href={`/g/${groupSlug}?tab=files`}
-            aria-label={
-              audience === "teacher" ? "Back to files" : "Les fichiers"
-            }
-            // One target for both audiences, not a referrer sniff: this is
-            // where the tile that opened the worksheet lives, for a student
-            // and for an unlocked teacher alike — she has no card tab and
-            // lands on Files too (see CLAUDE.md's /g/[slug] route notes).
-            // Reading Referer or history would be a guess, and a wrong guess
-            // strands whoever pressed it on a page with no way back.
-            //
-            // A plain anchor for the same reason the version tabs beside it
-            // are: the leave-guard inspects real anchors on the document.
-            className={cn(
-              "flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-3 font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)] shadow-[var(--card-shadow)] transition-colors duration-150 hover:bg-[var(--card-section)] motion-reduce:transition-none",
-              cardFocusRing,
-            )}
-          >
-            <BackIcon />
-            <span className="hidden whitespace-nowrap sm:inline">
-              {audience === "teacher" ? "Back to files" : "Les fichiers"}
-            </span>
-          </a>
-        </div>
-        <div className="flex min-w-0 max-w-full gap-1 overflow-x-auto rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1 shadow-[var(--card-shadow)]">
-          {slots.map((s) => (
-            // A plain anchor, not a button calling router.push: a future live
-            // whiteboard's capture-phase leave-guard (lib/leave-guard.ts)
-            // inspects real anchors on the document, and this control is
-            // protected by it for free without knowing it exists — the same
-            // reason the admin's edit pencil stayed an <a>.
-            <a
-              key={s}
-              href={`?v=${s}`}
-              aria-current={s === slot ? "page" : undefined}
-              className={cn(
-                "shrink-0 whitespace-nowrap rounded-full px-4 py-2 font-[family-name:var(--card-font-serif)] text-sm transition-colors motion-reduce:transition-none",
-                s === slot
-                  ? "bg-[var(--card-bleu)] text-white"
-                  : "text-[var(--card-moss)]",
-              )}
-            >
-              {versionLabel(s, audience, studentName)}
-            </a>
-          ))}
-        </div>
-        {/* Empty, and load-bearing: it is the track that mirrors the back
-            control's, which is what keeps the strip centred on the viewport
-            rather than on the room the control left over. */}
-        <div />
-      </nav>
+      <ShellBar
+        variant="floating"
+        ariaLabel={audience === "teacher" ? "Versions" : "Versions du devoir"}
+        back={{
+          href: `/g/${groupSlug}?tab=files`,
+          label: audience === "teacher" ? "Back to files" : "Les fichiers",
+          kind: "link",
+        }}
+        center={
+          <WorksheetHeading
+            slots={slots}
+            slot={slot}
+            audience={audience}
+            studentName={studentName}
+            title={title}
+          />
+        }
+      />
       <iframe
         id={WORKSHEET_FRAME_ID}
         src={`/g/${groupSlug}/w/${pageSlug}/raw?v=${slot}`}
@@ -239,23 +188,3 @@ export function WorksheetShell({
   );
 }
 
-// A left-pointing arrow, matching the admin's back-arrow glyphs elsewhere in
-// the app rather than introducing a new icon style for one control.
-function BackIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M19 12H5" />
-      <path d="m12 19-7-7 7-7" />
-    </svg>
-  );
-}

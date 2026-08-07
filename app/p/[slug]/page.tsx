@@ -5,7 +5,8 @@ import { readPageKind } from "@/lib/page-kind";
 import { currentLocale } from "@/lib/locale";
 import { getStrings } from "@/lib/strings";
 import { PrintButton, PAGE_FRAME_ID } from "@/components/PrintButton";
-import { PdfShell, pdfShellButtonClass } from "@/components/pdf/PdfShell";
+import { PdfShell } from "@/components/pdf/PdfShell";
+import { ShellTitle, shellBarButtonClass } from "@/components/ui/ShellBar";
 import { PdfDocumentView } from "@/components/pdf/PdfDocumentView";
 
 export async function generateMetadata({
@@ -60,15 +61,13 @@ export default async function PublishedPage({
         // link. history.back() is the one place in this feature a button
         // stands in for an anchor; see PdfShell's own comment on why that is
         // an accepted, narrow exception to "back must be a real <a>".
+        ariaLabel={page.title}
         back={{ kind: "history", label: strings.back }}
         center={
-          // The document's name is what this bar is for, so it carries the
-          // weight: `text-base font-semibold` against the two controls'
-          // `text-sm` regular, which is what makes it read as the heading of
-          // the page rather than a third label competing with them.
-          <h1 className="truncate px-2 font-[family-name:var(--card-font-serif)] text-base font-semibold text-[var(--card-ink)]">
-            {page.title}
-          </h1>
+          // Shared with the worksheet bar, which shows the same element
+          // whenever it has no versions to offer — the weight is decided in
+          // one place rather than twice.
+          <ShellTitle>{page.title}</ShellTitle>
         }
         actions={
           // A DOWNLOAD, not "open in browser". The old label described the
@@ -81,7 +80,7 @@ export default async function PublishedPage({
           // answers Content-Disposition: inline, and on a same-origin link
           // this attribute overrides that. Never a canvas print — this makes
           // no claim to a print feature it does not have.
-          <a href={pdfHref} download className={pdfShellButtonClass}>
+          <a href={pdfHref} download className={shellBarButtonClass}>
             <DownloadIcon />
             <span className="hidden whitespace-nowrap sm:inline">
               {strings.download}

@@ -165,7 +165,18 @@ put a Save control" — is gone**: there is now somewhere. `dialogDue` in
 `FilesTab` was deliberately left as it was rather than folded into this
 change, so a single-version pdf worksheet still shows the chooser first
 before landing in the shell; that extra step is redundant now, not broken,
-and revisiting it is a separate decision. **The chooser's rows are anchors,
+and revisiting it is a separate decision. **The version tabs are one component now**, `WorksheetHeading`, shared by
+the html shell and the pdf one — they were written twice, with a comment on
+the second copy asking the reader to keep them in step by eye, and the two had
+already drifted. **The tabs hide when there is nothing to choose**: `slots`
+always holds the blank, so a worksheet nobody has saved to drew a strip of one
+tab, already selected, that did nothing when pressed — above every worksheet
+on its first opening, which is most of them. The document's title takes that
+place instead, the same `ShellTitle` `/p/[slug]` shows, so the bar always says
+what you are looking at and starts offering versions the moment a second one
+exists. The bar itself is `ShellBar` (`components/ui/ShellBar.tsx`) in two
+variants: `floating` over the html shell's `fixed inset-0` iframe, `sticky`
+over the pdf viewer's canvases, which flow. **The chooser's rows are anchors,
 not buttons**, the same reason the admin's pencil had to stay one: the
 whiteboard's leave-guard is a capture-phase `click` listener on `document`
 that inspects anchors, so a row is protected by it without knowing it

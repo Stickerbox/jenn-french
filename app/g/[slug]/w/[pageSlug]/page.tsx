@@ -8,7 +8,6 @@ import { readToken, cookieNameFor } from "@/lib/student-tokens";
 import { resolveWorksheet } from "@/lib/worksheet-context";
 import { listVersions } from "@/lib/version-store";
 import {
-  versionLabel,
   slotForVersion,
   type VersionSlot,
 } from "@/lib/version-labels";
@@ -16,9 +15,9 @@ import { canSaveFromSlot } from "@/lib/worksheet-save-slots";
 import { currentLocale } from "@/lib/locale";
 import { WorksheetShell } from "@/components/worksheet/WorksheetShell";
 import { PdfShell } from "@/components/pdf/PdfShell";
+import { WorksheetHeading } from "@/components/worksheet/WorksheetHeading";
 import { PdfDocumentView } from "@/components/pdf/PdfDocumentView";
 import { UploadVersion } from "@/components/worksheet/UploadVersion";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   // Nothing behind a token should ever reach an index.
@@ -92,29 +91,16 @@ export default async function WorksheetPage({
 
     return (
       <PdfShell
+        ariaLabel={audience === "teacher" ? "Versions" : "Versions du devoir"}
         back={{ kind: "link", href: `/g/${slug}?tab=files`, label: backLabel }}
         center={
-          // The exact tab strip WorksheetShell renders for an html worksheet
-          // — same classes, same slots computation, same versionLabel calls —
-          // duplicated here rather than imported because WorksheetShell's
-          // version is wired to its own iframe-reporting state (editable,
-          // dirty) that a pdf worksheet has no equivalent of. Keep the two in
-          // step by eye if either changes.
-          <div className="flex min-w-0 max-w-full gap-1 overflow-x-auto rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1 shadow-[var(--card-shadow)]">
-            {slots.map((s) => (
-              <a
-                key={s}
-                href={`?v=${s}`}
-                aria-current={s === slot ? "page" : undefined}
-                className={cn(
-                  "shrink-0 whitespace-nowrap rounded-full px-4 py-2 font-[family-name:var(--card-font-serif)] text-sm transition-colors motion-reduce:transition-none",
-                  s === slot ? "bg-[var(--card-bleu)] text-white" : "text-[var(--card-moss)]",
-                )}
-              >
-                {versionLabel(s, audience, context.group.name)}
-              </a>
-            ))}
-          </div>
+          <WorksheetHeading
+            slots={slots}
+            slot={slot}
+            audience={audience}
+            studentName={context.group.name}
+            title={context.page.title}
+          />
         }
         actions={
           // canSaveFromSlot is reused rather than re-expressed: a student
