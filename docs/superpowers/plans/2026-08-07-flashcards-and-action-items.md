@@ -738,7 +738,6 @@ Directly after the `board: { … };` block in the `Strings` type's `student` are
       toggle: (text: string) => string;
       delete: (text: string) => string;
       byTeacher: string;
-      byStudent: string;
       error: string;
     };
 ```
@@ -788,7 +787,6 @@ and, directly after its `board: { … },` block:
       toggle: (text) => `Cocher « ${text} »`,
       delete: (text) => `Supprimer « ${text} »`,
       byTeacher: "Jenn",
-      byStudent: "Moi",
       error: "Ça n'a pas fonctionné. Réessayez.",
     },
 ```
@@ -801,7 +799,7 @@ In the English object's `student` area, add to its `tabs` block:
 
 ```ts
       deck: "Vocabulary",
-      todo: "To do",
+      todo: "To-do",
 ```
 
 and, in the same position as the French:
@@ -840,7 +838,6 @@ and, in the same position as the French:
       toggle: (text) => `Tick “${text}”`,
       delete: (text) => `Delete “${text}”`,
       byTeacher: "Jenn",
-      byStudent: "Me",
       error: "That did not work. Try again.",
     },
 ```
@@ -926,12 +923,20 @@ with:
 ```tsx
       // SCROLLS RATHER THAN SQUASHING. Three tabs fit a phone and five do not:
       // the French labels are roughly 380px of text before padding, inside a
-      // strip that is the first thing on this page. `justify-start` below `sm`
-      // so the row begins at the left edge and can be swiped; centred from `sm`
-      // up, where there is room. A strip that shrank its padding to fit would
-      // look correct and be unusable — the same reason ShellBar's middle track
-      // scrolls rather than compressing three French version labels.
-      className="mx-auto mb-[var(--space-5)] flex max-w-[560px] justify-start overflow-x-auto sm:justify-center"
+      // strip that is the first thing on this page. A strip that shrank its
+      // padding to fit would look correct and be unusable — the same reason
+      // ShellBar's middle track scrolls rather than compressing three French
+      // version labels.
+      //
+      // Centring is `mx-auto` ON THE CHILD below, and deliberately NOT
+      // `justify-center` here. Combining justify-center with overflow-x-auto
+      // is a known trap: when the content is wider than the box, flexbox
+      // centres the overflow, so BOTH ends are clipped and scrollLeft starts
+      // in the middle — the reader has to scroll two directions to reach
+      // either end. Auto margins centre when there is room and collapse to
+      // zero when there is not, at every width, which also removes the need
+      // to guess with a breakpoint whether five labels happen to fit.
+      className="mx-auto mb-[var(--space-5)] flex max-w-[560px] overflow-x-auto"
 ```
 
 - [ ] **Step 3: Stop the pills shrinking**
@@ -939,7 +944,7 @@ with:
 The inner `<div>` is `flex gap-1 rounded-full …`. A flex child in an overflow container can still shrink. Add `w-max shrink-0` to it:
 
 ```tsx
-      <div className="flex w-max shrink-0 gap-1 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1">
+      <div className="mx-auto flex w-max shrink-0 gap-1 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1">
 ```
 
 And add `shrink-0` and `whitespace-nowrap` to each `<Link>`'s className, at the front of the `cn(` list:
@@ -1959,12 +1964,17 @@ import { cn } from "@/lib/utils";
 
 export function TodoTab({
   items,
+  studentName,
   locale,
   onAdd,
   onSetDone,
   onDelete,
 }: {
   items: ActionItemRow[];
+  // The student whose page this is. Needed because the list is SHARED and both
+  // parties read it: a relative label like "Me" would be a lie to whichever of
+  // them is not the one who added the row.
+  studentName: string;
   // See lib/strings.ts: the locale crosses, the dictionary does not.
   locale: Locale;
   onAdd: (text: string) => Promise<void>;
@@ -2065,9 +2075,13 @@ export function TodoTab({
                 {/* Text, not a colour or an icon: a shared list where you
                     cannot tell who set an item is the thing fromTeacher exists
                     to prevent, and a colour alone says nothing to a screen
-                    reader. */}
+                    reader.
+                    
+                    NAMES, never "me". Both parties read this same list, so a
+                    viewer-relative label would tell Jenn that a row the student
+                    added was her own. */}
                 <span className="shrink-0 text-xs text-[var(--color-ink-muted)]">
-                  {item.fromTeacher ? t.byTeacher : t.byStudent}
+                  {item.fromTeacher ? t.byTeacher : studentName}
                 </span>
 
                 {/* No confirmation, matching the link tile's own delete: an
@@ -2219,6 +2233,7 @@ and replace with:
       ) : tab === "todo" ? (
         <TodoTab
           items={actionItems}
+          studentName={group.name}
           locale={locale}
           onAdd={addActionItem.bind(null, group.id)}
           onSetDone={setActionItemDone.bind(null, group.id)}
