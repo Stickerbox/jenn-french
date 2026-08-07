@@ -260,6 +260,10 @@ export default async function GroupPage({
           cards={flashcards}
           isTeacher={viewerIsTeacher}
           locale={locale}
+          // The deck's own + button, not the page-level shelf FAB: a card is
+          // not a document and does not belong in a menu whose other items all
+          // land on the Files tab.
+          onAdd={addFlashcard.bind(null, group.id)}
           onDelete={deleteFlashcard.bind(null, group.id)}
           // The bound ACTION, not an arrow — a closure cannot cross the
           // server/client boundary. DeckTab fires it without awaiting, from
@@ -440,7 +444,6 @@ export default async function GroupPage({
               onAddLink={addShelfLink.bind(null, group.id)}
               onAddPage={addShelfPage.bind(null, group.id)}
               onAddPdf={addShelfPdf.bind(null, group.id)}
-              onAddFlashcard={addFlashcard.bind(null, group.id)}
               locale={locale}
             />
           )}
@@ -473,7 +476,6 @@ export default async function GroupPage({
             role="student"
             onAddLink={addShelfLink.bind(null, group.id)}
             onAddPdf={addShelfPdf.bind(null, group.id)}
-            onAddFlashcard={addFlashcard.bind(null, group.id)}
             locale={locale}
           />
         </StreamProvider>

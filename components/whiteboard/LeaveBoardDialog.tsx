@@ -47,7 +47,10 @@ export function LeaveBoardDialog({
         aria-labelledby="leave-board-title"
         // The backdrop closes; a click on the card must not bubble up to it.
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-[420px] rounded-[14px] border border-[var(--card-line)] bg-[var(--card-paper)] p-6 shadow-[var(--card-shadow)]"
+        // panel-pop, the same entrance every other dialog here uses. This one
+        // interrupts a navigation, so arriving with no motion at all made it
+        // read as a page that had already changed under the reader.
+        className="w-full max-w-[420px] animate-[panel-pop_180ms_ease-out] rounded-[14px] border border-[var(--card-line)] bg-[var(--card-paper)] p-6 shadow-[var(--card-shadow)] motion-reduce:animate-none"
       >
         <h2
           id="leave-board-title"

@@ -103,13 +103,42 @@ correction.
 A drag that ends outside the panel sends a click to the scrim, and the board
 would close in the middle of a gesture. Escape and the Close button only.
 
+## 6. Motion becomes a rule, not five decisions
+
+Added during the work, at the owner's request. Two things must animate: a
+popover that opens, and a row that joins a list. CLAUDE.md now records it.
+
+An audit found the app already half obeyed it. `AddSheet`, `AddMenu`,
+`ChatPanel` and the chat bubbles animate. `MonthCalendar` and
+`LeaveBoardDialog` did not, and they get `panel-pop` — the keyframe `AddMenu`
+already uses. The shelf (`FilesTab`) and the deck (`DeckTab`) get the same
+enter, exit and `layout` treatment as the to-do list.
+
+**The tool depends on what moves.** A pure entrance is CSS, through the two
+keyframes that exist. Anything that must know where an element *used to be* —
+a list re-flowing, the deck button sliding down under a new row — is
+framer-motion `layout`, because no keyframe can hold a distance that is known
+only at run time. This is why the plan changed from "framer-motion for
+everything" once the audit showed the CSS precedent.
+
+Two selection toolbars are **deliberately left alone**. `FormatPopover`
+positions itself with `-translate-x-1/2` and a conditional `-translate-y-full`,
+and `panel-pop` sets `transform: scale(...)`, which would replace those
+translates and move the toolbar off its anchor. `TextStylePopover` sits inside
+the live-board editor, where the rule is that it must never take focus or
+disturb an open text draft. Neither is an overlay a reader opens; both follow a
+caret. They are named here so the omission reads as a decision.
+
 ## Reduced motion
 
-CLAUDE.md permits no keyframe beyond the three in `app/globals.css`, so all four
-animations use framer-motion. framer-motion does not obey
-`prefers-reduced-motion` by itself. Each component calls `useReducedMotion` and
-sets its transition duration to zero. This is the equivalent of the
-`motion-reduce:` utilities the rest of the code uses.
+framer-motion does not obey `prefers-reduced-motion` by itself — the
+`motion-reduce:` utilities are CSS and reach none of it. Each component that
+uses `motion.*` calls `useReducedMotion` and sets its duration to zero. The CSS
+entrances need nothing: `motion-reduce:animate-none` covers them.
+
+`AnimatePresence` takes `initial={false}` on every list here. These lists are
+server-rendered, so without it a tab switch would replay an entrance for every
+row already on the shelf.
 
 ## Not in scope
 
@@ -117,3 +146,4 @@ sets its transition duration to zero. This is the equivalent of the
 - No change to `lib/flashcard-order.ts` or `lib/action-items.ts`.
 - No new `lib/` module. Every change here is presentation, and the
   project tests pure modules rather than components.
+- No fourth keyframe.

@@ -12,3 +12,6 @@ next-env.d.ts
 # source — the git history is the record once a branch lands.
 .claude/worktrees/
 .superpowers/
+
+# macOS
+.DS_Store

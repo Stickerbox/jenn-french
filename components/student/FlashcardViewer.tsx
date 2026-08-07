@@ -18,12 +18,21 @@ const controlClass = cn(
 const faceClass =
   "col-start-1 row-start-1 flex flex-col items-center justify-center rounded-2xl border border-[var(--card-line)] bg-[var(--card-paper)] p-8 text-center shadow-[var(--card-shadow)] [backface-visibility:hidden]";
 
-// One card, full screen, over the deck.
+// The two arrows sit against the panel's edges, centred on the vertical axis,
+// rather than in the footer with Flip. The card is what the reader is looking
+// at, so the controls that change which card it is belong beside it.
+const arrowClass = "absolute top-1/2 z-10 -translate-y-1/2";
+
+// One card, over a blurred deck.
 //
 // An OVERLAY and not a route, following BoardViewer: a card is not a
 // bookmarkable thing and the deck is the unit a reader navigates. It takes the
 // deck already ordered, so Random and À réviser carry in from the shelf rather
 // than being recomputed here against a different seed.
+//
+// Full screen below `sm` and a popover above it — the same breakpoint and the
+// same rise/pop pair AddSheet uses, for the same reason. A 320px-wide inset
+// panel would spend a phone's screen on margins around a single word.
 export function FlashcardViewer({
   cards,
   index,
@@ -204,142 +213,177 @@ export function FlashcardViewer({
   }
 
   return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      // Focusable by script and not by Tab: this is where focus lands on open,
-      // and where it returns when a click falls on the card, which is not
-      // itself focusable. It must not become another stop in the tab order.
-      tabIndex={-1}
-      // The name follows the face on show. A dialog named for the front while
-      // the back is up describes a card the reader is not looking at.
-      aria-label={flipped ? card.back : card.front}
-      className="fixed inset-0 z-[60] flex flex-col bg-[var(--card-page-bg)] focus:outline-none"
-    >
-      <div className="flex items-start justify-between gap-2 px-4 py-3">
-        <span className={cardDateLabel}>
-          {formatLongDate(card.createdAt, locale)}
-        </span>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center sm:p-8">
+      {/* A plain div, and NOT the button AddSheet uses for its own scrim. The
+          Tab trap below enumerates `button:not([disabled])` inside the dialog,
+          and a scrim button would become a tab stop the reader lands on while
+          they believe they are inside the card. Escape and Close both dismiss
+          this already, so the scrim needs no keyboard path of its own. */}
+      <div
+        aria-hidden="true"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      />
 
-        <div className="flex items-center gap-2">
-          {confirming ? (
-            <>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        // Focusable by script and not by Tab: this is where focus lands on open,
+        // and where it returns when a click falls on the card, which is not
+        // itself focusable. It must not become another stop in the tab order.
+        tabIndex={-1}
+        // The name follows the face on show. A dialog named for the front while
+        // the back is up describes a card the reader is not looking at.
+        aria-label={flipped ? card.back : card.front}
+        // The gradient goes through `style`, NOT through a bg-[var(--…)] class.
+        // --card-page-bg is a radial-gradient, which is a background *image*;
+        // Tailwind writes that class as `background-color`, where a gradient is
+        // not a valid value, so the declaration failed and this overlay was
+        // transparent — the deck showed straight through it.
+        style={{ background: "var(--card-page-bg)" }}
+        className="relative z-10 flex h-full w-full animate-[panel-rise_320ms_ease-out] flex-col overflow-hidden shadow-2xl focus:outline-none motion-reduce:animate-none sm:h-auto sm:max-h-[85vh] sm:max-w-[720px] sm:animate-[panel-pop_220ms_ease-out] sm:rounded-2xl sm:border sm:border-[var(--card-line)]"
+      >
+        <div className="flex items-start justify-between gap-2 px-4 py-3">
+          <span className={cardDateLabel}>
+            {formatLongDate(card.createdAt, locale)}
+          </span>
+
+          <div className="flex items-center gap-2">
+            {confirming ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void remove()}
+                  disabled={busy}
+                  className={cn(controlClass, "text-[var(--card-rouge)]")}
+                >
+                  {t.deleteConfirm}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  disabled={busy}
+                  className={controlClass}
+                >
+                  {t.deleteCancel}
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
-                onClick={() => void remove()}
-                disabled={busy}
-                className={cn(controlClass, "text-[var(--card-rouge)]")}
-              >
-                {t.deleteConfirm}
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirming(false)}
-                disabled={busy}
+                onClick={() => setConfirming(true)}
+                aria-label={t.delete}
                 className={controlClass}
               >
-                {t.deleteCancel}
+                <TrashIcon />
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirming(true)}
-              aria-label={t.delete}
-              className={controlClass}
-            >
-              <TrashIcon />
+            )}
+            <button type="button" onClick={onClose} className={controlClass}>
+              {t.close}
             </button>
-          )}
-          <button type="button" onClick={onClose} className={controlClass}>
-            {t.close}
-          </button>
+          </div>
         </div>
-      </div>
 
-      {/* The same flip the daily card uses — perspective on the wrapper, one
-          grid cell holding two faces, the back pre-rotated. */}
-      <div className="flex flex-1 items-center justify-center px-4">
-        {/* A plain div, and it must stay one. `role="button"` here was tried
-            and reverted: ARIA makes a button's children presentational, so the
-            role plus a label would expose the whole card as the single word
-            "Flip" — front, back and note all dropped, and the aria-hidden pair
-            below rendered dead. The keyboard is served instead by the focused
-            dialog above, which the document listener flips on Space or Enter,
-            and by the Flip button below it. */}
-        <div
-          className="w-full max-w-[560px] cursor-pointer [perspective:2000px]"
-          onClick={() => setFlipped((value) => !value)}
-        >
-          <motion.div
-            className="grid min-h-[320px] w-full grid-cols-1"
-            animate={{ rotateY: flipped ? 180 : 0 }}
-            transition={{ duration: 0.6, ease: [0.4, 0.15, 0.2, 1] }}
-            style={{ transformStyle: "preserve-3d" }}
-          >
-            {/* Each face leaves the accessibility tree when it is the one
-                nobody is looking at. `backface-visibility` hides pixels, not
-                content: without this a screen reader announces the answer
-                beside the question, which is the whole flip-to-reveal design
-                and the revision ordering built on it. */}
-            <div className={faceClass} aria-hidden={flipped}>
-              <p className="font-[family-name:var(--card-font-serif)] text-3xl text-[var(--card-ink)]">
-                {card.front}
-              </p>
-            </div>
-
-            <div
-              className={cn(faceClass, "[transform:rotateY(180deg)]")}
-              aria-hidden={!flipped}
-            >
-              <p className="font-[family-name:var(--card-font-serif)] text-3xl text-[var(--card-ink)]">
-                {card.back}
-              </p>
-              {card.note && (
-                <p className="mt-4 font-[family-name:var(--card-font-serif)] text-sm italic text-[var(--card-moss)]">
-                  {card.note}
-                </p>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      </div>
-
-      {/* The answer, spoken when it is revealed. The two faces above cannot do
-          this themselves: toggling `aria-hidden` is an attribute change, and a
-          live region's default `aria-relevant` covers additions and text —
-          iOS VoiceOver commonly says nothing at all, and that is the device
-          most of these students read on. Here the nodes are genuinely ADDED on
-          the flip, which is the trigger every screen reader honours.
-
-          Empty until flipped, so opening a card announces the question once,
-          through the dialog's own name, rather than twice. The faces stay
-          where they are because the 3D flip needs both of them present.
-
-          The cost, stated plainly: while flipped, the answer is in the tree
-          twice — here and on the face, which aria-hidden has just admitted.
-          There is no way to have a region announce without also being
-          readable. A reader swiping the flipped card hears one short phrase
-          again; the alternative is a flip that says nothing on the device most
-          of them use. The note is deliberately NOT repeated — it is on the
-          face, and it is the long half. */}
-      <div className="sr-only" aria-live="polite">
-        {flipped && <p>{card.back}</p>}
-      </div>
-
-      <div className="flex items-center justify-between gap-2 px-4 py-3">
+        {/* Before the card in the DOM as well as beside it on screen, so Tab
+            runs Close → ‹ → › → Flip, which is the order they read in. The Tab
+            trap takes the first and last of `button:not([disabled])` in this
+            same DOM order, so it follows this move without changing. */}
         <button
           type="button"
           onClick={() => onIndex(index - 1)}
           disabled={index === 0}
           aria-label={t.previous}
-          className={controlClass}
+          className={cn(controlClass, arrowClass, "left-3")}
         >
           ‹
         </button>
 
-        <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => onIndex(index + 1)}
+          disabled={index >= cards.length - 1}
+          aria-label={t.next}
+          className={cn(controlClass, arrowClass, "right-3")}
+        >
+          ›
+        </button>
+
+        {/* The same flip the daily card uses — perspective on the wrapper, one
+            grid cell holding two faces, the back pre-rotated.
+
+            px-14 rather than px-4: that is 56px, which clears an arrow sitting
+            at left-3 (12px) with a 44px hit box. Any less and the card would be
+            painted under a control the reader is meant to press. */}
+        <div className="flex flex-1 items-center justify-center px-14">
+          {/* A plain div, and it must stay one. `role="button"` here was tried
+              and reverted: ARIA makes a button's children presentational, so the
+              role plus a label would expose the whole card as the single word
+              "Flip" — front, back and note all dropped, and the aria-hidden pair
+              below rendered dead. The keyboard is served instead by the focused
+              dialog above, which the document listener flips on Space or Enter,
+              and by the Flip button below it. */}
+          <div
+            className="w-full max-w-[560px] cursor-pointer [perspective:2000px]"
+            onClick={() => setFlipped((value) => !value)}
+          >
+            <motion.div
+              className="grid min-h-[320px] w-full grid-cols-1"
+              animate={{ rotateY: flipped ? 180 : 0 }}
+              transition={{ duration: 0.6, ease: [0.4, 0.15, 0.2, 1] }}
+              style={{ transformStyle: "preserve-3d" }}
+            >
+              {/* Each face leaves the accessibility tree when it is the one
+                  nobody is looking at. `backface-visibility` hides pixels, not
+                  content: without this a screen reader announces the answer
+                  beside the question, which is the whole flip-to-reveal design
+                  and the revision ordering built on it. */}
+              <div className={faceClass} aria-hidden={flipped}>
+                <p className="font-[family-name:var(--card-font-serif)] text-3xl text-[var(--card-ink)]">
+                  {card.front}
+                </p>
+              </div>
+
+              <div
+                className={cn(faceClass, "[transform:rotateY(180deg)]")}
+                aria-hidden={!flipped}
+              >
+                <p className="font-[family-name:var(--card-font-serif)] text-3xl text-[var(--card-ink)]">
+                  {card.back}
+                </p>
+                {card.note && (
+                  <p className="mt-4 font-[family-name:var(--card-font-serif)] text-sm italic text-[var(--card-moss)]">
+                    {card.note}
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* The answer, spoken when it is revealed. The two faces above cannot do
+            this themselves: toggling `aria-hidden` is an attribute change, and a
+            live region's default `aria-relevant` covers additions and text —
+            iOS VoiceOver commonly says nothing at all, and that is the device
+            most of these students read on. Here the nodes are genuinely ADDED on
+            the flip, which is the trigger every screen reader honours.
+
+            Empty until flipped, so opening a card announces the question once,
+            through the dialog's own name, rather than twice. The faces stay
+            where they are because the 3D flip needs both of them present.
+
+            The cost, stated plainly: while flipped, the answer is in the tree
+            twice — here and on the face, which aria-hidden has just admitted.
+            There is no way to have a region announce without also being
+            readable. A reader swiping the flipped card hears one short phrase
+            again; the alternative is a flip that says nothing on the device most
+            of them use. The note is deliberately NOT repeated — it is on the
+            face, and it is the long half. */}
+        <div className="sr-only" aria-live="polite">
+          {flipped && <p>{card.back}</p>}
+        </div>
+
+        <div className="flex items-center justify-center gap-3 px-4 py-3">
           <span className="font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)]">
             {t.position(index + 1, cards.length)}
           </span>
@@ -356,16 +400,6 @@ export function FlashcardViewer({
             {t.flip}
           </button>
         </div>
-
-        <button
-          type="button"
-          onClick={() => onIndex(index + 1)}
-          disabled={index >= cards.length - 1}
-          aria-label={t.next}
-          className={controlClass}
-        >
-          ›
-        </button>
       </div>
     </div>
   );

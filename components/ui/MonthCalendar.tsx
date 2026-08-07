@@ -123,7 +123,10 @@ export function MonthCalendar({
       role="dialog"
       aria-label={labels.dialog}
       className={cn(
-        "absolute z-20 mt-2 w-[300px] max-w-[calc(100vw-2rem)] rounded-xl border p-3 shadow-lg",
+        // panel-pop, the keyframe AddMenu and AddSheet's desktop form already
+        // use. A popover that is simply there on the frame after a press reads
+        // as a repaint rather than as something opening.
+        "absolute z-20 mt-2 w-[300px] max-w-[calc(100vw-2rem)] animate-[panel-pop_180ms_ease-out] rounded-xl border p-3 shadow-lg motion-reduce:animate-none",
         palette.panel,
         className,
       )}

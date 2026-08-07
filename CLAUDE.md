@@ -439,6 +439,36 @@ file first — each of these records a failure that already happened.**
   Anything that animates carries `motion-reduce:animate-none`, anything that
   transitions carries `motion-reduce:transition-none`, and there are no
   keyframes beyond the three in `app/globals.css`.
+- **Two things must animate: a popover opening, and a row joining a list.**
+  Neither is decoration. A panel that is simply *there* on the frame after a
+  press reads as a repaint rather than as something that opened, and a row that
+  appears in a list gives the reader nothing to follow from the field they
+  typed in to the place their work landed. Every overlay in the app obeys the
+  first — `AddSheet`, `AddMenu`, `ChatPanel`, `MonthCalendar`,
+  `LeaveBoardDialog`, `FlashcardViewer`, `BoardViewer` — and the shelf, the
+  deck and the to-do list obey the second. **Add the animation when you add the
+  surface or the list**; retrofitting it is what left four overlays without one
+  until 2026-08-07.
+
+  **Which tool depends on what is moving, and the split is not a preference.**
+  A pure entrance is CSS: reuse `panel-rise` (mobile) and `panel-pop` (desktop)
+  from `app/globals.css`, which is the pair `AddSheet` established, and take
+  `motion-reduce:animate-none` for free. Anything that needs to know *where an
+  element used to be* — a list re-flowing, a control sliding down because a row
+  was inserted above it — is framer-motion's `layout`, because no keyframe can
+  express a distance that is only known at runtime. Adding a fourth keyframe is
+  not the answer to that; it is the thing the rule above forbids.
+
+  **framer-motion does not read `prefers-reduced-motion` by itself.** The
+  `motion-reduce:` utilities are CSS and reach none of it, so every component
+  that uses `motion.*` calls `useReducedMotion` and zeroes its own duration.
+  A `motion.*` element with a hardcoded duration and no such hook is a bug,
+  not a style choice.
+
+  `AnimatePresence` takes `initial={false}` on any list rendered from the
+  server. Without it a tab switch replays an entrance for every row already
+  there, which says "twenty things just arrived" when nothing did — the point
+  is the *one* row the reader added.
 - **Imports** use the `@/` alias for repo-root-relative paths.
 - Server actions call `revalidatePath` for the page they affect. Deletes use
   `deleteMany` so a double-click or stale tab is a no-op rather than a P2025.

@@ -342,128 +342,149 @@ export function BoardViewer({
   return (
     // z-[60], above the z-50 corner buttons, the same layer AddSheet and
     // ChatPanel use.
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={label}
-      className="fixed inset-0 z-[60] flex flex-col bg-[var(--card-page-bg)]"
-    >
-      <div className="flex items-center justify-between gap-2 border-b border-[var(--card-line)] px-4 py-3">
-        <button type="button" onClick={onClose} className={controlClass}>
-          {labels.close}
-        </button>
-
-        <h2 className="truncate font-[family-name:var(--card-font-serif)] text-base font-semibold text-[var(--card-ink)]">
-          {label}
-        </h2>
-
-        <div className="flex items-center gap-2">
-          {downloadFailed && (
-            <span className="text-xs text-[var(--card-rouge)]">
-              {strings.downloadFailed}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => void download()}
-            disabled={busy}
-            className={controlClass}
-          >
-            {busy ? "…" : strings.download}
-          </button>
-        </div>
-      </div>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center sm:p-8">
+      {/* The scrim DOES NOT CLOSE on a click, unlike FlashcardViewer's. The
+          frame below pans with pointer capture, so a drag that starts on the
+          board and ends past the panel's edge delivers its click here — and the
+          board would close in the middle of a gesture, with no way to tell that
+          from a bug. Escape and the Close button are the two ways out. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      />
 
       <div
-        ref={frameRef}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        // touch-action: none, so the browser does not claim the gesture for
-        // its own scroll before the handlers above see it.
-        className="relative flex-1 touch-none overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        // The gradient goes through `style`, NOT through a bg-[var(--…)] class.
+        // --card-page-bg is a radial-gradient, which is a background *image*;
+        // Tailwind writes that class as `background-color`, where a gradient is
+        // not a valid value, so the declaration failed and this overlay was
+        // transparent — the page behind it showed straight through.
+        style={{ background: "var(--card-page-bg)" }}
+        // Full screen below `sm` and a popover above it, the same rise/pop pair
+        // AddSheet uses at the same breakpoint. overflow-hidden is what keeps
+        // the canvas inside the rounded corners while it is panned.
+        className="relative z-10 flex h-full w-full animate-[panel-rise_320ms_ease-out] flex-col overflow-hidden shadow-2xl motion-reduce:animate-none sm:h-[85vh] sm:max-w-[1100px] sm:animate-[panel-pop_220ms_ease-out] sm:rounded-2xl sm:border sm:border-[var(--card-line)]"
       >
-        {failed ? (
-          <p className="absolute inset-0 flex items-center justify-center px-6 text-center font-[family-name:var(--card-font-serif)] italic text-[var(--card-moss)]">
-            {labels.loadFailed}
-          </p>
-        ) : !measured ? null : (
-          <canvas
-            ref={canvasRef}
-            aria-label={labels.position(page + 1, Math.max(total, 1))}
-            role="img"
-            style={{
-              width: `${drawnWidth}px`,
-              height: `${drawnHeight}px`,
-              transform: `translate(${placed.x}px, ${placed.y}px)`,
-            }}
-            className="absolute left-0 top-0 origin-top-left"
-          />
-        )}
-      </div>
+        <div className="flex items-center justify-between gap-2 border-b border-[var(--card-line)] px-4 py-3">
+          <button type="button" onClick={onClose} className={controlClass}>
+            {labels.close}
+          </button>
 
-      <div className="flex items-center justify-between gap-2 border-t border-[var(--card-line)] px-4 py-3">
-        <div className="flex items-center gap-2">
-          {total > 1 && (
-            <>
-              <button
-                type="button"
-                onClick={() => setPage((current) => Math.max(0, current - 1))}
-                disabled={page === 0}
-                aria-label={labels.previous}
-                className={controlClass}
-              >
-                ‹
-              </button>
-              <span className="font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)]">
-                {labels.position(page + 1, total)}
+          <h2 className="truncate font-[family-name:var(--card-font-serif)] text-base font-semibold text-[var(--card-ink)]">
+            {label}
+          </h2>
+
+          <div className="flex items-center gap-2">
+            {downloadFailed && (
+              <span className="text-xs text-[var(--card-rouge)]">
+                {strings.downloadFailed}
               </span>
-              <button
-                type="button"
-                onClick={() =>
-                  setPage((current) => Math.min(total - 1, current + 1))
-                }
-                disabled={page >= total - 1}
-                aria-label={labels.next}
-                className={controlClass}
-              >
-                ›
-              </button>
-            </>
+            )}
+            <button
+              type="button"
+              onClick={() => void download()}
+              disabled={busy}
+              className={controlClass}
+            >
+              {busy ? "…" : strings.download}
+            </button>
+          </div>
+        </div>
+
+        <div
+          ref={frameRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          // touch-action: none, so the browser does not claim the gesture for
+          // its own scroll before the handlers above see it.
+          className="relative flex-1 touch-none overflow-hidden"
+        >
+          {failed ? (
+            <p className="absolute inset-0 flex items-center justify-center px-6 text-center font-[family-name:var(--card-font-serif)] italic text-[var(--card-moss)]">
+              {labels.loadFailed}
+            </p>
+          ) : !measured ? null : (
+            <canvas
+              ref={canvasRef}
+              aria-label={labels.position(page + 1, Math.max(total, 1))}
+              role="img"
+              style={{
+                width: `${drawnWidth}px`,
+                height: `${drawnHeight}px`,
+                transform: `translate(${placed.x}px, ${placed.y}px)`,
+              }}
+              className="absolute left-0 top-0 origin-top-left"
+            />
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => zoomBy(1 / ZOOM_STEP)}
-            disabled={scale <= MIN_SCALE}
-            aria-label={labels.zoomOut}
-            className={controlClass}
-          >
-            −
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setScale(MIN_SCALE);
-              setOffset({ x: 0, y: 0 });
-            }}
-            aria-label={labels.resetZoom}
-            className={controlClass}
-          >
-            {Math.round(scale * 100)}%
-          </button>
-          <button
-            type="button"
-            onClick={() => zoomBy(ZOOM_STEP)}
-            disabled={scale >= MAX_SCALE}
-            aria-label={labels.zoomIn}
-            className={controlClass}
-          >
-            +
-          </button>
+        <div className="flex items-center justify-between gap-2 border-t border-[var(--card-line)] px-4 py-3">
+          <div className="flex items-center gap-2">
+            {total > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                  disabled={page === 0}
+                  aria-label={labels.previous}
+                  className={controlClass}
+                >
+                  ‹
+                </button>
+                <span className="font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)]">
+                  {labels.position(page + 1, total)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPage((current) => Math.min(total - 1, current + 1))
+                  }
+                  disabled={page >= total - 1}
+                  aria-label={labels.next}
+                  className={controlClass}
+                >
+                  ›
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => zoomBy(1 / ZOOM_STEP)}
+              disabled={scale <= MIN_SCALE}
+              aria-label={labels.zoomOut}
+              className={controlClass}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setScale(MIN_SCALE);
+                setOffset({ x: 0, y: 0 });
+              }}
+              aria-label={labels.resetZoom}
+              className={controlClass}
+            >
+              {Math.round(scale * 100)}%
+            </button>
+            <button
+              type="button"
+              onClick={() => zoomBy(ZOOM_STEP)}
+              disabled={scale >= MAX_SCALE}
+              aria-label={labels.zoomIn}
+              className={controlClass}
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
     </div>

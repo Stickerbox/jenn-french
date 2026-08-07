@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { fieldClassName } from "@/components/ui/field";
 import { cardFocusRing, emptyStateText, formErrorText } from "@/components/card-styles";
@@ -32,6 +33,14 @@ export function TodoTab({
   const strings = getStrings(locale);
   const t = strings.student.todo;
   const router = useRouter();
+  // framer-motion does NOT read prefers-reduced-motion by itself — the
+  // `motion-reduce:` utilities elsewhere in this codebase are CSS and reach
+  // none of this. Asking for it and zeroing the duration is the equivalent.
+  const reduceMotion = useReducedMotion();
+  const motionTransition = {
+    duration: reduceMotion ? 0 : 0.24,
+    ease: [0.4, 0.15, 0.2, 1] as const,
+  };
 
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -87,16 +96,30 @@ export function TodoTab({
   return (
     <div className="mx-auto w-full max-w-[560px]">
       {items.length === 0 ? (
-        <p className={emptyStateText}>{t.empty}</p>
+        // The same bottom margin the list carries, so the empty line does not
+        // sit against the input the way it did before.
+        <p className={cn(emptyStateText, "mb-5")}>{t.empty}</p>
       ) : (
         <ul className="mb-5 flex flex-col gap-1">
-          {items.map((item) => {
+          <AnimatePresence initial={false}>
+            {items.map((item) => {
             // The pending value wins while a write is in flight, so the row
             // moves the moment it is pressed.
             const done = pending[item.id] ?? item.doneAt !== null;
             return (
-              <li
+              // Enters from below and rises into place. lib/action-items.ts
+              // orders createdAt ascending, so a new row is the LAST one and
+              // the input sits directly under it — the row therefore appears to
+              // come up out of the field it was typed in. `layout` is what
+              // carries the rows already on screen, and the form below them,
+              // down as the list grows.
+              <motion.li
                 key={item.id}
+                layout={reduceMotion ? false : "position"}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={motionTransition}
                 className="flex items-center gap-3 rounded-xl border border-[var(--card-line)] bg-[var(--card-paper)] px-3 py-2"
               >
                 <input
@@ -147,16 +170,22 @@ export function TodoTab({
                 >
                   ×
                 </button>
-              </li>
+              </motion.li>
             );
-          })}
+            })}
+          </AnimatePresence>
         </ul>
       )}
 
       {/* Always visible, at the foot of the list. No FAB and no sheet: the
           request was "easy to add another item", and a two-gesture flow
           through a modal is not that. */}
-      <form onSubmit={add} className="flex gap-2">
+      <motion.form
+        onSubmit={add}
+        layout={reduceMotion ? false : "position"}
+        transition={motionTransition}
+        className="flex gap-2"
+      >
         <input
           value={text}
           onChange={(event) => setText(event.target.value)}
@@ -176,7 +205,7 @@ export function TodoTab({
         >
           {t.add}
         </button>
-      </form>
+      </motion.form>
 
       {error && (
         <p role="alert" className={cn("mt-3", formErrorText)}>
