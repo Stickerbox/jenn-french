@@ -40,6 +40,7 @@ export function PageEditor({
   onSubmit,
   onSubmitPdf,
   onDelete,
+  onSaved,
   locale,
 }: {
   // Already relabelled by audienceOptions, so this form never learns that one
@@ -61,6 +62,10 @@ export function PageEditor({
   // shape: a document is a string and a PDF is bytes in FormData.
   onSubmitPdf: (formData: FormData) => Promise<unknown>;
   onDelete?: () => Promise<void>;
+  // Called after a save that left NOTHING on this form to read. The overlay
+  // passes its own close; the standalone route passes nothing, because a page
+  // has nothing to close and its "Saved" flag is the whole feedback there.
+  onSaved?: () => void;
   // This is a client component reached directly from two server components
   // (app/admin/pages/[slug]/page.tsx and, through PageEditOverlay, the Pages
   // tab and a student's shelf), so it takes `locale` rather than the resolved
@@ -113,6 +118,11 @@ export function PageEditor({
     // save would otherwise sit under a page that published cleanly.
     setSkipped([]);
     try {
+      // Whether this save has anything left for the form to show. A pdf never
+      // does: updatePdfPage returns void and reports no skipped assets, so
+      // there is nothing its branch could withhold the close for.
+      let clean = true;
+
       if (initial.kind === "pdf") {
         const formData = new FormData();
         formData.set("title", title);
@@ -133,6 +143,7 @@ export function PageEditor({
       } else {
         const result = await onSubmit({ title, html, groupIds, worksheet });
         setSkipped(result.skipped);
+        clean = result.skipped.length === 0;
 
         // The html branch only. A pdf save must never touch these columns —
         // its picture comes from renderPdfThumbnail inside its own submission
@@ -150,6 +161,21 @@ export function PageEditor({
       }
       setSaved(true);
       router.refresh();
+
+      // Last, and only when the form has nothing left to show. A save that
+      // skipped assets keeps the sheet open, because that list is stored
+      // NOWHERE ELSE — it exists only in the reply to this one request, and
+      // closing over it is the "warning nobody sees" the report was added to
+      // prevent. NewPageForm already behaves this way; this makes the two
+      // forms agree rather than adding a second rule.
+      //
+      // Fired before the finally below clears `saving`, which is safe only
+      // because the overlay's onClose is a router.push — a scheduled
+      // transition, not a synchronous unmount — so that setSaving(false)
+      // still lands on a mounted component. A close that unmounted
+      // synchronously would turn this ordering into a set-state-after-unmount
+      // warning.
+      if (clean) onSaved?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : strings.admin.genericError);
     } finally {

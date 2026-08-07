@@ -137,6 +137,7 @@ export function PageEditOverlay({
           submitLabel={strings.admin.pageEditor.submitLabelOverlay}
           onSubmit={updatePage.bind(null, loaded.page.slug)}
           onSubmitPdf={updatePdfPage.bind(null, loaded.page.slug)}
+          onSaved={onClose}
           onDelete={async () => {
             await deletePage(loaded.page.slug);
             // Close and refresh rather than router.push("/admin?tab=pages"),
