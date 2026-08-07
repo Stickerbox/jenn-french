@@ -1795,6 +1795,63 @@ EOF
 
 ---
 
+## Task 8b: Fix the viewer's keyboard handling and its two faces
+
+**Added after Task 8's review. Task 8 is committed (`a059532`) and these are defects in it.** Do this before Task 9.
+
+- [ ] **Step 1: Stop the global key handler hijacking every button**
+
+`components/student/FlashcardViewer.tsx`'s `keydown` listener is on `document` and calls `event.preventDefault()` for Space and Enter with no check on the target. `preventDefault` on `keydown` cancels the browser's own keyboard activation of whatever has focus — so a keyboard user who tabs to **Close** and presses Enter gets a flipped card and no close. The same kills Previous, Next, and both delete buttons. `BoardViewer`'s listener only handles Escape and does not have this problem.
+
+Replace the Space/Enter branch so it only flips when focus is not on a control:
+
+```tsx
+      if (event.key === " " || event.key === "Enter") {
+        // Only when nothing focusable owns the keystroke. This listener is on
+        // `document`, and preventDefault on keydown cancels the browser's own
+        // activation of the focused element — without this check, tabbing to
+        // Close and pressing Enter flips the card instead of closing, and the
+        // same kills every other button in the dialog. The Flip button below
+        // handles the keyboard case for itself, natively.
+        const target = event.target as HTMLElement | null;
+        if (target?.closest("button")) return;
+        event.preventDefault();
+        setFlipped((value) => !value);
+      }
+```
+
+- [ ] **Step 2: Hide the face nobody is looking at**
+
+`backface-visibility: hidden` is visual only. Both faces are in the accessibility tree at all times, so a screen-reader user hears the answer beside the question — which defeats the entire flip-to-reveal design and, with it, the point of the revision ordering.
+
+Add `aria-hidden` to each face, keyed on `flipped`: the front face gets `aria-hidden={flipped}`, the back face `aria-hidden={!flipped}`. Add a comment saying why: `backface-visibility` hides pixels, not content.
+
+- [ ] **Step 3: Make the dialog's name follow the face**
+
+The dialog's `aria-label={card.front}` never changes, so it is wrong whenever the card is flipped. Make it track the state: `aria-label={flipped ? card.back : card.front}`.
+
+- [ ] **Step 4: Make the flip wrapper reachable**
+
+The wrapper is a plain `<div onClick>`. Once Step 1 lands, the accidental "any Enter anywhere flips" fallback is gone, so this becomes a real dead end for a keyboard user who has not found the Flip button. Give it `role="button"`, `tabIndex={0}`, an `aria-label` from the dictionary, and an `onKeyDown` that flips on Space or Enter with `preventDefault`.
+
+Add the string in all three places in `lib/strings.ts`, in the `deck` block beside `flip`:
+`flipHint` — French `"Retourner la carte"`, English `"Flip the card"`.
+
+- [ ] **Step 5: Verify**
+
+```bash
+npm run lint && npm run typecheck && npm test
+```
+
+Only `lib/snapshot-dom.ts:77`; silent; 1129 in 102 files. **No eslint-disable** — if a hook rule fires, restructure or stop and report.
+
+- [ ] **Step 6: Commit**
+
+Stage and commit separately, `--trailer "Co-Authored-By: Claude Code <noreply@anthropic.com>"` if the hook rejects. No `--amend`. Record in the body that a `document`-level `preventDefault` on Enter had been cancelling activation of every button in the dialog, and that `backface-visibility` hides pixels rather than content.
+
+
+---
+
 ## Task 9: Adding a card
 
 The `+` FAB already exists on `/g/[slug]` with a role-dependent menu. A flashcard joins it rather than getting a control of its own.
