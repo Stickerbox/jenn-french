@@ -23,6 +23,7 @@ Read `CLAUDE.md` at the repo root. These rules bite in this plan:
 5. **Comments record a decision and the failure that motivated it.** The comments in this plan are written that way deliberately — transcribe them, do not trim them.
 6. **Every date is UTC**, constructed as ``new Date(`${str}T00:00:00Z`)`` and formatted with `timeZone: "UTC"`. `formatLongDate` already does this.
 7. Anything that transitions carries `motion-reduce:transition-none`; anything that animates carries `motion-reduce:animate-none`.
+8. **Two React Compiler lint rules are enforced and will reject ordinary-looking React.** `react-hooks/purity` refuses an impure call — `Math.random()`, `Date.now()` — anywhere in a component's function scope, even inside a handler that only runs on click. `react-hooks/set-state-in-effect` refuses `setState` called synchronously in an effect body, which rules out the usual "reset state when a prop changes" effect. The codebase's answer to the second is to **adjust state during render**: `const [last, setLast] = useState(x); if (last !== x) { setLast(x); … }`, as in `NewPageForm` (`lastDefault`) and `PageEditOverlay` (`lastSlug`). Do not add an eslint-disable for either — restructure, or stop and report.
 
 Run after every task that changes code:
 
@@ -1425,10 +1426,18 @@ export function FlashcardViewer({
   // Moving to a card shows its FRONT, and clears a half-pressed delete. A card
   // that opened already flipped would answer a question the reader had not
   // been asked.
-  useEffect(() => {
+  //
+  // Adjusted during render rather than in an effect, which is the shape
+  // NewPageForm and PageEditOverlay already use for the same job:
+  // react-hooks/set-state-in-effect rejects the effect form, and an effect
+  // would paint the previous card's flipped face for one frame before
+  // correcting it.
+  const [lastIndex, setLastIndex] = useState(index);
+  if (lastIndex !== index) {
+    setLastIndex(index);
     setFlipped(false);
     setConfirming(false);
-  }, [index]);
+  }
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -1643,12 +1652,16 @@ export function DeckTab({
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   function chooseSort(next: FlashcardSort) {
-    // The seed is generated in the HANDLER and never in a state initialiser.
-    // An initialiser runs during the server render as well, so a random value
-    // there would differ across hydration and the deck would be ordered one
-    // way in the HTML and another the moment React took over. Choosing Random
-    // again reshuffles, which is what a reader expects of it.
-    if (next === "random") setSeed(Math.floor(Math.random() * 2 ** 31));
+    // Pressing Random again reshuffles, which is what a reader expects of it —
+    // so the seed has to change. It is a COUNTER and not Math.random(), for
+    // two reasons. The React Compiler's purity rule refuses an impure call
+    // anywhere in a component's scope, invocation timing notwithstanding. And
+    // a random seed generated in a state initialiser would differ across
+    // hydration, ordering the deck one way in the HTML and another the moment
+    // React took over. A counter has neither problem and costs nothing: the
+    // orders it walks are arbitrary with respect to the cards, which is all
+    // "random" has to mean here.
+    if (next === "random") setSeed((current) => current + 1);
     setSort(next);
     // The open card's index refers to the OLD order. Closing is honest;
     // silently showing a different card is not.
