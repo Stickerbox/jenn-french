@@ -133,7 +133,7 @@ the strokes sharper.
 ```ts
 fitScale(viewport, content)               // the opening scale
 clampScale(scale)                         // between MIN_SCALE and MAX_SCALE
-clampPan(offset, scale, viewport, content) // keeps the drawing on screen
+clampPan(offset, viewport, drawn)         // keeps the drawing on screen
 ```
 
 `scale` is a multiplier of the fit, so `1` always means "the whole page is
@@ -322,3 +322,26 @@ Before the work is called done, run the CI order: `npx prisma generate`,
 
 The Flashcards tab and the Action items tab. Each gets its own spec, and each
 needs a Prisma model and a migration that this spec deliberately avoids.
+
+---
+
+## What changed during implementation
+
+Recorded here rather than left as drift between this document and the code.
+
+- **`clampPan` takes the drawn size, not a scale.** The caller already knows it,
+  so passing it directly removes a multiplication the function would repeat and
+  a test would have to replicate. Same rule, one fewer argument.
+- **Pins on the shared shelf were retired**, which this spec did not anticipate.
+  Removing the everyone chip turned out to remove the only way to reach them —
+  `shelfRole` answers `"teacher"` before it tests `isEveryone`, deliberately, so
+  pinning there had been a real workflow. Rather than restore the chip, the
+  ordering was withdrawn and the rows deleted by
+  `20260807160000_drop_everyone_pins`. The full reasoning is in
+  `.claude/rules/files-pages-pdfs.md`.
+- **The whiteboard viewer's gesture handling re-derives from the pointer map**
+  rather than reacting to transitions, after review found two bugs in the
+  transition form: panning froze after a pinch when the first finger lifted, and
+  a third finger corrupted the pinch baseline.
+- **Zoom is computed from the clamped position.** Reading the raw offset threw
+  the drawing 100px off centre on the first zoom of an 800×600 viewport.

@@ -83,7 +83,7 @@ npx prisma generate && npm run lint && npm run typecheck && npm test
 - Create: `lib/audience.ts`
 - Test: `tests/lib/audience.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/audience.test.ts`:
 
@@ -184,7 +184,7 @@ describe("visibleGroupChips", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and check that it fails**
+- [x] **Step 2: Run the test and check that it fails**
 
 ```bash
 npx vitest run tests/lib/audience.test.ts
@@ -192,7 +192,7 @@ npx vitest run tests/lib/audience.test.ts
 
 Expected: FAIL. The message names the missing module, `Failed to load url @/lib/audience`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `lib/audience.ts`:
 
@@ -263,7 +263,7 @@ export function visibleGroupChips(
 }
 ```
 
-- [ ] **Step 4: Run the test and check that it passes**
+- [x] **Step 4: Run the test and check that it passes**
 
 ```bash
 npx vitest run tests/lib/audience.test.ts
@@ -271,7 +271,7 @@ npx vitest run tests/lib/audience.test.ts
 
 Expected: PASS, 12 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/audience.ts tests/lib/audience.test.ts
@@ -303,7 +303,7 @@ EOF
 
 `admin.pageForm` is the right home: it is already the shared namespace for the audience block, and all three forms read `studentsLegend` and `noStudentsYet` from it.
 
-- [ ] **Step 1: Add the key to the type**
+- [x] **Step 1: Add the key to the type**
 
 Find `pageForm: {` inside the `Strings` type (near line 338 — it is the one whose values are `string` rather than string literals) and replace the block:
 
@@ -328,7 +328,7 @@ with:
     };
 ```
 
-- [ ] **Step 2: Add the French value**
+- [x] **Step 2: Add the French value**
 
 Find the French `pageForm` block (near line 801) and replace:
 
@@ -349,7 +349,7 @@ with:
     },
 ```
 
-- [ ] **Step 3: Add the English value**
+- [x] **Step 3: Add the English value**
 
 Find the English `pageForm` block (near line 1236) and replace:
 
@@ -370,7 +370,7 @@ with:
     },
 ```
 
-- [ ] **Step 4: Check that it compiles**
+- [x] **Step 4: Check that it compiles**
 
 ```bash
 npm run typecheck
@@ -378,7 +378,7 @@ npm run typecheck
 
 Expected: no output, exit 0. If it names `allStudents`, one of the three edits is missing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/strings.ts
@@ -401,7 +401,7 @@ All three forms hold the same audience block, character for character. They stop
 - Modify: `components/admin/AddLinkForm.tsx`
 - Modify: `components/admin/PageEditor.tsx`
 
-- [ ] **Step 1: Change `NewPageForm`'s prop**
+- [x] **Step 1: Change `NewPageForm`'s prop**
 
 In `components/admin/NewPageForm.tsx`, add the import beside the others:
 
@@ -423,7 +423,7 @@ with:
   audience: AudienceOption[];
 ```
 
-- [ ] **Step 2: Change `NewPageForm`'s audience block**
+- [x] **Step 2: Change `NewPageForm`'s audience block**
 
 Replace:
 
@@ -491,11 +491,11 @@ with:
         )}
 ```
 
-- [ ] **Step 3: Do the same to `AddLinkForm`**
+- [x] **Step 3: Do the same to `AddLinkForm`**
 
 `components/admin/AddLinkForm.tsx` holds the identical block. Add the same import, rename the prop the same way, and apply the same replacement. Its version has no comment above the `<label>`; the surrounding code is otherwise the same.
 
-- [ ] **Step 4: Do the same to `PageEditor`**
+- [x] **Step 4: Do the same to `PageEditor`**
 
 `components/admin/PageEditor.tsx` holds the identical block near line 186, with one extra comment above the `<label>` that must be kept:
 
@@ -507,7 +507,7 @@ with:
 
 Add the same import, rename the prop the same way, and apply the same replacement while keeping that comment where it is.
 
-- [ ] **Step 5: Build the options in `AdminChrome`**
+- [x] **Step 5: Build the options in `AdminChrome`**
 
 In `components/admin/AdminChrome.tsx`, add the import:
 
@@ -541,7 +541,7 @@ Below `const activeGroupId = defaultGroupId(chip, groups);` add:
 
 Then change `<AddLinkForm groups={groups}` to `<AddLinkForm audience={audience}` and `<NewPageForm groups={groups}` to `<NewPageForm audience={audience}`.
 
-- [ ] **Step 6: Pass the flag from the admin page**
+- [x] **Step 6: Pass the flag from the admin page**
 
 In `app/admin/page.tsx`, replace:
 
@@ -563,7 +563,7 @@ with:
 
 The `groups` query above already selects `isEveryone`, so no query changes.
 
-- [ ] **Step 7: Build the options in `PageEditOverlay`**
+- [x] **Step 7: Build the options in `PageEditOverlay`**
 
 In `components/admin/PageEditOverlay.tsx`, add the import:
 
@@ -580,7 +580,7 @@ Replace `groups={loaded.groups}` with:
           )}
 ```
 
-- [ ] **Step 8: Select the flag in `loadPageForEdit`**
+- [x] **Step 8: Select the flag in `loadPageForEdit`**
 
 In `app/page-actions.ts`, in `loadPageForEdit`, replace the return type's groups line:
 
@@ -615,7 +615,7 @@ with:
   });
 ```
 
-- [ ] **Step 9: Do the same for the standalone editor route**
+- [x] **Step 9: Do the same for the standalone editor route**
 
 In `app/admin/pages/[slug]/page.tsx`, replace the query:
 
@@ -650,7 +650,7 @@ and replace `groups={groups}` with:
           )}
 ```
 
-- [ ] **Step 10: Check that it compiles and the suite still passes**
+- [x] **Step 10: Check that it compiles and the suite still passes**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test
@@ -658,7 +658,7 @@ npx prisma generate && npm run lint && npm run typecheck && npm test
 
 Expected: lint reports only the one pre-existing warning in `lib/snapshot-dom.ts:77`. Typecheck is silent. All tests pass.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add components/admin/NewPageForm.tsx components/admin/AddLinkForm.tsx components/admin/PageEditor.tsx components/admin/AdminChrome.tsx components/admin/PageEditOverlay.tsx app/admin/page.tsx "app/admin/pages/[slug]/page.tsx" app/page-actions.ts
@@ -686,7 +686,7 @@ EOF
 - Modify: `app/admin/page.tsx` (the `GroupsTab` function)
 - Modify: `components/admin/PageList.tsx`
 
-- [ ] **Step 1: Filter the Students tab**
+- [x] **Step 1: Filter the Students tab**
 
 In `app/admin/page.tsx`, add the import:
 
@@ -726,7 +726,7 @@ with:
   // predicate with a test on it, not in a Prisma clause. See lib/audience.ts.
 ```
 
-- [ ] **Step 2: Drop the everyone chip from the Pages tab**
+- [x] **Step 2: Drop the everyone chip from the Pages tab**
 
 In `components/admin/PageList.tsx`, add the import:
 
@@ -750,7 +750,7 @@ with:
   const groupNames = visibleGroupChips(pageGroupNames(pages), everyoneName);
 ```
 
-- [ ] **Step 3: Check that it compiles and the suite still passes**
+- [x] **Step 3: Check that it compiles and the suite still passes**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test
@@ -758,7 +758,7 @@ npx prisma generate && npm run lint && npm run typecheck && npm test
 
 Expected: clean, apart from the pre-existing `snapshot-dom.ts:77` warning.
 
-- [ ] **Step 4: Check the behaviour by hand**
+- [x] **Step 4: Check the behaviour by hand**
 
 Start the dev server with `npm run dev`, sign in at `/login`, and confirm:
 
@@ -767,7 +767,7 @@ Start the dev server with `npm run dev`, sign in at `/login`, and confirm:
 - Selecting a student's chip still shows pages shared with everyone as well as that student's own.
 - The `+` FAB's *Add a page* sheet shows a pill reading *Tous les élèves* / *All students*.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/admin/page.tsx components/admin/PageList.tsx
@@ -814,7 +814,7 @@ This deletes rows. `/g/all` is public and students may have it bookmarked, so an
 - Modify: `.claude/rules/files-pages-pdfs.md`
 - Modify: `components/admin/PagesTabClient.tsx` (a stale comment, unrelated to pins but the same dead-branch class Task 4 already corrected in `GroupList`)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/lib/page-pins.test.ts`. Extend the import to include `canPinToShelf`, then add:
 
@@ -841,7 +841,7 @@ describe("canPinToShelf", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and see it fail**
+- [x] **Step 2: Run it and see it fail**
 
 ```bash
 npx vitest run tests/lib/page-pins.test.ts
@@ -849,7 +849,7 @@ npx vitest run tests/lib/page-pins.test.ts
 
 Expected: FAIL, `canPinToShelf is not a function`.
 
-- [ ] **Step 3: Add the predicate**
+- [x] **Step 3: Add the predicate**
 
 In `lib/page-pins.ts`, add above `applyPins`:
 
@@ -876,7 +876,7 @@ export function canPinToShelf(group: { isEveryone: boolean }): boolean {
 }
 ```
 
-- [ ] **Step 4: Run it and see it pass**
+- [x] **Step 4: Run it and see it pass**
 
 ```bash
 npx vitest run tests/lib/page-pins.test.ts
@@ -884,7 +884,7 @@ npx vitest run tests/lib/page-pins.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Enforce it on the server**
+- [x] **Step 5: Enforce it on the server**
 
 In `app/page-actions.ts`, in `setShelfPin`, immediately after `await requireShelfRole(groupId);` insert:
 
@@ -917,7 +917,7 @@ Add the import beside the other `@/lib` imports:
 import { canPinToShelf } from "@/lib/page-pins";
 ```
 
-- [ ] **Step 6: Write the migration by hand**
+- [x] **Step 6: Write the migration by hand**
 
 **Do NOT run `npx prisma migrate dev`.** This migration changes no schema, so Prisma would generate nothing from it — a data-only migration has to be hand-authored. Running `migrate dev` against the local `prisma/dev.db`, which has no tables, could also try to reset it.
 
@@ -943,7 +943,7 @@ DELETE FROM "PagePin"
 WHERE "groupId" IN (SELECT "id" FROM "Group" WHERE "isEveryone" = 1);
 ```
 
-- [ ] **Step 7: Rewrite the pins rule**
+- [x] **Step 7: Rewrite the pins rule**
 
 In `.claude/rules/files-pages-pdfs.md`, replace this paragraph:
 
@@ -977,7 +977,7 @@ the shared shelf is Jenn's to fill. She must keep being able to put pages and
 links there. Only the ordering was withdrawn.
 ```
 
-- [ ] **Step 8: Correct the stale comment in `PagesTabClient`**
+- [x] **Step 8: Correct the stale comment in `PagesTabClient`**
 
 `components/admin/PagesTabClient.tsx` computes `activeGroupSlug` and its comment describes the everyone chip being selectable. It no longer is. This is the same dead-branch class Task 4 corrected in `GroupList`, and leaving one corrected and the other stale is worse than correcting neither.
 
@@ -1002,7 +1002,7 @@ with:
   // GroupList's canDeleteGroup fallback.
 ```
 
-- [ ] **Step 9: Verify**
+- [x] **Step 9: Verify**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test
@@ -1018,7 +1018,7 @@ sqlite3 :memory: "CREATE TABLE \"Group\" (id TEXT, isEveryone INTEGER); CREATE T
 
 Expected: no output, exit 0. A syntax error would print one.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add lib/page-pins.ts tests/lib/page-pins.test.ts app/page-actions.ts prisma/migrations/20260807160000_drop_everyone_pins/migration.sql .claude/rules/files-pages-pdfs.md components/admin/PagesTabClient.tsx
@@ -1056,7 +1056,7 @@ EOF
 - Modify: `components/admin/PageEditor.tsx`
 - Modify: `components/admin/PageEditOverlay.tsx`
 
-- [ ] **Step 1: Add the prop**
+- [x] **Step 1: Add the prop**
 
 In `components/admin/PageEditor.tsx`, add to the props type, beside `onDelete`:
 
@@ -1069,7 +1069,7 @@ In `components/admin/PageEditor.tsx`, add to the props type, beside `onDelete`:
 
 Add `onSaved,` to the destructured parameter list beside `onDelete,`.
 
-- [ ] **Step 2: Track whether the save left anything to say**
+- [x] **Step 2: Track whether the save left anything to say**
 
 Replace the body of `handleSubmit`'s `try` block. Find:
 
@@ -1129,7 +1129,7 @@ and replace it with:
     } catch (err) {
 ```
 
-- [ ] **Step 3: Pass the close from the overlay**
+- [x] **Step 3: Pass the close from the overlay**
 
 In `components/admin/PageEditOverlay.tsx`, add `onSaved={onClose}` to the `<PageEditor …>` props, directly above the existing `onDelete={…}`:
 
@@ -1141,7 +1141,7 @@ In `components/admin/PageEditOverlay.tsx`, add `onSaved={onClose}` to the `<Page
 
 Leave `app/admin/pages/[slug]/page.tsx` alone. It passes no `onSaved`, which is what keeps its *Saved* flag as the feedback on a surface with nothing to dismiss.
 
-- [ ] **Step 4: Check that it compiles and the suite still passes**
+- [x] **Step 4: Check that it compiles and the suite still passes**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test
@@ -1149,7 +1149,7 @@ npx prisma generate && npm run lint && npm run typecheck && npm test
 
 Expected: clean, apart from the pre-existing `snapshot-dom.ts:77` warning.
 
-- [ ] **Step 5: Check the behaviour by hand**
+- [x] **Step 5: Check the behaviour by hand**
 
 With `npm run dev` running and signed in:
 
@@ -1157,7 +1157,7 @@ With `npm run dev` running and signed in:
 - Do the same from a student's shelf at `/g/<slug>?tab=files`. The overlay closes and you stay on the shelf.
 - Open `/admin/pages/<slug>` directly and Save. The page stays and shows *Saved*.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/admin/PageEditor.tsx components/admin/PageEditOverlay.tsx
@@ -1185,7 +1185,7 @@ EOF
 - Create: `lib/shelf-filters.ts`
 - Test: `tests/lib/shelf-filters.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/shelf-filters.test.ts`:
 
@@ -1231,7 +1231,7 @@ describe("filtersAreActive", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and check that it fails**
+- [x] **Step 2: Run the test and check that it fails**
 
 ```bash
 npx vitest run tests/lib/shelf-filters.test.ts
@@ -1239,7 +1239,7 @@ npx vitest run tests/lib/shelf-filters.test.ts
 
 Expected: FAIL, `Failed to load url @/lib/shelf-filters`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `lib/shelf-filters.ts`:
 
@@ -1271,7 +1271,7 @@ export function filtersAreActive(state: {
 }
 ```
 
-- [ ] **Step 4: Run the test and check that it passes**
+- [x] **Step 4: Run the test and check that it passes**
 
 ```bash
 npx vitest run tests/lib/shelf-filters.test.ts
@@ -1279,7 +1279,7 @@ npx vitest run tests/lib/shelf-filters.test.ts
 
 Expected: PASS, 6 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/shelf-filters.ts tests/lib/shelf-filters.test.ts
@@ -1300,7 +1300,7 @@ EOF
 - Modify: `lib/strings.ts` (type, French, English)
 - Modify: `components/student/FilesTab.tsx`
 
-- [ ] **Step 1: Add the two strings to the type**
+- [x] **Step 1: Add the two strings to the type**
 
 In `lib/strings.ts`, find the `files:` block inside the `Strings` type (near line 116) and add two keys directly below `searchLabel`:
 
@@ -1313,7 +1313,7 @@ In `lib/strings.ts`, find the `files:` block inside the `Strings` type (near lin
       kindFilter: {
 ```
 
-- [ ] **Step 2: Add the French values**
+- [x] **Step 2: Add the French values**
 
 Find the French `files:` block (near line 596) and add below its `searchLabel`:
 
@@ -1322,7 +1322,7 @@ Find the French `files:` block (near line 596) and add below its `searchLabel`:
       filterToggle: "Afficher les filtres",
 ```
 
-- [ ] **Step 3: Add the English values**
+- [x] **Step 3: Add the English values**
 
 Find the English `files:` block (near line 1036) and add below its `searchLabel`:
 
@@ -1331,7 +1331,7 @@ Find the English `files:` block (near line 1036) and add below its `searchLabel`
       filterToggle: "Show filters",
 ```
 
-- [ ] **Step 4: Write the component**
+- [x] **Step 4: Write the component**
 
 Create `components/ui/FilterDisclosure.tsx`:
 
@@ -1437,7 +1437,7 @@ function FilterIcon() {
 }
 ```
 
-- [ ] **Step 5: Wrap the two chip rows**
+- [x] **Step 5: Wrap the two chip rows**
 
 In `components/student/FilesTab.tsx`, add the imports:
 
@@ -1488,7 +1488,7 @@ with:
 
 Nothing else in this file changes. `kind` and `sort` keep their `useState` and their defaults, and `visible`/`groups` are computed from them exactly as before.
 
-- [ ] **Step 6: Check that it compiles and the suite still passes**
+- [x] **Step 6: Check that it compiles and the suite still passes**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test
@@ -1496,7 +1496,7 @@ npx prisma generate && npm run lint && npm run typecheck && npm test
 
 Expected: clean, apart from the pre-existing `snapshot-dom.ts:77` warning.
 
-- [ ] **Step 7: Check the behaviour by hand**
+- [x] **Step 7: Check the behaviour by hand**
 
 With `npm run dev` running, open a student's shelf at `/g/<slug>?tab=files`:
 
@@ -1507,7 +1507,7 @@ With `npm run dev` running, open a student's shelf at `/g/<slug>?tab=files`:
 - Check the same at `/f/<filesToken>`, which renders the same component.
 - Tab to the icon and press Enter. The focus ring shows and the panel opens.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add components/ui/FilterDisclosure.tsx components/student/FilesTab.tsx lib/strings.ts
@@ -1537,7 +1537,7 @@ The spec sketched `clampPan(offset, scale, viewport, content)`. This plan uses `
 - Create: `lib/board-zoom.ts`
 - Test: `tests/lib/board-zoom.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/lib/board-zoom.test.ts`:
 
@@ -1639,7 +1639,7 @@ describe("clampPan", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and check that it fails**
+- [x] **Step 2: Run the test and check that it fails**
 
 ```bash
 npx vitest run tests/lib/board-zoom.test.ts
@@ -1647,7 +1647,7 @@ npx vitest run tests/lib/board-zoom.test.ts
 
 Expected: FAIL, `Failed to load url @/lib/board-zoom`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `lib/board-zoom.ts`:
 
@@ -1731,7 +1731,7 @@ export function clampPan(
 }
 ```
 
-- [ ] **Step 4: Run the test and check that it passes**
+- [x] **Step 4: Run the test and check that it passes**
 
 ```bash
 npx vitest run tests/lib/board-zoom.test.ts
@@ -1739,7 +1739,7 @@ npx vitest run tests/lib/board-zoom.test.ts
 
 Expected: PASS, 15 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/board-zoom.ts tests/lib/board-zoom.test.ts
@@ -1772,7 +1772,7 @@ Every whiteboard component is hardcoded French. Adding a viewer that reads the d
 - Modify: `lib/whiteboard-names.ts`
 - Modify: `tests/lib/whiteboard-names.test.ts`
 
-- [ ] **Step 1: Add the board block to the type**
+- [x] **Step 1: Add the board block to the type**
 
 In `lib/strings.ts`, inside the `Strings` type's `student:` area, add a `board` block directly after the `files: { … };` block:
 
@@ -1805,7 +1805,7 @@ In `lib/strings.ts`, inside the `Strings` type's `student:` area, add a `board` 
     };
 ```
 
-- [ ] **Step 2: Add the French values**
+- [x] **Step 2: Add the French values**
 
 In the French object's `student:` area, after its `files: { … },` block:
 
@@ -1834,7 +1834,7 @@ In the French object's `student:` area, after its `files: { … },` block:
     },
 ```
 
-- [ ] **Step 3: Add the English values**
+- [x] **Step 3: Add the English values**
 
 In the English object's `student:` area, in the same position:
 
@@ -1865,7 +1865,7 @@ In the English object's `student:` area, in the same position:
 
 `pageCount` is a function and not a template for the reason every interpolating value here is one: the plural rule is part of the sentence, and French and English do not have to agree about it.
 
-- [ ] **Step 4: Write the failing test for the board label's locale**
+- [x] **Step 4: Write the failing test for the board label's locale**
 
 `boardLabels` formats with a hardcoded `fr-CA`, so an English browser would read *3 juin 2026* in the viewer's title. Add these two cases to `tests/lib/whiteboard-names.test.ts`, inside the existing `describe("boardLabels", …)`:
 
@@ -1884,7 +1884,7 @@ In the English object's `student:` area, in the same position:
   });
 ```
 
-- [ ] **Step 5: Run the test and check that it fails**
+- [x] **Step 5: Run the test and check that it fails**
 
 ```bash
 npx vitest run tests/lib/whiteboard-names.test.ts
@@ -1892,7 +1892,7 @@ npx vitest run tests/lib/whiteboard-names.test.ts
 
 Expected: the English case FAILS with `expected '3 juin 2026' to be 'June 3, 2026'`. The French case passes already.
 
-- [ ] **Step 6: Give `boardLabels` an optional locale**
+- [x] **Step 6: Give `boardLabels` an optional locale**
 
 In `lib/whiteboard-names.ts`, add the imports:
 
@@ -1957,7 +1957,7 @@ Inside the function, above the `for (const day of byDay.values())` loop, add:
 
 The `const name = dayFormat.format(board.date);` line inside the loop is unchanged.
 
-- [ ] **Step 7: Run the tests and check that they pass**
+- [x] **Step 7: Run the tests and check that they pass**
 
 ```bash
 npx vitest run tests/lib/whiteboard-names.test.ts
@@ -1965,7 +1965,7 @@ npx vitest run tests/lib/whiteboard-names.test.ts
 
 Expected: PASS, 8 tests.
 
-- [ ] **Step 8: Check that everything compiles**
+- [x] **Step 8: Check that everything compiles**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test
@@ -1973,7 +1973,7 @@ npx prisma generate && npm run lint && npm run typecheck && npm test
 
 Expected: clean, apart from the pre-existing `snapshot-dom.ts:77` warning. Nothing renders the new strings yet — that is Task 11.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add lib/strings.ts lib/whiteboard-names.ts tests/lib/whiteboard-names.test.ts
@@ -2010,7 +2010,7 @@ This is a rule, so it goes in the module with the other two rather than inline i
 - Modify: `lib/board-zoom.ts`
 - Modify: `tests/lib/board-zoom.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/lib/board-zoom.test.ts`. Extend the import list with `rasterScale`, then add this block at the end of the file:
 
@@ -2055,7 +2055,7 @@ describe("rasterScale", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and check that it fails**
+- [x] **Step 2: Run the test and check that it fails**
 
 ```bash
 npx vitest run tests/lib/board-zoom.test.ts
@@ -2063,7 +2063,7 @@ npx vitest run tests/lib/board-zoom.test.ts
 
 Expected: FAIL, `rasterScale is not a function`.
 
-- [ ] **Step 3: Add the function**
+- [x] **Step 3: Add the function**
 
 In `lib/board-zoom.ts`, add the import at the top:
 
@@ -2098,7 +2098,7 @@ export function rasterScale(drawn: Size, devicePixelRatio: number): number {
 }
 ```
 
-- [ ] **Step 4: Run the test and check that it passes**
+- [x] **Step 4: Run the test and check that it passes**
 
 ```bash
 npx vitest run tests/lib/board-zoom.test.ts
@@ -2106,7 +2106,7 @@ npx vitest run tests/lib/board-zoom.test.ts
 
 Expected: PASS, 21 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/board-zoom.ts tests/lib/board-zoom.test.ts
@@ -2136,7 +2136,7 @@ The tile and the viewer both need this. Two copies would drift, and the viewer's
 
 It lives in `components/` and **not** in `lib/`, because it fetches, touches the DOM and clicks an anchor. That is the same split `components/pdf-thumbnail.ts` and `components/html-thumbnail.ts` already make.
 
-- [ ] **Step 1: Create the module**
+- [x] **Step 1: Create the module**
 
 Create `components/whiteboard/board-download.ts` with the code currently inside `BoardTile.download`, unchanged apart from its wrapper:
 
@@ -2206,7 +2206,7 @@ export async function downloadBoardJpeg(input: {
 }
 ```
 
-- [ ] **Step 2: Call it from `BoardTile`**
+- [x] **Step 2: Call it from `BoardTile`**
 
 In `components/whiteboard/BoardTile.tsx`, delete these three imports:
 
@@ -2239,7 +2239,7 @@ Then replace the whole `download` function — from its comment down to its clos
   }
 ```
 
-- [ ] **Step 3: Check that it compiles and the suite still passes**
+- [x] **Step 3: Check that it compiles and the suite still passes**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test
@@ -2247,11 +2247,11 @@ npx prisma generate && npm run lint && npm run typecheck && npm test
 
 Expected: clean, apart from the pre-existing `snapshot-dom.ts:77` warning. If lint reports an unused import in `BoardTile`, one of the three deleted imports is still referenced — check the `<img>`'s `width`/`height`.
 
-- [ ] **Step 4: Check the behaviour by hand**
+- [x] **Step 4: Check the behaviour by hand**
 
 With `npm run dev`, open a student page with at least one saved board at `/g/<slug>?tab=board` and press *Télécharger*. A `.jpg` downloads with every page stacked, exactly as before.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/whiteboard/board-download.ts components/whiteboard/BoardTile.tsx
@@ -2280,7 +2280,7 @@ EOF
 - Modify: `components/whiteboard/LiveBanner.tsx`
 - Modify: `app/g/[slug]/page.tsx`
 
-- [ ] **Step 1: Write the viewer**
+- [x] **Step 1: Write the viewer**
 
 Create `components/whiteboard/BoardViewer.tsx`:
 
@@ -2701,7 +2701,7 @@ export function BoardViewer({
 }
 ```
 
-- [ ] **Step 2: Open it from the tile**
+- [x] **Step 2: Open it from the tile**
 
 Rewrite `components/whiteboard/BoardTile.tsx`'s body. Add these imports:
 
@@ -2774,7 +2774,7 @@ Finally, render the viewer at the end of the component, just inside the outermos
       )}
 ```
 
-- [ ] **Step 3: Thread the locale through `BoardTab`**
+- [x] **Step 3: Thread the locale through `BoardTab`**
 
 In `components/whiteboard/BoardTab.tsx`, add:
 
@@ -2801,11 +2801,11 @@ Pass `locale={locale}` to `<BoardTile …>`.
 
 `BoardEditor` is rendered from here and takes no locale. Leave it. It is the drawing surface and is out of scope — see the File Structure note.
 
-- [ ] **Step 4: Thread the locale through `LiveBanner`**
+- [x] **Step 4: Thread the locale through `LiveBanner`**
 
 In `components/whiteboard/LiveBanner.tsx`, add the same two imports, add `locale: Locale` to the props, and replace the two strings with `{strings.liveNow}` and `{strings.openLive}`, where `strings` is `getStrings(locale).student.board`.
 
-- [ ] **Step 5: Pass the locale from the page**
+- [x] **Step 5: Pass the locale from the page**
 
 In `app/g/[slug]/page.tsx`:
 
@@ -2815,7 +2815,7 @@ In `app/g/[slug]/page.tsx`:
 
 `locale` is already read at the top of this file and threaded to several other components, so nothing new is fetched.
 
-- [ ] **Step 6: Check that it compiles and the suite still passes**
+- [x] **Step 6: Check that it compiles and the suite still passes**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test
@@ -2823,7 +2823,7 @@ npx prisma generate && npm run lint && npm run typecheck && npm test
 
 Expected: clean, apart from the pre-existing `snapshot-dom.ts:77` warning.
 
-- [ ] **Step 7: Check the behaviour by hand**
+- [x] **Step 7: Check the behaviour by hand**
 
 With `npm run dev`, sign in as the teacher, open a student with at least one saved multi-page board, and go to `?tab=board`:
 
@@ -2837,7 +2837,7 @@ With `npm run dev`, sign in as the teacher, open a student with at least one sav
 - On a narrow window, confirm the shelf `+` and the chat bubble are hidden while the viewer is open.
 - Set the browser to English and reload. The tab, the tile and the viewer read English, and the board's date label reads *June 3, 2026* rather than *3 juin 2026*.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add components/whiteboard/BoardViewer.tsx components/whiteboard/BoardTile.tsx components/whiteboard/BoardTab.tsx components/whiteboard/LiveBanner.tsx "app/g/[slug]/page.tsx"
@@ -2876,7 +2876,7 @@ This codebase keeps its rationale in `CLAUDE.md` and `.claude/rules/`. A decisio
 - Modify: `.claude/rules/whiteboards.md`
 - Modify: `.claude/rules/files-pages-pdfs.md`
 
-- [ ] **Step 1: Record the everyone-group rule in `CLAUDE.md`**
+- [x] **Step 1: Record the everyone-group rule in `CLAUDE.md`**
 
 In the routes table, in the `/admin` row, replace the note `three tabs via ?tab= — the global card for ?date= (default), groups, pages` with:
 
@@ -2884,7 +2884,7 @@ In the routes table, in the `/admin` row, replace the note `three tabs via ?tab=
 three tabs via `?tab=` — the global card for `?date=` (default), groups, pages. **The everyone group is not drawn as a student on any of them** as of 2026-08-07: no row in Students, no chip on Pages. It keeps one pill in the three audience forms, labelled *All students* from the dictionary rather than from `Group.name` — see `lib/audience.ts`. The consequence is that the admin has no link to `/g/all`; shared pages are found under any student's chip, which `filterPagesByGroup` already widens for exactly that reason
 ```
 
-- [ ] **Step 2: Record the shelf disclosure in `CLAUDE.md`**
+- [x] **Step 2: Record the shelf disclosure in `CLAUDE.md`**
 
 In the `/g/[slug]` row of the routes table, after the sentence about the card tab's day dots, add:
 
@@ -2892,7 +2892,7 @@ In the `/g/[slug]` row of the routes table, after the sentence about the card ta
 The shelf's kind and sort chips sit behind a filter icon, closed by default, with a dot on the icon while a hidden filter is narrowing the list (`lib/shelf-filters.ts`) — the admin Pages tab deliberately keeps its rows visible, because its student chip also decides pin target and default audience
 ```
 
-- [ ] **Step 3: Record the board viewer in `.claude/rules/whiteboards.md`**
+- [x] **Step 3: Record the board viewer in `.claude/rules/whiteboards.md`**
 
 Find the paragraph beginning `Downloading gives **one** JPEG with every page stacked` and insert this before it:
 
@@ -2933,7 +2933,7 @@ French**, which is the site's fallback everywhere else and is what keeps its
 existing tests calling it with one argument.
 ```
 
-- [ ] **Step 4: Record the two shelf and admin rules in `.claude/rules/files-pages-pdfs.md`**
+- [x] **Step 4: Record the two shelf and admin rules in `.claude/rules/files-pages-pdfs.md`**
 
 Find the paragraph beginning `One group is flagged `isEveryone`` and insert after it:
 
@@ -2988,7 +2988,7 @@ feedback there. A save that skipped assets keeps the sheet open, matching
 closing over it is the warning nobody sees.
 ```
 
-- [ ] **Step 5: Correct one stale comment in `lib/pages.ts`**
+- [x] **Step 5: Correct one stale comment in `lib/pages.ts`**
 
 The spec calls for this and it is easy to miss. `sharedWithEveryone` claims to drive two things and drives one — `PageList` renders no everyone marker and never has. A comment promising a feature that does not exist is worse now that the chip is gone, because the next reader will go looking for the marker.
 
@@ -3013,7 +3013,7 @@ with:
     // such marker and never did.
 ```
 
-- [ ] **Step 6: Run the full CI order, including the build**
+- [x] **Step 6: Run the full CI order, including the build**
 
 ```bash
 npx prisma generate && npm run lint && npm run typecheck && npm test && npm run build
@@ -3026,7 +3026,7 @@ Expected:
 - Vitest passes every file. The count is 1061 plus the new tests — 12 for `audience`, 6 for `shelf-filters`, 21 for `board-zoom`, 2 added to `whiteboard-names`.
 - `next build` completes. **It fetches Fraunces and Inter from `fonts.googleapis.com`**, so it needs network access; a sandbox that blocks that host fails the build with `Failed to fetch 'Fraunces' from Google Fonts`, which is not a code fault.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add CLAUDE.md .claude/rules/whiteboards.md .claude/rules/files-pages-pdfs.md lib/pages.ts
@@ -3042,7 +3042,7 @@ EOF
 )"
 ```
 
-- [ ] **Step 8: Final check of the whole branch**
+- [x] **Step 8: Final check of the whole branch**
 
 ```bash
 git log --oneline main..HEAD
