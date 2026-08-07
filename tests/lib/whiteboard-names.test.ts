@@ -53,4 +53,17 @@ describe("boardLabels", () => {
     const labels = boardLabels([board("a", "2026-01-01", "2026-01-01T00:00:00Z")]);
     expect(labels.get("a")).toBe("1 janvier 2026");
   });
+
+  it("formats the day in English when asked", () => {
+    const labels = boardLabels(
+      [board("a", "2026-06-03", "2026-06-03T18:00:00Z")],
+      "en",
+    );
+    expect(labels.get("a")).toBe("June 3, 2026");
+  });
+
+  it("defaults to French, so every existing caller is unchanged", () => {
+    const labels = boardLabels([board("a", "2026-06-03", "2026-06-03T18:00:00Z")]);
+    expect(labels.get("a")).toBe("3 juin 2026");
+  });
 });

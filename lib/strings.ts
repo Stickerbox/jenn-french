@@ -142,6 +142,33 @@ export type Strings = {
       deleteTitle: string;
     };
 
+    // The whiteboard ARCHIVE and the viewer over it. The drawing surface
+    // (BoardEditor and its toolbar) is deliberately absent and stays French —
+    // it is teacher-only, reachable only by pressing "New board", and editing
+    // it means editing the leave-guard.
+    board: {
+      newBoard: string;
+      empty: string;
+      drawingPage: (page: number) => string;
+      liveNow: string;
+      openLive: string;
+      download: string;
+      downloadFailed: string;
+      delete: string;
+      pageCount: (count: number) => string;
+      viewer: {
+        open: (label: string) => string;
+        close: string;
+        position: (page: number, total: number) => string;
+        previous: string;
+        next: string;
+        zoomIn: string;
+        zoomOut: string;
+        resetZoom: string;
+        loadFailed: string;
+      };
+    };
+
     shelf: {
       add: string;
       addLink: string;
@@ -639,6 +666,35 @@ const fr: Strings = {
       deleteTitle: "Supprimer",
     },
 
+    board: {
+      newBoard: "Nouveau tableau",
+      // French typography puts a space before ! and ?, and it must be
+      // non-breaking or the punctuation can wrap onto its own line.
+      // BoardTab.tsx and LeaveBoardDialog.tsx already carry this convention
+      // (as the &nbsp; JSX entity); \u00A0 is the same character, written as
+      // an escape so the next reader can see it is deliberate and can grep
+      // for it rather than an invisible character nobody can find again.
+      empty: "Aucun tableau pour l'instant\u00A0!",
+      drawingPage: (page) => `Page ${page} — Jenn dessine…`,
+      liveNow: "Jenn dessine en ce moment",
+      openLive: "Ouvrir le tableau",
+      download: "Télécharger",
+      downloadFailed: "Échec",
+      delete: "Supprimer",
+      pageCount: (count) => (count === 1 ? "1 page" : `${count} pages`),
+      viewer: {
+        open: (label) => `Ouvrir le tableau du ${label}`,
+        close: "Fermer",
+        position: (page, total) => `Page ${page} sur ${total}`,
+        previous: "Page précédente",
+        next: "Page suivante",
+        zoomIn: "Agrandir",
+        zoomOut: "Réduire",
+        resetZoom: "Taille normale",
+        loadFailed: "Impossible d'ouvrir ce tableau.",
+      },
+    },
+
     shelf: {
       add: "Ajouter",
       addLink: "Ajouter un lien",
@@ -1085,6 +1141,29 @@ const en: Strings = {
       unpinTitle: "Unpin",
       delete: (title) => `Delete ${title}`,
       deleteTitle: "Delete",
+    },
+
+    board: {
+      newBoard: "New board",
+      empty: "No boards yet!",
+      drawingPage: (page) => `Page ${page} — Jenn is drawing…`,
+      liveNow: "Jenn is drawing right now",
+      openLive: "Open the board",
+      download: "Download",
+      downloadFailed: "Failed",
+      delete: "Delete",
+      pageCount: (count) => (count === 1 ? "1 page" : `${count} pages`),
+      viewer: {
+        open: (label) => `Open the board from ${label}`,
+        close: "Close",
+        position: (page, total) => `Page ${page} of ${total}`,
+        previous: "Previous page",
+        next: "Next page",
+        zoomIn: "Zoom in",
+        zoomOut: "Zoom out",
+        resetZoom: "Actual size",
+        loadFailed: "This board could not be opened.",
+      },
     },
 
     shelf: {
