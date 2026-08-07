@@ -147,7 +147,6 @@ export function FilesTab({
           />
           <FilterDisclosure
             toggleLabel={strings.student.files.filterToggle}
-            label={strings.student.files.filterBy}
             activeLabel={strings.student.files.filterActive}
             active={filtersAreActive({ kind, sort })}
           >

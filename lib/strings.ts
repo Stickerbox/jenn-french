@@ -119,8 +119,11 @@ export type Strings = {
 
     files: {
       searchLabel: string;
-      // The disclosure that holds the two chip rows below.
-      filterBy: string;
+      // The disclosure that holds the two chip rows below. It had a `filterBy`
+      // caption ("Filtrer par :") until 2026-08-07, drawn beside the icon only
+      // while the panel was open — it named controls that were already there
+      // and labelled themselves, and being conditional it shifted the icon
+      // sideways on every press.
       filterToggle: string;
       filterActive: string;
       kindFilter: {
@@ -736,7 +739,6 @@ const fr: Strings = {
 
     files: {
       searchLabel: "Chercher",
-      filterBy: "Filtrer par :",
       // A neutral noun, not an instruction to reveal: aria-expanded already
       // carries open/closed, and "Afficher les filtres, développé" read like
       // a contradiction to a screen reader.
@@ -1291,7 +1293,6 @@ const en: Strings = {
 
     files: {
       searchLabel: "Search",
-      filterBy: "Filter by:",
       // A neutral noun, not an instruction to reveal: aria-expanded already
       // carries open/closed, and "Show filters, expanded" read like a
       // contradiction to a screen reader.

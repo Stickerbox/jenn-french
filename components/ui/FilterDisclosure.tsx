@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { cardFocusRing } from "@/components/card-styles";
 
@@ -18,21 +19,29 @@ import { cardFocusRing } from "@/components/card-styles";
 // `useState` in FilesTab and already behave that way, so the disclosure
 // follows the controls inside it rather than inventing persistence they do not
 // have.
+// There is no "Filtrer par :" caption beside the icon any more. It appeared
+// only while the panel was open, so it named controls that were already on
+// screen and labelled themselves — and being conditional it made the icon jump
+// sideways on every press, which read as the button moving away from the
+// pointer. The button's own aria-label carries the meaning for a screen reader
+// and always did.
 export function FilterDisclosure({
   toggleLabel,
-  label,
   activeLabel,
   active,
   children,
 }: {
   toggleLabel: string;
-  label: string;
   activeLabel: string;
   active: boolean;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  // framer-motion does NOT read prefers-reduced-motion by itself — the
+  // `motion-reduce:` utilities elsewhere in this codebase are CSS and reach
+  // none of this. Asking for it and zeroing the duration is the equivalent.
+  const reduceMotion = useReducedMotion();
 
   return (
     // The 20px gap below this wrapper, in both states, is `mb-5` collapsing
@@ -43,11 +52,6 @@ export function FilterDisclosure({
     // doubles to 40px.
     <div className="mb-5">
       <div className="flex items-center justify-center gap-2">
-        {open && (
-          <span className="font-[family-name:var(--card-font-serif)] text-sm text-[var(--card-moss)]">
-            {label}
-          </span>
-        )}
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
@@ -87,7 +91,31 @@ export function FilterDisclosure({
           element that exists. An id pointing at nothing is worse than a hidden
           panel: it is a promise the button cannot keep. */}
       <div id={panelId} hidden={!open} className="mt-3">
-        {children}
+        {/* The chips fade and settle down into place rather than being there
+            already on the frame after the press. Mounted only while open, so
+            the entrance replays each time it is reopened; the div above keeps
+            the id and the `hidden`, so the aria-controls contract is untouched
+            and the closed state is byte-for-byte what it was.
+
+            OPACITY AND TRANSFORM ONLY. NOT height. The 20px gap under this
+            whole component is the wrapper's `mb-5` collapsing with
+            KindFilter/SortFilter's own `mb-5` straight through these two plain
+            divs — see the wrapper's comment. Animating height needs
+            `overflow-hidden`, which establishes a block formatting context and
+            stops that collapse dead, silently doubling the gap to 40px.
+            Neither opacity nor transform creates one. */}
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: reduceMotion ? 0 : 0.24,
+              ease: [0.4, 0.15, 0.2, 1],
+            }}
+          >
+            {children}
+          </motion.div>
+        )}
       </div>
     </div>
   );
