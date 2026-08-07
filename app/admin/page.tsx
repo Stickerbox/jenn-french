@@ -18,6 +18,7 @@ import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
 import { parseAdminTab } from "@/lib/admin-tab";
 import { listConversations } from "@/lib/inbox";
+import { visibleStudents } from "@/lib/audience";
 import {
   createPage,
   createPdfPage,
@@ -208,9 +209,11 @@ async function DailyWordTab({
 // Each tab runs its own queries, apart from the group list the FAB above needs
 // on all three.
 async function GroupsTab({ locale }: { locale: Locale }) {
-  // The group query stays as it is — including its email/claimedAt selection —
-  // because this list includes the everyone row, which has no conversation and
-  // so is absent from listConversations.
+  // The query still fetches every row and the everyone one is dropped on the
+  // way into the list, rather than filtered in the `where`. Two reasons: the
+  // unread map below is built from listConversations, which already excludes
+  // it, so a narrower query would buy nothing; and a UI rule belongs in a
+  // predicate with a test on it, not in a Prisma clause. See lib/audience.ts.
   const [groups, conversations] = await Promise.all([
     prisma.group.findMany({ orderBy: { name: "asc" } }),
     listConversations(),
@@ -220,7 +223,7 @@ async function GroupsTab({ locale }: { locale: Locale }) {
   return (
     <div className="mx-auto w-full max-w-[560px]">
       <GroupList
-        groups={groups.map((g) => ({
+        groups={visibleStudents(groups).map((g) => ({
           id: g.id,
           name: g.name,
           slug: g.slug,
