@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { parseStudentTab } from "@/lib/student-tab";
 
-const all = { card: true, files: true, board: true };
-const none = { card: true, files: false, board: false };
+const all = { card: true, files: true, board: true, deck: true, todo: true };
+const none = {
+  card: true,
+  files: false,
+  board: false,
+  deck: false,
+  todo: false,
+};
 
 describe("parseStudentTab", () => {
   it("defaults to the card", () => {
@@ -33,7 +39,13 @@ describe("parseStudentTab", () => {
   });
 
   it("treats the two tabs independently", () => {
-    const boardOnly = { card: true, files: false, board: true };
+    const boardOnly = {
+      card: true,
+      files: false,
+      board: true,
+      deck: false,
+      todo: false,
+    };
     expect(parseStudentTab("board", boardOnly)).toBe("board");
     expect(parseStudentTab("files", boardOnly)).toBe("card");
   });
@@ -51,19 +63,37 @@ describe("parseStudentTab", () => {
   // global card is the one she just edited in /admin.
   it("lands on files when the card is unavailable", () => {
     expect(
-      parseStudentTab(undefined, { card: false, files: true, board: true }),
+      parseStudentTab(undefined, {
+        card: false,
+        files: true,
+        board: true,
+        deck: false,
+        todo: false,
+      }),
     ).toBe("files");
   });
 
   it("takes the board when the card and files are both unavailable", () => {
     expect(
-      parseStudentTab(undefined, { card: false, files: false, board: true }),
+      parseStudentTab(undefined, {
+        card: false,
+        files: false,
+        board: true,
+        deck: false,
+        todo: false,
+      }),
     ).toBe("board");
   });
 
   it("refuses an explicit ?tab=card when the card is unavailable", () => {
     expect(
-      parseStudentTab("card", { card: false, files: true, board: true }),
+      parseStudentTab("card", {
+        card: false,
+        files: true,
+        board: true,
+        deck: false,
+        todo: false,
+      }),
     ).toBe("files");
   });
 
@@ -72,7 +102,93 @@ describe("parseStudentTab", () => {
   // last resort, and the card branch degrades to "nothing posted yet".
   it("returns the card as a last resort when nothing is available", () => {
     expect(
-      parseStudentTab(undefined, { card: false, files: false, board: false }),
+      parseStudentTab(undefined, {
+        card: false,
+        files: false,
+        board: false,
+        deck: false,
+        todo: false,
+      }),
     ).toBe("card");
+  });
+
+  it("honours ?tab=deck when the deck is available", () => {
+    expect(
+      parseStudentTab("deck", {
+        card: true,
+        files: true,
+        board: true,
+        deck: true,
+        todo: true,
+      }),
+    ).toBe("deck");
+  });
+
+  it("honours ?tab=todo when the checklist is available", () => {
+    expect(
+      parseStudentTab("todo", {
+        card: true,
+        files: true,
+        board: true,
+        deck: true,
+        todo: true,
+      }),
+    ).toBe("todo");
+  });
+
+  it("falls back rather than opening a tab a visitor should not have", () => {
+    // A forwarded link. An untokened visitor has the card and nothing else,
+    // and must land on it rather than on an empty deck.
+    expect(
+      parseStudentTab("deck", {
+        card: true,
+        files: false,
+        board: false,
+        deck: false,
+        todo: false,
+      }),
+    ).toBe("card");
+  });
+
+  it("falls back to the deck when it is the first tab available", () => {
+    // The fallback path for `deck` specifically. Not reachable through today's
+    // only caller, which derives all four non-card flags from `unlocked` — but
+    // the function's own contract should not depend on one caller's habits.
+    expect(
+      parseStudentTab(undefined, {
+        card: false,
+        files: false,
+        board: false,
+        deck: true,
+        todo: true,
+      }),
+    ).toBe("deck");
+  });
+
+  it("falls back to the checklist when it is all that is left", () => {
+    expect(
+      parseStudentTab(undefined, {
+        card: false,
+        files: false,
+        board: false,
+        deck: false,
+        todo: true,
+      }),
+    ).toBe("todo");
+  });
+
+  it("prefers the deck over the checklist for a teacher with no card tab", () => {
+    // An unlocked teacher has no card tab, so the fallback order decides. It
+    // runs card, files, board, deck, todo — files first, because that is the
+    // tab she opens a student to see.
+    expect(
+      parseStudentTab(undefined, {
+        card: false,
+        files: true,
+        board: true,
+        deck: true,
+        todo: true,
+      }),
+    ).toBe("files");
   });
 });
