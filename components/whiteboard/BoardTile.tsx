@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BOARD_HEIGHT, BOARD_WIDTH, type DrawOp } from "@/lib/whiteboard-ops";
-import { exportLayout } from "@/lib/whiteboard-export";
-import { BOARD_PAPER, drawOps } from "@/components/whiteboard/BoardCanvas";
+import { BOARD_HEIGHT, BOARD_WIDTH } from "@/lib/whiteboard-ops";
+import { downloadBoardJpeg } from "@/components/whiteboard/board-download";
 
 export function BoardTile({
   slug,
@@ -23,54 +22,11 @@ export function BoardTile({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
 
-  // One tall JPEG rather than one file per page: multiple programmatic
-  // downloads make Chrome and Safari prompt, and a zip would mean the first
-  // utility dependency in this project.
   async function download() {
     setBusy(true);
     setError(false);
     try {
-      const response = await fetch(`/api/whiteboard/${slug}/${id}`);
-      if (!response.ok) throw new Error("fetch failed");
-      const { pages } = (await response.json()) as { pages: DrawOp[][] };
-
-      const layout = exportLayout(pages.length);
-      const canvas = document.createElement("canvas");
-      canvas.width = layout.width;
-      canvas.height = layout.height;
-
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("no 2d context");
-
-      context.fillStyle = BOARD_PAPER;
-      context.fillRect(0, 0, canvas.width, canvas.height);
-
-      pages.forEach((ops, index) => {
-        context.save();
-        context.translate(0, index * (layout.pageHeight + layout.gap));
-        context.scale(layout.scale, layout.scale);
-        context.beginPath();
-        context.rect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
-        context.clip();
-        drawOps(context, ops);
-        context.restore();
-
-        if (index > 0) {
-          context.fillStyle = "#d8cbb4"; // --card-line
-          context.fillRect(
-            0,
-            index * (layout.pageHeight + layout.gap) - layout.gap / 2,
-            canvas.width,
-            1,
-          );
-        }
-      });
-
-      const url = canvas.toDataURL("image/jpeg", 0.9);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `tableau-${label.replace(/[^\w]+/g, "-").toLowerCase()}.jpg`;
-      anchor.click();
+      await downloadBoardJpeg({ slug, id, label });
     } catch {
       setError(true);
     } finally {
