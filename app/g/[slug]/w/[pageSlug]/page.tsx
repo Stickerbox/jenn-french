@@ -15,6 +15,7 @@ import {
 import { canSaveFromSlot, isWritableSlot } from "@/lib/worksheet-save-slots";
 import { visibleSlots } from "@/lib/worksheet-slots";
 import { currentLocale } from "@/lib/locale";
+import { getStrings } from "@/lib/strings";
 import { WorksheetShell } from "@/components/worksheet/WorksheetShell";
 import { PdfShell } from "@/components/pdf/PdfShell";
 import { WorksheetHeading } from "@/components/worksheet/WorksheetHeading";
@@ -86,6 +87,10 @@ export default async function WorksheetPage({
 
   const versions = await listVersions(context.page.id, context.group.id);
   const audience = context.role === "teacher" ? "teacher" : "student";
+  // Resolved once, above the branch, because BOTH shells need it now — the
+  // language on this route follows the browser like everywhere else, and
+  // `audience` is left meaning only whose answers a tab holds.
+  const locale = await currentLocale();
   const hasStudent = versions.some((version) => !version.fromTeacher);
   const hasTeacher = versions.some((version) => version.fromTeacher);
 
@@ -112,19 +117,17 @@ export default async function WorksheetPage({
     // default — and is passed rather than faked so the argument list cannot
     // drift from the real one.
     const slot = readSlot(v, "teacher", hasTeacher);
-    const locale = await currentLocale();
     const pdfHref = `/g/${slug}/w/${pageSlug}/pdf?v=${slot}`;
-    // Matches WorksheetShell's own back control exactly — same target, same
-    // audience split — rather than a second copy keyed by locale. See
-    // CLAUDE.md's note on why the worksheet route still splits by audience
-    // instead of the browser's language: this predates that convention and
-    // migrating it is a separate decision from adding a pdf viewer beside it.
-    const backLabel = audience === "teacher" ? "Back to files" : "Les fichiers";
+    // One dictionary for both shells now. This used to read
+    // `audience === "teacher" ? "Back to files" : "Les fichiers"`, with a
+    // comment explaining that the worksheet route predated the
+    // Accept-Language convention. It no longer does.
+    const t = getStrings(locale).worksheet;
 
     return (
       <PdfShell
-        ariaLabel={audience === "teacher" ? "Versions" : "Versions du devoir"}
-        back={{ kind: "link", href: `/g/${slug}?tab=files`, label: backLabel }}
+        ariaLabel={t.versionsLabel}
+        back={{ kind: "link", href: `/g/${slug}?tab=files`, label: t.backToFiles }}
         center={
           <WorksheetHeading
             slots={pdfSlots}
@@ -132,6 +135,7 @@ export default async function WorksheetPage({
             audience={audience}
             studentName={context.group.name}
             title={context.page.title}
+            locale={locale}
           />
         }
         actions={
@@ -184,6 +188,7 @@ export default async function WorksheetPage({
       slot={slot}
       slots={slots}
       writable={isWritableSlot({ slot, audience, hasTeacher })}
+      locale={locale}
       hasOwnVersion={Boolean(own)}
       // Reduced to a boolean HERE, on the server. A Date would serialise
       // across the boundary, but nothing in the client needs to know when —

@@ -319,6 +319,40 @@ Staying in flow is also what spares both callers the padding arithmetic a fixed
 bar would demand, and what lets a taller action — the pdf upload's drop zone —
 simply grow the bar and start the document lower.
 
+**The middle track is not a scroll container, and that is not cosmetic.** It
+was `h-11` with `overflow-x-auto`, and an element with `overflow-x-auto` gets
+`overflow-y: auto` computed for free — CSS cannot scroll one axis and overflow
+the other. A track fixed at exactly the version strip's own height therefore
+sliced the strip's drop shadow flat. It is `min-h-11` with no overflow now; the
+strip is already `max-w-full` and scrolls itself, which is where three French
+labels on a phone are handled.
+
+### Language
+
+**This route follows `Accept-Language` like everything else** (2026-08-07). It
+was the last place in the app choosing a language by *who was reading* —
+French for the student, English for Jenn, decided inline in each component and
+in `versionLabel`. Every string now lives in `lib/strings.ts` under
+`worksheet`, and the components take `locale: Locale` and call
+`getStrings(locale)` themselves. **Never pass a resolved `Strings` object into
+one of them** — the values are functions, React cannot serialise them across
+the RSC boundary, and the failure is a request-time 500 that lint, `tsc`, the
+tests and the build all miss. See CLAUDE.md's i18n section.
+
+**`audience` survives and means something narrower: PERSPECTIVE.** Whose
+answers a tab holds is a different question from which language to say it in,
+and `versionLabel(slot, audience, studentName, locale)` needs both. Two
+combinations were unreachable before and are pinned by tests now: Jenn on an
+`fr-CA` browser gets *Les réponses de Marie*, and a student on an English one
+gets *Jenn's correction*.
+
+**Two strings stay keyed to `audience`, and they are a ROLE split rather than a
+language one.** The save route's and the send route's own error text is English
+and written for whoever is debugging them; Jenn sees it verbatim because she
+operates this site, and a student gets the translated sentence instead of a
+leaked server string. Do not "fix" those two to follow the locale — the point
+is that one reader can act on a raw reason and the other cannot.
+
 **The badge and the worksheet target are two different mechanisms, and their
 absence in the admin has two different causes — do not read them as one
 rule.** `pageTarget` needs a group slug to build the worksheet route, because

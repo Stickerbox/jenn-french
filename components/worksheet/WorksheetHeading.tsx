@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { ShellTitle } from "@/components/ui/ShellBar";
 import { versionLabel, type VersionSlot } from "@/lib/version-labels";
+import type { Locale } from "@/lib/i18n";
 
 // The middle of a worksheet's bar, for BOTH kinds — the html shell's iframe
 // and the pdf shell's canvases. It was written twice, once in each, with a
@@ -32,6 +33,7 @@ export function WorksheetHeading({
   audience,
   studentName,
   title,
+  locale,
   showWhenAlone = false,
 }: {
   slots: VersionSlot[];
@@ -39,6 +41,8 @@ export function WorksheetHeading({
   audience: "student" | "teacher";
   studentName: string;
   title: string;
+  // The LOCALE, never a resolved Strings object — see lib/strings.ts.
+  locale: Locale;
   // A prop rather than `audience === "student"`, so the pdf shell — which
   // shows both parties the old three-slot reading and is otherwise untouched
   // by the one-copy change — keeps drawing its title at a single version.
@@ -47,7 +51,16 @@ export function WorksheetHeading({
   if (slots.length < 2 && !showWhenAlone) return <ShellTitle>{title}</ShellTitle>;
 
   return (
-    <div className="flex min-w-0 max-w-full gap-1 overflow-x-auto rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1 shadow-[var(--card-shadow)]">
+    // `p-1.5` and not `p-1`. Both the strip and its pills are `rounded-full`,
+    // so at 4px the gap between the two curves closed to a hairline at the
+    // corners and the selected tab read as though it had been cut out of its
+    // own container rather than sitting in it.
+    //
+    // This keeps `overflow-x-auto` — three French labels are wider than a
+    // phone — which is safe here and was not on the track above: the pills
+    // carry no shadow of their own, so there is no vertical overflow for the
+    // implied `overflow-y` to clip.
+    <div className="flex min-w-0 max-w-full gap-1 overflow-x-auto rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1.5 shadow-[var(--card-shadow)]">
       {slots.map((s) => (
         // A plain anchor, not a button calling router.push: the whiteboard's
         // capture-phase leave-guard (lib/leave-guard.ts) inspects real anchors
@@ -66,7 +79,7 @@ export function WorksheetHeading({
               : "text-[var(--card-moss)]",
           )}
         >
-          {versionLabel(s, audience, studentName)}
+          {versionLabel(s, audience, studentName, locale)}
         </a>
       ))}
     </div>

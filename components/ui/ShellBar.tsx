@@ -105,10 +105,18 @@ export function ShellBar({
         )}
       </div>
 
-      {/* `h-11` and `items-center`: the middle track used to align to the top
-          of a row whose other tracks are 44px tall, which left a title sitting
-          high and reading as though it belonged to nothing. */}
-      <div className="flex h-11 min-w-0 max-w-full items-center justify-center overflow-x-auto">
+      {/* `min-h-11` and `items-center`: the middle track used to align to the
+          top of a row whose other tracks are 44px tall, which left a title
+          sitting high and reading as though it belonged to nothing.
+
+          NOT `h-11`, AND NOT A SCROLL CONTAINER. It was both, and between them
+          they sliced the version strip: an element with `overflow-x-auto` gets
+          `overflow-y: auto` computed for free — CSS has no way to scroll one
+          axis and overflow the other — so a track fixed at exactly the strip's
+          own height clipped the strip's drop shadow flat. The strip already
+          scrolls itself and is already `max-w-full`, so this track never
+          needed to. */}
+      <div className="flex min-h-11 min-w-0 max-w-full items-center justify-center">
         {center}
       </div>
 
