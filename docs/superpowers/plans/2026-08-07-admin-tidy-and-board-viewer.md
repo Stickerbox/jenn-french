@@ -889,16 +889,27 @@ Expected: PASS.
 In `app/page-actions.ts`, in `setShelfPin`, immediately after `await requireShelfRole(groupId);` insert:
 
 ```ts
-  // The shared shelf takes no pins — see canPinToShelf. A silent return rather
-  // than a throw, matching the deleteMany convention beside it: nothing in the
-  // UI offers this any more, so anything reaching here is a stale tab or a
-  // hand-made request, and neither deserves an error the caller cannot act on.
+  // Checked here rather than only in the UI: hiding a control is not a guard,
+  // and this action is still reachable from a stale tab. A THROW rather than a
+  // silent return, matching deleteGroup's refusal of the same row: silence in
+  // this file means the resource is already gone (see the `if (!page) return`
+  // below, and deleteMany), and a pin refused on a shelf that exists is a
+  // policy answer, not an absence.
   const shelf = await prisma.group.findUnique({
     where: { id: groupId },
     select: { isEveryone: true },
   });
-  if (!shelf || !canPinToShelf(shelf)) return;
+  if (shelf && !canPinToShelf(shelf)) {
+    const strings = await currentStrings();
+    throw new Error(strings.admin.actions.everyoneCannotBePinned);
+  }
 ```
+
+The condition is `shelf && !canPinToShelf(shelf)`, mirroring `deleteGroup`'s `group && !canDeleteGroup(group)`: a missing group is left to the code below rather than turned into a pin-specific error.
+
+Add `everyoneCannotBePinned` to `lib/strings.ts` in all three places, directly below the existing `everyoneCannotBeDeleted` in each — type, French `"On ne peut rien épingler pour tout le monde."`, English `"Nothing can be pinned for everyone."`.
+
+**An earlier draft of this plan said to return silently here, by analogy to the `deleteMany` convention. That analogy was wrong** and a code review caught it. Silence in `app/page-actions.ts` means the resource is already gone. `deleteGroup` (`app/actions.ts`) is the precedent for a policy refusal of this very row, and it throws — its comment says "hiding a button is not a guard."
 
 Add the import beside the other `@/lib` imports:
 
