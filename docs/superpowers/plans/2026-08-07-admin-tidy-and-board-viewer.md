@@ -789,6 +789,254 @@ EOF
 
 ---
 
+## Task 4b: Drop pins on the shared shelf
+
+**Added after Task 4's quality review, by the owner's decision.** Not in the original spec.
+
+### Why this exists
+
+Task 4 removed the everyone chip from the Pages tab. That chip was the only way to select the shared shelf, and selecting it was the only way to pin a page onto `/g/all`. So Task 4 silently removed a real, working capability.
+
+It was real because of a clause order that is deliberate and documented. `shelfRole` (`lib/shelf-access.ts`) returns `"teacher"` **before** it tests `isEveryone`, and its own comment says why: *"the shared shelf is hers to fill and to pin"*. That ordering is a sibling-of-`chatRole` decision and must not be changed — `addShelfLink`, `addShelfPage` and `addShelfPdf` all depend on it.
+
+The owner chose to retire the capability rather than restore it: **a pin becomes a per-student thing only.** That is a simpler mental model than "pins exist on the shared shelf too, but nothing in the admin can make one."
+
+### The cost, stated plainly
+
+This deletes rows. `/g/all` is public and students may have it bookmarked, so any page currently pinned there will drop back into date order for them. There is no undo and no version history for a pin. The owner authorised this knowingly. It cannot be inspected against production from here.
+
+### Files
+
+- Modify: `lib/page-pins.ts`
+- Modify: `tests/lib/page-pins.test.ts`
+- Modify: `app/page-actions.ts` (`setShelfPin`)
+- Create: `prisma/migrations/20260807160000_drop_everyone_pins/migration.sql`
+- Modify: `.claude/rules/files-pages-pdfs.md`
+- Modify: `components/admin/PagesTabClient.tsx` (a stale comment, unrelated to pins but the same dead-branch class Task 4 already corrected in `GroupList`)
+
+- [ ] **Step 1: Write the failing test**
+
+Add to `tests/lib/page-pins.test.ts`. Extend the import to include `canPinToShelf`, then add:
+
+```ts
+describe("canPinToShelf", () => {
+  it("allows a student's own shelf", () => {
+    expect(canPinToShelf({ isEveryone: false })).toBe(true);
+  });
+
+  it("refuses the shared shelf", () => {
+    // A pin orders ONE shelf, and the shared shelf is nobody's. Retired
+    // 2026-08-07 with the everyone chip that was the only way to reach it.
+    expect(canPinToShelf({ isEveryone: true })).toBe(false);
+  });
+
+  it("reads only the flag, so a group named 'all' is still pinnable", () => {
+    // Bound to a variable, not passed as a literal: TypeScript's
+    // excess-property check fires only on fresh literals at a call site, and
+    // the point is that the extra field is ignored rather than rejected. The
+    // same shape tests/lib/everyone.test.ts uses for canDeleteGroup.
+    const namedAll = { isEveryone: false, slug: "all" };
+    expect(canPinToShelf(namedAll)).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 2: Run it and see it fail**
+
+```bash
+npx vitest run tests/lib/page-pins.test.ts
+```
+
+Expected: FAIL, `canPinToShelf is not a function`.
+
+- [ ] **Step 3: Add the predicate**
+
+In `lib/page-pins.ts`, add above `applyPins`:
+
+```ts
+// Which shelves may carry a pin at all.
+//
+// A pin orders ONE shelf — `PagePin` is keyed (page, group) and pins
+// deliberately do not inherit, so a pin on the shared shelf showed at `/g/all`
+// and nowhere else. Reaching it meant selecting the everyone chip in the admin
+// Pages tab, and that chip was removed on 2026-08-07 because it drew the
+// shared group as if it were a student.
+//
+// Rather than leave a capability the UI could no longer reach, pinning there is
+// retired: a pin is a per-student ordering. The rows that existed were deleted
+// by prisma/migrations/20260807160000_drop_everyone_pins.
+//
+// A separate predicate rather than a clause inside shelfRole, and that
+// distinction is load-bearing. shelfRole answers "may this caller WRITE to this
+// shelf", and it answers "teacher" before it looks at isEveryone ON PURPOSE —
+// its own comment says the shared shelf is hers to fill. Jenn must keep being
+// able to put pages and links there. Only the ORDERING is withdrawn.
+export function canPinToShelf(group: { isEveryone: boolean }): boolean {
+  return !group.isEveryone;
+}
+```
+
+- [ ] **Step 4: Run it and see it pass**
+
+```bash
+npx vitest run tests/lib/page-pins.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Enforce it on the server**
+
+In `app/page-actions.ts`, in `setShelfPin`, immediately after `await requireShelfRole(groupId);` insert:
+
+```ts
+  // The shared shelf takes no pins — see canPinToShelf. A silent return rather
+  // than a throw, matching the deleteMany convention beside it: nothing in the
+  // UI offers this any more, so anything reaching here is a stale tab or a
+  // hand-made request, and neither deserves an error the caller cannot act on.
+  const shelf = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: { isEveryone: true },
+  });
+  if (!shelf || !canPinToShelf(shelf)) return;
+```
+
+Add the import beside the other `@/lib` imports:
+
+```ts
+import { canPinToShelf } from "@/lib/page-pins";
+```
+
+- [ ] **Step 6: Write the migration by hand**
+
+**Do NOT run `npx prisma migrate dev`.** This migration changes no schema, so Prisma would generate nothing from it — a data-only migration has to be hand-authored. Running `migrate dev` against the local `prisma/dev.db`, which has no tables, could also try to reset it.
+
+Create `prisma/migrations/20260807160000_drop_everyone_pins/migration.sql`:
+
+```sql
+-- Retire pins on the shared shelf.
+--
+-- A pin orders one shelf and does not inherit, so these rows only ever affected
+-- /g/all. The admin control that created them was the everyone chip on the
+-- Pages tab, removed the same day because it drew the shared group as a
+-- student. Rather than leave rows no UI can create, edit or remove, pinning
+-- there is retired outright and lib/page-pins.ts refuses it from now on.
+--
+-- DESTRUCTIVE AND NOT REVERSIBLE. /g/all is public, so any page pinned there
+-- drops back into date order for anyone who has it bookmarked. There is no
+-- version history behind a pin; the row is simply gone.
+--
+-- Keyed on the flag rather than on the slug 'all', because every rule in this
+-- codebase keys off isEveryone and a slug comparison is the thing lib/everyone.ts
+-- exists to avoid. `= 1` because SQLite stores a Prisma Boolean as an integer.
+DELETE FROM "PagePin"
+WHERE "groupId" IN (SELECT "id" FROM "Group" WHERE "isEveryone" = 1);
+```
+
+- [ ] **Step 7: Rewrite the pins rule**
+
+In `.claude/rules/files-pages-pdfs.md`, replace this paragraph:
+
+```markdown
+**Pins do not inherit.** A pin on the everyone shelf shows at `/g/all` and
+nowhere else, unlike the page itself. The cost is that pinning one reference for
+the whole class is one pin per student; the alternative was a second merge rule
+to keep in step with `effectivePages`, and two merge rules drift.
+```
+
+with:
+
+```markdown
+**Pins do not inherit, and the shared shelf takes none at all.** A pin is a
+per-(page, student) ordering. Pinning one reference for the whole class is
+therefore one pin per student; the alternative was a second merge rule to keep
+in step with `effectivePages`, and two merge rules drift.
+
+The shared shelf used to be pinnable — a pin there showed at `/g/all` and
+nowhere else — and that was reachable only through the everyone chip on the
+admin Pages tab. That chip was removed on 2026-08-07 (see above), which left a
+capability no UI could reach, so `canPinToShelf` (`lib/page-pins.ts`) now
+refuses it and `20260807160000_drop_everyone_pins` deleted the rows. The visible
+cost was accepted: a page pinned at `/g/all` dropped back into date order for
+anyone with that page bookmarked.
+
+**`canPinToShelf` is not a clause inside `shelfRole`, and must not become one.**
+`shelfRole` answers *may this caller write to this shelf*, and it answers
+`"teacher"` **before** it tests `isEveryone` on purpose — its own comment says
+the shared shelf is Jenn's to fill. She must keep being able to put pages and
+links there. Only the ordering was withdrawn.
+```
+
+- [ ] **Step 8: Correct the stale comment in `PagesTabClient`**
+
+`components/admin/PagesTabClient.tsx` computes `activeGroupSlug` and its comment describes the everyone chip being selectable. It no longer is. This is the same dead-branch class Task 4 corrected in `GroupList`, and leaving one corrected and the other stale is worse than correcting neither.
+
+Replace:
+
+```ts
+  // The same rule pageTarget's caller applies on /g/[slug]: the everyone
+  // group's shelf is public and has no student for a version to belong to, so
+  // a worksheet tile filtered under its chip must fall back to the public
+  // page rather than link a tile at a route chatRole refuses.
+```
+
+with:
+
+```ts
+  // Defensive since 2026-08-07: `chip` is set only by PageList's chip row, and
+  // visibleGroupChips no longer offers the everyone name, so this cannot be the
+  // everyone group in practice. The clause stays because the rule behind it is
+  // still true — that shelf is public and has no student for a version to
+  // belong to, so a worksheet tile under it must fall back to the public page
+  // rather than link at a route chatRole refuses. The same reasoning keeps
+  // GroupList's canDeleteGroup fallback.
+```
+
+- [ ] **Step 9: Verify**
+
+```bash
+npx prisma generate && npm run lint && npm run typecheck && npm test
+```
+
+Expected: one pre-existing warning (`lib/snapshot-dom.ts:77`), silent tsc, all tests passing plus the three new ones.
+
+Confirm the migration is valid SQL without applying it:
+
+```bash
+sqlite3 :memory: "CREATE TABLE \"Group\" (id TEXT, isEveryone INTEGER); CREATE TABLE \"PagePin\" (pageId TEXT, groupId TEXT); $(sed 's/^--.*//' prisma/migrations/20260807160000_drop_everyone_pins/migration.sql | tr '\n' ' ')"
+```
+
+Expected: no output, exit 0. A syntax error would print one.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add lib/page-pins.ts tests/lib/page-pins.test.ts app/page-actions.ts prisma/migrations/20260807160000_drop_everyone_pins/migration.sql .claude/rules/files-pages-pdfs.md components/admin/PagesTabClient.tsx
+git commit -m "$(cat <<'EOF'
+Retire pins on the shared shelf
+
+Removing the everyone chip took away the only way to reach them. That
+left a capability no UI could create, edit or remove, so rather than
+restore the chip the ordering is retired: a pin is a per-student thing.
+
+The rows are deleted by migration. This is destructive and visible —
+/g/all is public, so a page pinned there drops back into date order for
+anyone with it bookmarked. Accepted deliberately.
+
+canPinToShelf is a separate predicate and NOT a clause in shelfRole,
+which answers "teacher" before it tests isEveryone on purpose: Jenn must
+keep being able to put pages and links on that shelf. Only the ordering
+went.
+
+Also corrects PagesTabClient's comment about a chip that can no longer
+be selected, the same correction Task 4 made in GroupList.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
 ## Task 5: Close the edit overlay on a clean save
 
 `PageEditor.handleSubmit` sets a *Saved* flag and refreshes. It never closes anything, so the sheet sits over a list that has already changed behind it. The same form is the body of `/admin/pages/[slug]`, which is a page and has nothing to close — so the close arrives as an optional callback the overlay passes and the route does not.
