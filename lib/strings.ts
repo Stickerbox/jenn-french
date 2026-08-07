@@ -97,7 +97,7 @@ export type Strings = {
       // NOT "Les cartes". The daily-card tab above is "La carte", and two
       // adjacent tabs one letter apart, meaning different things, is a trap.
       // "Vocabulaire" also says what the deck is for.
-      cards: string;
+      deck: string;
       todo: string;
     };
 
@@ -715,7 +715,7 @@ const fr: Strings = {
       card: "La carte",
       files: "Les fichiers",
       board: "Le tableau",
-      cards: "Vocabulaire",
+      deck: "Vocabulaire",
       todo: "À faire",
     },
 
@@ -1270,7 +1270,7 @@ const en: Strings = {
       card: "The card",
       files: "Files",
       board: "Board",
-      cards: "Vocabulary",
+      deck: "Vocabulary",
       todo: "To do",
     },
 
