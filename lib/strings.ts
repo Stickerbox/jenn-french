@@ -338,6 +338,11 @@ export type Strings = {
     pageForm: {
       studentsLegend: string;
       noStudentsYet: string;
+      // The everyone group's pill in an audience form. From the dictionary and
+      // NOT from Group.name, for two reasons: renaming that row in the
+      // database must not change what this form says, and the word has to be
+      // translated like every other word on the screen. See lib/audience.ts.
+      allStudents: string;
     };
 
     // "Title" and "Preparing preview…" and "That PDF is larger than 3 MB." are
@@ -801,6 +806,7 @@ const fr: Strings = {
     pageForm: {
       studentsLegend: "Élèves",
       noStudentsYet: "Pas encore d'élèves.",
+      allStudents: "Tous les élèves",
     },
 
     titleLabel: "Titre",
@@ -1236,6 +1242,7 @@ const en: Strings = {
     pageForm: {
       studentsLegend: "Students",
       noStudentsYet: "No students yet.",
+      allStudents: "All students",
     },
 
     titleLabel: "Title",
