@@ -71,11 +71,27 @@ export function useWorksheetAutosave({
       return false;
     }
 
-    const response = await fetch(`/api/worksheets/${groupSlug}/${pageSlug}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ html }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`/api/worksheets/${groupSlug}/${pageSlug}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html }),
+      });
+    } catch {
+      // fetch REJECTS rather than answering `ok: false` on a genuine network
+      // failure — offline, DNS, a dropped connection — which a phone hits
+      // often. Left unguarded this stranded `status` at "saving" forever:
+      // savingRef never cleared, so every later keystroke's debounce found
+      // a save already "in flight" and did nothing, silently, for the rest
+      // of the session. Handled on the same path as `!response.ok` below,
+      // and NOT rescheduled for the same reason: only a reported change may
+      // schedule a write.
+      savingRef.current = false;
+      setStatus("error");
+      setError(failed);
+      return false;
+    }
 
     savingRef.current = false;
 
@@ -111,8 +127,17 @@ export function useWorksheetAutosave({
       if (data.type === EDITABLE_MESSAGE) setEditable(Boolean(data.editable));
 
       if (data.type === DIRTY_MESSAGE) {
-        setDirty(true);
+        // A read-only tab still types — text fields are browser behaviour,
+        // and stopping them would mean rewriting the served document — but
+        // nothing typed there is stored, so it is not "dirty" in the sense
+        // this flag means everywhere it's read. Setting it anyway used to
+        // flip an already-`"sent"` send state back to `"ready"` from a stray
+        // keystroke on Jenn's correction or a student's read of it, and
+        // pressing Send then posted a second notice with nothing new behind
+        // it — flush() rightly writes nothing on a read-only tab, but the
+        // route it calls next has no way to know that.
         if (!writableRef.current) return;
+        setDirty(true);
         if (timer.current !== null) window.clearTimeout(timer.current);
         // Restarted on every change, so a run of typing costs one write and
         // the ten seconds are counted from the LAST key, not the first.

@@ -32,10 +32,22 @@ export function DeleteVersionButton({
     if (!window.confirm(question)) return;
 
     setBusy(true);
-    const response = await fetch(
-      `/api/worksheets/${groupSlug}/${pageSlug}/restart`,
-      { method: "POST" },
-    );
+    let response: Response;
+    try {
+      response = await fetch(
+        `/api/worksheets/${groupSlug}/${pageSlug}/restart`,
+        { method: "POST" },
+      );
+    } catch {
+      // fetch REJECTS rather than answering `ok: false` on a genuine network
+      // failure — offline, DNS, a dropped connection. Left unguarded the
+      // exception escaped this handler, busy never cleared, and the button
+      // sat disabled with no way to press it again until a reload. Handled
+      // on the same path as a non-ok response below: nothing was deleted,
+      // so there is nothing to navigate to.
+      setBusy(false);
+      return;
+    }
     if (!response.ok) {
       setBusy(false);
       return;

@@ -53,14 +53,17 @@ behaviour, not JavaScript — which is what makes the correction the *same
 operation* as the attempt rather than a second feature: Jenn opens the
 student's version and types into it.
 
-**"Typeable" is narrower than it sounds, and the Save pill asks the document
-whether it applies** (2026-08-06). What survives a strip is what the *browser*
-drives: text fields, checkboxes, selects, `contenteditable`, `:checked`. What
-does not is everything the page's own JavaScript drove — and a Dia worksheet is
-often exactly that: clickable answers, drag-and-drop matching, div-based
-pickers. Measured, not assumed: a real worksheet answered by clicking animated
-elements came back inert, and the pill over it offered to re-save a document
-nobody could edit.
+**"Typeable" is narrower than it sounds, and the editable probe answers
+whether the caller's own saved copy still is** (2026-08-06). What survives a
+strip is what the *browser* drives: text fields, checkboxes, selects,
+`contenteditable`, `:checked`. What does not is everything the page's own
+JavaScript drove — and a Dia worksheet is often exactly that: clickable
+answers, drag-and-drop matching, div-based pickers. Measured, not assumed: a
+real worksheet answered by clicking animated elements came back inert. There
+is no Save pill for that answer to gate any more (see below); it now draws the
+`stuck` hint beside Recommencer / Delete correction instead, so a document
+that came back inert says so next to the control that gets a party off it,
+rather than sitting there silently offering fields nobody can fill in.
 
 **Which tabs may write is decided first, by two rules, not one.**
 `canSaveFromSlot` (`lib/worksheet-save-slots.ts`) governs a PDF worksheet's

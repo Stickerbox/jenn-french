@@ -46,10 +46,26 @@ export function SendVersionButton({
       return;
     }
 
-    const response = await fetch(
-      `/api/worksheets/${groupSlug}/${pageSlug}/send`,
-      { method: "POST" },
-    );
+    let response: Response;
+    try {
+      response = await fetch(
+        `/api/worksheets/${groupSlug}/${pageSlug}/send`,
+        { method: "POST" },
+      );
+    } catch {
+      // fetch REJECTS rather than answering `ok: false` on a genuine network
+      // failure — offline, DNS, a dropped connection — a case a phone hits
+      // often. Left unguarded the exception escaped this handler entirely,
+      // busy never cleared, and the button sat disabled with no message
+      // until a reload. Handled the same way a non-ok response already is.
+      setBusy(false);
+      setError(
+        audience === "teacher"
+          ? "That didn't go. Try again."
+          : "L'envoi a échoué. Essaie encore.",
+      );
+      return;
+    }
     setBusy(false);
 
     if (!response.ok) {
