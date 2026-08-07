@@ -90,9 +90,17 @@ are not the same risk.
 
 | Tab | Jenn, PDF | Jenn, html, no correction | Jenn, html, has correction | Student |
 |---|---|---|---|---|
-| Blank | write | write | read-only | write |
+| Blank | write | write | read-only | read-only |
 | Student's attempt | write | write | read-only | write |
 | Jenn's correction | write | write | write | read-only |
+
+Blank/Student reads read-only rather than n/a on purpose: `isWritableSlot`
+answers `slot === "student"` for a student regardless of whether they can
+reach `slot` — its own test says so directly, "not a tab they can reach, but
+the predicate must not depend on that" — because a student's tab is always
+`"student"` from the moment they open a fresh worksheet, blank content served
+under that slot until their first save gives it a row. The cell records what
+the predicate answers, not a tab that exists in the product.
 
 The table's read-only cells are where `stuck` and the *Lecture seule* /
 *Read-only* marker matter: the document still **types** on a read-only tab —

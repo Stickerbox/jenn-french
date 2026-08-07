@@ -77,7 +77,7 @@ export function WorksheetShell({
     window.history.replaceState(null, "", `?v=${mine}`);
   }, [audience, ownExists]);
 
-  const { dirty, editable, error, flush } = useWorksheetAutosave({
+  const { dirty, editable, error, flush, cancel } = useWorksheetAutosave({
     groupSlug,
     pageSlug,
     audience,
@@ -190,6 +190,7 @@ export function WorksheetShell({
             groupSlug={groupSlug}
             pageSlug={pageSlug}
             audience={audience}
+            cancel={cancel}
           />
         )}
         <SendVersionButton

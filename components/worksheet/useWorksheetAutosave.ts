@@ -50,7 +50,20 @@ export function useWorksheetAutosave({
   useEffect(() => {
     writableRef.current = writable;
   });
+  // Mirrors `dirty` for the same reason `writableRef` mirrors the prop: an
+  // async callback (flush's post-await continuation, cancel()) needs the
+  // CURRENT answer, not the one closed over when that callback was created.
+  // Assigned right beside every `setDirty` call rather than synced in an
+  // effect, because both writes are already synchronous with the state
+  // change — an effect would only add a render's worth of lag for no
+  // benefit here.
+  const dirtyRef = useRef(false);
   const savingRef = useRef(false);
+  // The currently in-flight save, if any — set by whoever actually starts
+  // one (the debounce timer), read by flush() so a Send press that lands
+  // mid-save can wait on the SAME request instead of starting a second one
+  // that save()'s own reentrancy guard would just refuse.
+  const savePromiseRef = useRef<Promise<boolean> | null>(null);
 
   const save = useCallback(async (): Promise<boolean> => {
     if (savingRef.current) return false;
@@ -109,10 +122,26 @@ export function useWorksheetAutosave({
     }
 
     setStatus("saved");
+    dirtyRef.current = false;
     setDirty(false);
     onSaved();
     return true;
   }, [audience, groupSlug, pageSlug, onSaved]);
+
+  // Read inside the debounce callback instead of closing over `save`
+  // directly. `save`'s identity changes when `onSaved`'s does — which
+  // happens once, on the first successful save, when the shell's `ownExists`
+  // flips — and the listener effect below used to depend on `[save]`. A
+  // React effect dependency change tears the OLD effect down before setting
+  // the new one up, and the cleanup clears `timer.current` — even a timer
+  // just armed by a keystroke typed during that first save's network round
+  // trip, moments before `onSaved()` fired. `dirty` stayed true with nothing
+  // left to ever clear it but another keystroke or an explicit Send. Kept
+  // current every render, the same shape as `writableRef` above.
+  const saveRef = useRef(save);
+  useEffect(() => {
+    saveRef.current = save;
+  });
 
   // Every change the document reports, and the probe's answer. The frame is
   // the only window that may speak, and it has an opaque origin, so this
@@ -137,13 +166,18 @@ export function useWorksheetAutosave({
         // it — flush() rightly writes nothing on a read-only tab, but the
         // route it calls next has no way to know that.
         if (!writableRef.current) return;
+        dirtyRef.current = true;
         setDirty(true);
         if (timer.current !== null) window.clearTimeout(timer.current);
         // Restarted on every change, so a run of typing costs one write and
         // the ten seconds are counted from the LAST key, not the first.
         timer.current = window.setTimeout(() => {
           timer.current = null;
-          void save();
+          const promise = saveRef.current();
+          savePromiseRef.current = promise;
+          void promise.finally(() => {
+            if (savePromiseRef.current === promise) savePromiseRef.current = null;
+          });
         }, DEBOUNCE_MS);
       }
     }
@@ -163,7 +197,27 @@ export function useWorksheetAutosave({
       window.removeEventListener("message", onMessage);
       if (timer.current !== null) window.clearTimeout(timer.current);
     };
-  }, [save]);
+    // Mounts once and cleans up only on unmount — see saveRef above. Every
+    // other value this effect reads (writableRef, dirtyRef, savePromiseRef)
+    // is a ref precisely so it does not belong in this array either.
+  }, []);
+
+  // Discards the pending debounce without saving, and clears `dirty` to
+  // match — both, because a confirmed delete means abandoning whatever the
+  // timer was about to write, and the shell arms `beforeunload` on `dirty`,
+  // so leaving it set would raise a "you have unsaved changes" dialog on the
+  // very navigation the delete triggers. Does NOT touch a save already in
+  // flight: that request cannot be unsent, so the arriving write and the
+  // delete's own row-clear simply race, and the delete is the one this
+  // control exists to make final.
+  const cancel = useCallback(() => {
+    if (timer.current !== null) {
+      window.clearTimeout(timer.current);
+      timer.current = null;
+    }
+    dirtyRef.current = false;
+    setDirty(false);
+  }, []);
 
   // Write now, if there is anything outstanding. Send calls this before it
   // announces anything: a notice about work that was never stored is worse
@@ -173,9 +227,27 @@ export function useWorksheetAutosave({
       window.clearTimeout(timer.current);
       timer.current = null;
     }
-    if (!dirty || !writable) return true;
-    return save();
-  }, [dirty, writable, save]);
 
-  return { status, dirty, editable, error, flush };
+    if (savingRef.current && savePromiseRef.current) {
+      // A debounce-triggered save can already be in flight for the very
+      // dirty state this call was about to write. save()'s own reentrancy
+      // guard would answer `false` to a second call made right now — a
+      // false failure, reported to the user as "it didn't go" moments
+      // before the real write lands. Awaiting the SAME promise instead can
+      // only succeed together with it.
+      await savePromiseRef.current;
+      // That save may predate keystrokes typed while it was in the air, so
+      // dirtiness is checked again here — through the refs, not `dirty`,
+      // which this callback's closure captured before the await and which
+      // an intervening DIRTY_MESSAGE would have made stale. Same class of
+      // staleness saveRef exists to prevent above.
+      if (dirtyRef.current && writableRef.current) return save();
+      return true;
+    }
+
+    if (!dirtyRef.current || !writableRef.current) return true;
+    return save();
+  }, [save]);
+
+  return { status, dirty, editable, error, flush, cancel };
 }

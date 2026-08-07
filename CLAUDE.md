@@ -64,6 +64,8 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | `GET /g/[slug]/w/[pageSlug]/raw` | student or teacher | `?v=blank\|student\|teacher`; the document, under `SANDBOXED_DOCUMENT_CSP` |
 | `GET /g/[slug]/w/[pageSlug]/pdf` | student or teacher | `?v=blank\|student\|teacher`; the raw PDF bytes for that slot — the pdf worksheet view's byte source and its fallback on a render failure |
 | `POST /api/worksheets/[slug]/[pageSlug]` | student or teacher | saves the caller's own slot |
+| `POST /api/worksheets/[slug]/[pageSlug]/send` | student or teacher | announces the caller's own row; 204, or 400 `"Nothing to send."` with no row |
+| `POST /api/worksheets/[slug]/[pageSlug]/restart` | student or teacher | deletes the caller's own row |
 | `/api/auth/*` | — | WebAuthn ceremonies (server actions everywhere except here, `/api/pages`, `/api/chat/*`, `/api/inbox/*`, `/api/whiteboard/*`, `/api/worksheets/*`, and `/p/[slug]/raw`) |
 
 ## Architecture

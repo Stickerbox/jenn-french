@@ -16,10 +16,17 @@ export function DeleteVersionButton({
   groupSlug,
   pageSlug,
   audience,
+  cancel,
 }: {
   groupSlug: string;
   pageSlug: string;
   audience: "student" | "teacher";
+  // Discards any pending debounce before the row it would have written is
+  // gone. Called only after the confirm, not before: cancelling first would
+  // clear `dirty` for a press the user then declines, leaving unsaved work
+  // marked clean with no timer left to catch it and no warning if they then
+  // navigate away.
+  cancel: () => void;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -30,6 +37,14 @@ export function DeleteVersionButton({
         ? "Delete your correction? This cannot be undone."
         : "Recommencer ce devoir ? Tes réponses seront effacées.";
     if (!window.confirm(question)) return;
+
+    // A confirmed delete IS abandoning whatever the timer was about to
+    // write — the normal case for this button, not an edge one: typing,
+    // then deciding to start over, is exactly when a debounce is most
+    // likely to still be pending. Without this a save queued behind the
+    // confirm dialog's block on the main thread could land after the
+    // restart route's delete and recreate the row the user just discarded.
+    cancel();
 
     setBusy(true);
     let response: Response;
