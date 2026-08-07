@@ -7,6 +7,8 @@ import { BoardTile } from "@/components/whiteboard/BoardTile";
 import { BoardCanvas } from "@/components/whiteboard/BoardCanvas";
 import { useStream } from "@/components/StreamProvider";
 import { foldPage } from "@/lib/whiteboard-ops";
+import { getStrings } from "@/lib/strings";
+import type { Locale } from "@/lib/i18n";
 
 export type BoardSummary = {
   id: string;
@@ -19,16 +21,19 @@ export function BoardTab({
   slug,
   boards,
   isTeacher,
+  locale,
   onDelete,
 }: {
   slug: string;
   boards: BoardSummary[];
   isTeacher: boolean;
+  locale: Locale;
   onDelete?: (id: string) => Promise<void>;
 }) {
   const [drawing, setDrawing] = useState(false);
   const router = useRouter();
   const { board } = useStream();
+  const strings = getStrings(locale).student.board;
 
   if (drawing) {
     return (
@@ -66,7 +71,7 @@ export function BoardTab({
           <BoardCanvas ops={page} className="h-full w-full" />
         </div>
         <p className="mt-3 text-center font-[family-name:var(--card-font-serif)] text-sm italic text-[var(--card-moss)]">
-          Page {board.currentPage + 1} — Jenn dessine…
+          {strings.drawingPage(board.currentPage + 1)}
         </p>
       </div>
     );
@@ -83,14 +88,14 @@ export function BoardTab({
             onClick={() => setDrawing(true)}
             className="rounded-full bg-[var(--card-bleu)] px-6 py-2.5 font-[family-name:var(--card-font-serif)] text-sm text-white transition-opacity hover:opacity-90"
           >
-            Nouveau tableau
+            {strings.newBoard}
           </button>
         </div>
       )}
 
       {boards.length === 0 ? (
         <p className="text-center font-[family-name:var(--card-font-serif)] italic text-[var(--card-moss)]">
-          Aucun tableau pour l&apos;instant&nbsp;!
+          {strings.empty}
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -102,6 +107,7 @@ export function BoardTab({
               label={board.label}
               thumbnail={board.thumbnail}
               pageCount={board.pageCount}
+              locale={locale}
               onDelete={onDelete ? () => onDelete(board.id) : undefined}
             />
           ))}

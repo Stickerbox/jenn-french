@@ -122,7 +122,7 @@ export default async function GroupPage({
   // is unlocked, and shows an empty state otherwise. Jenn needs it to create
   // the first board, and the student needs it to watch the first being drawn.
   const boards = unlocked ? await listWhiteboards(group.id) : [];
-  const labels = boardLabels(boards);
+  const labels = boardLabels(boards, locale);
 
   // Both extra tabs are present for anyone unlocked, empty state and all. A
   // student with an empty shelf otherwise has no way to reach the control that
@@ -188,7 +188,7 @@ export default async function GroupPage({
           learning who the teacher is. BoardTab's live view is already
           !isTeacher; only the banner was missed. */}
       {unlocked && !viewerIsTeacher && tab !== "board" && (
-        <LiveBanner slug={slug} />
+        <LiveBanner slug={slug} locale={locale} />
       )}
 
       {tab === "card" ? (
@@ -238,6 +238,7 @@ export default async function GroupPage({
         <BoardTab
           slug={slug}
           isTeacher={viewerIsTeacher}
+          locale={locale}
           boards={boards.map((board) => ({
             id: board.id,
             label: labels.get(board.id) ?? "",
