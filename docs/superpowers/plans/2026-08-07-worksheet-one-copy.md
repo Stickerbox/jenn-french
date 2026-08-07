@@ -909,19 +909,15 @@ and pass to `WorksheetShell`:
     />
 ```
 
-- [ ] **Step 4: Verify**
+- [ ] **Step 4: Do not commit yet — continue straight into Task 8**
 
-Run: `npm run lint && npm run typecheck && npm test`
-Expected: typecheck fails on `WorksheetShell` not accepting `writable`, `hasOwnVersion`, `sent` — that is Task 8. Lint and the test suite must be clean. If typecheck reports anything else, fix it here.
+**Tasks 7 and 8 are one unit of work and one commit.** They are written as two
+tasks because they are two files with two different jobs, but the props added
+here are the props Task 8 consumes, and a commit holding only half of that does
+not typecheck. Finish Task 8, then run the full check and commit once.
 
-- [ ] **Step 5: Commit**
-
-```bash
-git add "app/g/[slug]/w/[pageSlug]/page.tsx"
-git commit -m "Draw a student one tab and Jenn three"
-```
-
-Note: this commit does not typecheck on its own. That is deliberate and it is one task's worth — Task 8 closes it. Do not try to stub the shell to make it green in between.
+Do not stub `WorksheetShell` to make an intermediate state compile. The
+throwaway edit would be removed an hour later and reviewed by nobody.
 
 ---
 
@@ -1288,10 +1284,10 @@ git rm components/worksheet/SaveVersionButton.tsx
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
 Expected: all clean. This closes the typecheck failure Task 7 opened. If lint reports `editable` as unused, leave it and note it — Task 9 consumes it. If lint is configured to fail on it, temporarily destructure without it and add it back in Task 9.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Commit Tasks 7 and 8 together**
 
 ```bash
-git add components/worksheet
+git add components/worksheet "app/g/[slug]/w/[pageSlug]/page.tsx"
 git commit -m "Save the worksheet by itself, ten seconds after the last key"
 ```
 
