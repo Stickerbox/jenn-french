@@ -6,7 +6,7 @@ import { getPageForAdmin } from "@/lib/pages";
 import { updatePage, updatePdfPage, deletePage } from "@/app/page-actions";
 import { PageEditor } from "@/components/admin/PageEditor";
 import { TeacherInbox } from "@/components/chat/TeacherInbox";
-import { audienceOptions } from "@/lib/audience";
+import { studentAudienceOptions } from "@/lib/audience";
 import { currentLocale } from "@/lib/locale";
 import { getStrings } from "@/lib/strings";
 
@@ -63,10 +63,7 @@ export default async function AdminPageEditor({
         </p>
 
         <PageEditor
-          audience={audienceOptions(
-            groups,
-            strings.admin.pageForm.allStudents,
-          )}
+          audience={studentAudienceOptions(groups)}
           initial={{
             title: page.title,
             // Empty for a pdf row, which has no document to hold. The kind

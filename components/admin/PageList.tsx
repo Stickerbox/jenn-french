@@ -8,6 +8,7 @@ import { LinkPreview } from "@/components/ui/LinkPreview";
 import { PdfPreview } from "@/components/ui/PdfPreview";
 import { PinIcon } from "@/components/ui/PinIcon";
 import { PencilIcon } from "@/components/ui/PencilIcon";
+import { TrashIcon } from "@/components/ui/TrashIcon";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { KindFilter } from "@/components/ui/KindFilter";
 import { filterPagesByKind, type KindFilter as Kind } from "@/lib/page-filters";
@@ -22,6 +23,8 @@ import {
 import { sectionLabel } from "@/lib/page-section-labels";
 import { orderPages, type PageSort } from "@/lib/page-sort";
 import { SortFilter } from "@/components/ui/SortFilter";
+import { FilterDisclosure } from "@/components/ui/FilterDisclosure";
+import { DEFAULT_KIND, DEFAULT_SORT, filtersAreActive } from "@/lib/shelf-filters";
 import { pageAudienceLabel } from "@/lib/page-tile";
 import { pageTarget } from "@/lib/page-target";
 import { SearchField } from "@/components/admin/SearchField";
@@ -79,29 +82,6 @@ function DownloadIcon() {
   );
 }
 
-// A lid, a can, and the two ribs. Same stroke idiom as the two above, so the
-// three read as one set in a tile's action row.
-function TrashIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 6h18" />
-      <path d="M8 6V4h8v2" />
-      <path d="m19 6-1 14H6L5 6" />
-      <path d="M10 11v6M14 11v6" />
-    </svg>
-  );
-}
-
 export function PageList({
   pages,
   everyoneName,
@@ -153,8 +133,12 @@ export function PageList({
   const strings = getStrings(locale);
   const labels = strings.admin.pageList;
   const [query, setQuery] = useState("");
-  const [kind, setKind] = useState<Kind>("all");
-  const [sort, setSort] = useState<PageSort>("created");
+  // The shared defaults, not two literals. The disclosure's dot compares
+  // against exactly these, and a default that moved here and not there would
+  // light the dot on a list nobody had touched — the reason lib/shelf-filters
+  // names them at all.
+  const [kind, setKind] = useState<Kind>(DEFAULT_KIND);
+  const [sort, setSort] = useState<PageSort>(DEFAULT_SORT);
 
   // The everyone chip is dropped, and the everyone NAME is still passed to
   // filterPagesByGroup below. That is not an inconsistency: the name's job
@@ -194,21 +178,38 @@ export function PageList({
           clearLabel={strings.common.clear}
         />
 
-        {/* tone="card": KindFilter/FilterChip already had both skins (see
+        {/* Behind the icon since 2026-08-07, the same disclosure the student
+            shelf uses — three stacked control rows above the tiles was most of
+            a screen of chrome over the thing Jenn opened the tab to see.
+
+            ONLY THE KIND AND SORT ROWS. The student chip row below stays where
+            it is, and that is the whole of the exception this file used to
+            claim outright: that row is not only a filter — the same selection
+            decides which shelf a pin lands on and the default audience for a
+            new page, so folding it away would hide a control that does more
+            than narrow a list. The two rows in here do nothing but narrow one.
+
+            tone="card": KindFilter/FilterChip already had both skins (see
             FilterChip's own comment) — the student shelf's kind filter uses
             "card" too, so this is a caller-side flip, not a new capability. */}
-        <KindFilter
-          value={kind}
-          onChange={setKind}
-          tone="card"
-          labels={labels.kindFilter}
-        />
-        <SortFilter
-          value={sort}
-          onChange={setSort}
-          tone="card"
-          labels={labels.sortFilter}
-        />
+        <FilterDisclosure
+          toggleLabel={labels.filterToggle}
+          activeLabel={labels.filterActive}
+          active={filtersAreActive({ kind, sort })}
+        >
+          <KindFilter
+            value={kind}
+            onChange={setKind}
+            tone="card"
+            labels={labels.kindFilter}
+          />
+          <SortFilter
+            value={sort}
+            onChange={setSort}
+            tone="card"
+            labels={labels.sortFilter}
+          />
+        </FilterDisclosure>
 
         {groupNames.length > 0 && (
           <div

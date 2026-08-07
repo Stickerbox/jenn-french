@@ -423,6 +423,10 @@ export type Strings = {
       // database must not change what this form says, and the word has to be
       // translated like every other word on the screen. See lib/audience.ts.
       allStudents: string;
+      // Under the submit button while no student is ticked. All three audience
+      // forms refuse to save without one, and a disabled button with no reason
+      // beside it reads as a broken form.
+      pickAtLeastOne: string;
     };
 
     // "Title" and "Preparing preview…" and "That PDF is larger than 3 MB." are
@@ -462,10 +466,6 @@ export type Strings = {
       replacePdfLabel: string;
       pdfReplaceInputLabel: string;
       pdfExistingHint: string;
-      replacePageLabel: string;
-      pastePromptReplace: string;
-      pasteAcceptedReplace: (size: string) => string;
-      pasteAriaLabelReplace: string;
       saved: string;
       deleteLabel: string;
       deleteError: string;
@@ -491,6 +491,10 @@ export type Strings = {
         created: string;
         modified: string;
       };
+      // The disclosure over the kind and sort rows. The student chip row
+      // below it is deliberately NOT inside it — see PageList.
+      filterToggle: string;
+      filterActive: string;
       filterByStudentAria: string;
       allChip: string;
       addedByStudent: string;
@@ -1018,6 +1022,7 @@ const fr: Strings = {
       studentsLegend: "Élèves",
       noStudentsYet: "Pas encore d'élèves.",
       allStudents: "Tous les élèves",
+      pickAtLeastOne: "Choisissez au moins un élève.",
     },
 
     titleLabel: "Titre",
@@ -1056,11 +1061,6 @@ const fr: Strings = {
       replacePdfLabel: "Remplacer le PDF",
       pdfReplaceInputLabel: "PDF pour remplacer celui-ci",
       pdfExistingHint: "Un PDF est publié. Déposez-en un nouveau pour le remplacer.",
-      replacePageLabel: "Remplacer la page",
-      pastePromptReplace: "Collez le code HTML de la page ici (⌘V) pour la remplacer",
-      pasteAcceptedReplace: (size) =>
-        `Nouvelle version en attente — ${size}. Enregistrez pour la publier.`,
-      pasteAriaLabelReplace: "Code HTML pour remplacer cette page",
       saved: "Enregistré",
       deleteLabel: "Supprimer la page",
       deleteError: "La page n'a pas pu être supprimée",
@@ -1083,6 +1083,8 @@ const fr: Strings = {
         created: "Ajout",
         modified: "Modification",
       },
+      filterToggle: "Filtres",
+      filterActive: "Filtres actifs",
       filterByStudentAria: "Filtrer par élève",
       allChip: "Tout",
       addedByStudent: "ajouté par l'élève",
@@ -1562,6 +1564,7 @@ const en: Strings = {
       studentsLegend: "Students",
       noStudentsYet: "No students yet.",
       allStudents: "All students",
+      pickAtLeastOne: "Choose at least one student.",
     },
 
     titleLabel: "Title",
@@ -1599,11 +1602,6 @@ const en: Strings = {
       replacePdfLabel: "Replace the PDF",
       pdfReplaceInputLabel: "PDF to replace this one with",
       pdfExistingHint: "A PDF is published. Drop a new one to replace it.",
-      replacePageLabel: "Replace the page",
-      pastePromptReplace: "Paste the page's HTML here (⌘V) to replace it",
-      pasteAcceptedReplace: (size) =>
-        `New version staged — ${size}. Save to publish it.`,
-      pasteAriaLabelReplace: "HTML to replace this page with",
       saved: "Saved",
       deleteLabel: "Delete page",
       deleteError: "Could not delete the page",
@@ -1626,6 +1624,8 @@ const en: Strings = {
         created: "Added",
         modified: "Modified",
       },
+      filterToggle: "Filters",
+      filterActive: "Filters active",
       filterByStudentAria: "Filter by student",
       allChip: "All",
       addedByStudent: "added by student",

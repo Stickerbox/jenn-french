@@ -59,11 +59,24 @@ export function HtmlPasteBox({
   labels,
   tone,
   onHtml,
+  disabled = false,
   errorFor = (message) => message,
 }: {
   labels: PasteLabels;
   tone: PasteTone;
   onHtml: (html: string) => void;
+  // Shuts the box outright. Added for NewPageForm, where the paste IS the
+  // submit and there is no button to disable instead — a page has to have an
+  // audience, and a paste that silently did nothing would read as the box
+  // being broken rather than as a step not yet taken.
+  //
+  // The textarea's own `disabled` does the work a caller can see; the two
+  // guards below are what make it true rather than merely apparent. A
+  // disabled field fires no paste and no change event in any current browser,
+  // so both are belt-and-braces — but this is the one control in the app whose
+  // event handler *is* the submit, and "no current browser" is a weaker
+  // guarantee than a return statement.
+  disabled?: boolean;
   // The student surface collapses every message to one French sentence: the
   // action's own messages are written for Jenn and are in English.
   errorFor?: (message: string) => string;
@@ -88,6 +101,7 @@ export function HtmlPasteBox({
     // text/html: the clipboard's html flavour is the browser's re-serialisation
     // of a rendered selection, not the file she copied.
     event.preventDefault();
+    if (disabled) return;
     accept(event.clipboardData.getData("text/plain"));
   }
 
@@ -97,6 +111,7 @@ export function HtmlPasteBox({
   function handleChange(event: ChangeEvent<HTMLTextAreaElement>) {
     const text = event.target.value;
     event.target.value = "";
+    if (disabled) return;
     if (text.trim()) accept(text);
   }
 
@@ -105,6 +120,7 @@ export function HtmlPasteBox({
       <textarea
         onPaste={handlePaste}
         onChange={handleChange}
+        disabled={disabled}
         aria-label={labels.ariaLabel}
         rows={3}
         // resize-none: it never holds text, so a drag handle offers nothing.
@@ -114,6 +130,7 @@ export function HtmlPasteBox({
           TONES[tone].text,
           TONES[tone].focus,
           TONES[tone].ring,
+          disabled && "cursor-not-allowed opacity-50",
         )}
         placeholder={labels.prompt}
         defaultValue=""

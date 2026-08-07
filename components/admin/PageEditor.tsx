@@ -4,7 +4,8 @@ import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { HtmlPasteBox } from "@/components/ui/HtmlPasteBox";
+import { TrashIcon } from "@/components/ui/TrashIcon";
+import { AudienceRequiredNotice } from "@/components/admin/AudienceRequiredNotice";
 import { FileDropZone } from "@/components/ui/FileDropZone";
 import {
   audiencePill,
@@ -20,7 +21,7 @@ import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { PageInput, PageSaveResult } from "@/app/page-actions";
-import type { AudienceOption } from "@/lib/audience";
+import { hasAudienceSelection, type AudienceOption } from "@/lib/audience";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
 import { renderPdfThumbnail } from "@/components/pdf-thumbnail";
 import { captureAndStoreThumbnail } from "@/components/html-thumbnail";
@@ -43,8 +44,12 @@ export function PageEditor({
   onSaved,
   locale,
 }: {
-  // Already relabelled by audienceOptions, so this form never learns that one
-  // of these rows is the everyone group. See lib/audience.ts.
+  // From `studentAudienceOptions`, NOT `audienceOptions` — the everyone row is
+  // withheld from this form as of 2026-08-07, so sharing with the whole class
+  // is decided when a page is made and not afterwards. A page already assigned
+  // to that row keeps the assignment through a save, because `groupIds` starts
+  // from the stored list and nothing here can remove an id it never drew. See
+  // lib/audience.ts, which states that cost and why the alternative is worse.
   audience: AudienceOption[];
   initial: {
     title: string;
@@ -87,10 +92,13 @@ export function PageEditor({
   // preview is still rendering and reading a piece of state would silently drop
   // it.
   const thumbJob = useRef<Promise<Blob | null> | null>(null);
-  // The html lives here, exactly as it did behind the drop zone — the paste box
-  // simply never shows it. Saving without pasting anything re-submits the
-  // identical document, so page-actions needs no change.
-  const [html, setHtml] = useState(initial.html);
+  // The stored document, carried straight back out on save. There is no longer
+  // any control on this form that can change it: the "Replace the page" paste
+  // box was removed on 2026-08-07, so an html page is edited by republishing it
+  // through `POST /api/pages`, which is how the artifacts are written anyway.
+  // It is still SUBMITTED, unchanged, because `savePage` writes every content
+  // column on every write — dropping it here would blank the page.
+  const html = initial.html;
   const [groupIds, setGroupIds] = useState<string[]>(initial.groupIds);
   const [worksheet, setWorksheet] = useState(initial.worksheet);
   const [saving, setSaving] = useState(false);
@@ -102,6 +110,11 @@ export function PageEditor({
   // Something to save. A pdf row always has: its bytes are already stored, and
   // the title and the audience are the usual reason to open this form at all.
   const hasContent = initial.kind === "pdf" ? true : html.trim() !== "";
+
+  // Against the pills ON SCREEN, not against groupIds.length — a page shared
+  // with the everyone group carries an id this form draws no pill for, and
+  // counting it would open Save with every pill still grey. See lib/audience.ts.
+  const hasAudience = hasAudienceSelection(groupIds, audience);
 
   function toggleGroup(id: string) {
     setGroupIds((current) =>
@@ -267,7 +280,7 @@ export function PageEditor({
         </label>
       )}
 
-      {initial.kind === "pdf" ? (
+      {initial.kind === "pdf" && (
         <div className="text-sm font-medium text-[var(--card-ink)]">
           {labels.replacePdfLabel}
           {/* A PDF cannot be pasted, so this is the one staging control that is
@@ -311,27 +324,20 @@ export function PageEditor({
             </p>
           )}
         </div>
-      ) : (
-        <div className="text-sm font-medium text-[var(--card-ink)]">
-          {labels.replacePageLabel}
-          {/* Unlike the create form, pasting here does NOT save: there is a title
-              and an audience on this screen that a paste must not commit behind
-              her. It stages the new document and Save commits everything. */}
-          {/* tone="card" — see NewPageForm's identical comment. */}
-          <HtmlPasteBox
-            tone="card"
-            labels={{
-              prompt: labels.pastePromptReplace,
-              accepted: labels.pasteAcceptedReplace,
-              ariaLabel: labels.pasteAriaLabelReplace,
-            }}
-            onHtml={setHtml}
-          />
-        </div>
       )}
 
+      {/* An html row has NO content control here. The "Replace the page" paste
+          box was removed on 2026-08-07: this screen is for the title, the
+          audience and the worksheet flag, and a document is replaced by
+          republishing it through POST /api/pages, which is where these
+          artifacts come from in the first place. The pdf drop zone above stays,
+          because bytes cannot be republished that way. */}
+
       <div className="flex items-center justify-center gap-4">
-        <Button type="submit" disabled={saving || deleting || !hasContent}>
+        <Button
+          type="submit"
+          disabled={saving || deleting || !hasContent || !hasAudience}
+        >
           {saving ? strings.common.saving : submitLabel}
         </Button>
         {onDelete && (
@@ -339,18 +345,32 @@ export function PageEditor({
             type="button"
             onClick={handleDelete}
             disabled={saving || deleting}
+            // An icon now, so the label moves to aria-label and title — it was
+            // the visible text before. `deleting` shows as the disabled state
+            // rather than as a word, which is what the icon costs and is why
+            // the button keeps its full 44px box.
+            aria-label={labels.deleteLabel}
+            title={labels.deleteLabel}
             className={cn(
-              "inline-flex min-h-[44px] items-center rounded px-1 text-sm text-[var(--color-ink-muted)] underline transition-opacity duration-150 motion-reduce:transition-none disabled:opacity-50",
+              "inline-flex h-11 w-11 items-center justify-center rounded-full text-[var(--color-ink-muted)] transition-colors duration-150 hover:bg-[var(--card-section)] hover:text-[var(--card-rouge)] motion-reduce:transition-none disabled:opacity-50",
               cardFocusRing,
             )}
           >
-            {deleting ? strings.common.deleting : labels.deleteLabel}
+            <TrashIcon />
           </button>
         )}
         {saved && (
           <span className="text-sm text-[var(--color-ink-muted)]">{labels.saved}</span>
         )}
       </div>
+
+      <AudienceRequiredNotice
+        // Only the audience, not `hasContent`: an html row with an empty stored
+        // document also shuts Save, and telling her to pick a student would be
+        // the wrong reason.
+        show={!hasAudience}
+        label={strings.admin.pageForm.pickAtLeastOne}
+      />
 
       {error && (
         <p role="alert" className={formErrorText}>

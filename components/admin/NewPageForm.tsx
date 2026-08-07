@@ -17,7 +17,8 @@ import {
 import { MAX_PDF_BYTES } from "@/lib/page-pdf";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
-import type { AudienceOption } from "@/lib/audience";
+import { hasAudienceSelection, type AudienceOption } from "@/lib/audience";
+import { AudienceRequiredNotice } from "@/components/admin/AudienceRequiredNotice";
 import { cn } from "@/lib/utils";
 import type { NewPageInput, PageSaveResult } from "@/app/page-actions";
 import { SkippedAssets } from "@/components/admin/SkippedAssets";
@@ -80,6 +81,12 @@ export function NewPageForm({
   // a boolean: staging a file and pressing Save at once would otherwise drop the
   // preview silently.
   const thumbJob = useRef<Promise<Blob | null> | null>(null);
+
+  // A page with no audience lands on nobody's shelf. Both halves of this sheet
+  // are gated on it — the PDF's Publish button, and the paste box, which has no
+  // button because there the paste IS the submit. See lib/audience.ts on why
+  // this compares against the drawn options rather than counting ids.
+  const hasAudience = hasAudienceSelection(groupIds, audience);
 
   // Adjusted during render rather than in an effect: this is state derived from
   // a prop, and react-hooks/set-state-in-effect rejects the effect form for
@@ -251,6 +258,7 @@ export function NewPageForm({
             ariaLabel: labels.pasteAriaLabel,
           }}
           onHtml={handleHtml}
+          disabled={!hasAudience}
         />
         <p className="mt-2 text-sm font-normal text-[var(--color-ink-muted)]">
           {labels.titleFromDocumentNote}
@@ -301,7 +309,7 @@ export function NewPageForm({
                 onClick={() => void handlePdfSubmit()}
                 // A preview still rendering is deliberately NOT a reason she
                 // cannot save: the submit awaits the job anyway.
-                disabled={saving || pdfTitle.trim() === ""}
+                disabled={saving || pdfTitle.trim() === "" || !hasAudience}
               >
                 {saving ? labels.publishing : labels.publishPdf}
               </Button>
@@ -326,6 +334,11 @@ export function NewPageForm({
           </div>
         )}
       </div>
+
+      <AudienceRequiredNotice
+        show={!hasAudience}
+        label={strings.admin.pageForm.pickAtLeastOne}
+      />
 
       {error && (
         <p role="alert" className={formErrorText}>
