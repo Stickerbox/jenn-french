@@ -107,11 +107,9 @@ export function FilesTab({
 }) {
   const strings = getStrings(locale);
   const [query, setQuery] = useState("");
-    
   const [kind, setKind] = useState<Kind>(DEFAULT_KIND);
   const [sort, setSort] = useState<PageSort>(DEFAULT_SORT);
-  const [chooserPage, setChooserPage] = useState<ShelfPage | null>(null);
-  
+
   // The same expression the chooser below already used for its labels, lifted
   // out because the badge and the chooser now both need it: `canEdit` is
   // already exactly "is the viewer the teacher, on a shelf that has one".

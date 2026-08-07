@@ -175,16 +175,13 @@ center={
               // back control and the tabs, while staying a marker rather than
               // growing into something that looks pressable.
               <div className="flex h-11 items-center">
-                <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-3 py-1 font-[family-name:var(--card-font-serif)] 
-  text-xs text-[var(--card-moss)] shadow-[var(--card-shadow)]">
+                <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] px-3 py-1 font-[family-name:var(--card-font-serif)] text-xs text-[var(--card-moss)] shadow-[var(--card-shadow)]">
                   {t.readOnly}
                 </span>
               </div>
             )
           }
-          )
-        }
-      />
+        />
       <iframe
         id={WORKSHEET_FRAME_ID}
         src={`/g/${groupSlug}/w/${pageSlug}/raw?v=${slot}`}
