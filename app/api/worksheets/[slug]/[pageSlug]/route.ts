@@ -5,8 +5,6 @@ import { readBoundedBody } from "@/lib/bounded-body";
 import { MAX_SNAPSHOT_BYTES, validateSnapshot } from "@/lib/page-snapshot";
 import { validatePagePdf } from "@/lib/page-pdf";
 import { saveHtmlVersion, savePdfVersion } from "@/lib/version-store";
-import { createMessage } from "@/lib/messages";
-import { versionNotice } from "@/lib/version-notice";
 
 // Room for JSON syntax and multi-byte UTF-8 around a snapshot already capped at
 // MAX_SNAPSHOT_BYTES, the way MAX_CHAT_BYTES gives roughly 4x headroom over
@@ -81,47 +79,10 @@ export async function POST(
     });
   }
 
-  // After the write, never before — the ordering rule createMessage states
-  // about chatBus.publish, and the contract addChatLinks has: a notification
-  // that fails must not cost the homework it was announcing.
-  //
-  // The everyone group needs no clause: chatRole refused it inside
-  // resolveWorksheet, before it checked anything else.
-  //
-  // ORIGIN first, the request's own origin as the fallback — the same choice
-  // app/api/pages/route.ts makes at its line 141: this process sits behind
-  // nginx, so request.url can carry an internal hostname or port the
-  // student's browser cannot reach, where ORIGIN is the public domain set
-  // once in deployment. The fallback exists for local dev, where ORIGIN is
-  // unset and the request's own origin IS the address to use.
-  //
-  // One path for both page kinds: /g/[slug]/w/[pageSlug] itself redirects a
-  // pdf worksheet to its own viewer, so this link works whether the saved
-  // version was html or pdf.
-  //
-  // Deliberately NOT run through addChatLinks: that would file this URL as a
-  // second link tile on the shelf pointing at a worksheet the shelf already
-  // shows as a tile — a duplicate, not a new page.
-  const origin = process.env.ORIGIN ?? new URL(request.url).origin;
-  const worksheetUrl = `${origin}/g/${context.group.slug}/w/${context.page.slug}`;
-
-  try {
-    // automated + href, not a URL appended to the body: the bubble itself is
-    // the link now (components/chat/MessageList.tsx), so the address travels
-    // structurally instead of as a substring versionNotice's prose has to
-    // carry and linkifyBody has to re-find.
-    await createMessage({
-      groupId: context.group.id,
-      fromTeacher,
-      body: versionNotice(context.page.title, fromTeacher, context.group.name),
-      automated: true,
-      href: worksheetUrl,
-    });
-  } catch {
-    // Deliberately swallowed, for the reason above.
-  }
-
-  // The shelf's badge and the chooser both read the version list.
+  // No notice here any more. A save is now something that happens by itself
+  // every ten seconds, and announcing each one would have filled the chat with
+  // reports about work in progress. Telling the other party is a separate,
+  // deliberate press — see ./send/route.ts.
   revalidatePath("/g/[slug]", "page");
 
   return new NextResponse(null, { status: 204 });
