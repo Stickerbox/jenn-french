@@ -23,7 +23,7 @@ export async function StudentTabs({
     card: boolean;
     files: boolean;
     board: boolean;
-    cards: boolean;
+    deck: boolean;
     todo: boolean;
   };
 }) {

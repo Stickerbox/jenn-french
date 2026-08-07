@@ -142,7 +142,7 @@ export default async function GroupPage({
     board: unlocked,
     // Both new tabs follow the same rule Files and Whiteboard already use:
     // present for anyone unlocked, empty state and all.
-    cards: unlocked,
+    deck: unlocked,
     todo: unlocked,
   });
 
@@ -337,7 +337,7 @@ export default async function GroupPage({
             card: showCard,
             files: unlocked || pages.length > 0,
             board: unlocked,
-            cards: unlocked,
+            deck: unlocked,
             todo: unlocked,
           }}
         />

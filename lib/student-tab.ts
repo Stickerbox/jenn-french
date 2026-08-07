@@ -1,4 +1,4 @@
-export type StudentTab = "card" | "files" | "board" | "cards" | "todo";
+export type StudentTab = "card" | "files" | "board" | "deck" | "todo";
 
 // A record rather than positional booleans: two flags called with the wrong
 // order is a silent bug, and five would make it certain.
@@ -16,14 +16,14 @@ export function parseStudentTab(
     card: boolean;
     files: boolean;
     board: boolean;
-    cards: boolean;
+    deck: boolean;
     todo: boolean;
   },
 ): StudentTab {
   if (value === "card" && available.card) return "card";
   if (value === "files" && available.files) return "files";
   if (value === "board" && available.board) return "board";
-  if (value === "cards" && available.cards) return "cards";
+  if (value === "deck" && available.deck) return "deck";
   if (value === "todo" && available.todo) return "todo";
 
   // The fallback order, and it is not the same as the strip's order by
@@ -32,7 +32,7 @@ export function parseStudentTab(
   if (available.card) return "card";
   if (available.files) return "files";
   if (available.board) return "board";
-  if (available.cards) return "cards";
+  if (available.deck) return "deck";
   if (available.todo) return "todo";
 
   // Unreachable: the card is only ever withheld from a teacher, who is unlocked
