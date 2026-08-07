@@ -695,7 +695,7 @@ Find `tabs: {` inside the `Strings` type's `student` area — it is the one whos
       // NOT "Les cartes". The daily-card tab above is "La carte", and two
       // adjacent tabs one letter apart, meaning different things, is a trap.
       // "Vocabulaire" also says what the deck is for.
-      cards: string;
+      deck: string;
       todo: string;
     };
 ```
@@ -748,7 +748,7 @@ Directly after the `board: { … };` block in the `Strings` type's `student` are
 In the French object's `student` area, add the two tab labels to its `tabs` block:
 
 ```ts
-      cards: "Vocabulaire",
+      deck: "Vocabulaire",
       todo: "À faire",
 ```
 
@@ -800,7 +800,7 @@ and, directly after its `board: { … },` block:
 In the English object's `student` area, add to its `tabs` block:
 
 ```ts
-      cards: "Vocabulary",
+      deck: "Vocabulary",
       todo: "To do",
 ```
 
