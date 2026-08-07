@@ -94,6 +94,11 @@ export type Strings = {
       card: string;
       files: string;
       board: string;
+      // NOT "Les cartes". The daily-card tab above is "La carte", and two
+      // adjacent tabs one letter apart, meaning different things, is a trap.
+      // "Vocabulaire" also says what the deck is for.
+      cards: string;
+      todo: string;
     };
 
     card: {
@@ -167,6 +172,43 @@ export type Strings = {
         resetZoom: string;
         loadFailed: string;
       };
+    };
+
+    deck: {
+      empty: string;
+      sort: {
+        group: string;
+        added: string;
+        random: string;
+        revision: string;
+      };
+      open: (front: string) => string;
+      flip: string;
+      previous: string;
+      next: string;
+      position: (index: number, total: number) => string;
+      close: string;
+      delete: string;
+      deleteConfirm: string;
+      deleteCancel: string;
+      addTitle: string;
+      frontLabel: string;
+      backLabel: string;
+      noteLabel: string;
+      noteHint: string;
+      save: string;
+      addError: string;
+    };
+
+    todo: {
+      empty: string;
+      addPlaceholder: string;
+      add: string;
+      toggle: (text: string) => string;
+      delete: (text: string) => string;
+      byTeacher: string;
+      byStudent: string;
+      error: string;
     };
 
     shelf: {
@@ -673,6 +715,8 @@ const fr: Strings = {
       card: "La carte",
       files: "Les fichiers",
       board: "Le tableau",
+      cards: "Vocabulaire",
+      todo: "À faire",
     },
 
     card: {
@@ -749,6 +793,43 @@ const fr: Strings = {
         resetZoom: "Taille normale",
         loadFailed: "Impossible d'ouvrir ce tableau.",
       },
+    },
+
+    deck: {
+      empty: "Aucune carte pour l'instant\u00A0!",
+      sort: {
+        group: "Trier par",
+        added: "Ajout",
+        random: "Aléatoire",
+        revision: "À réviser",
+      },
+      open: (front) => `Ouvrir la carte «\u00A0${front}\u00A0»`,
+      flip: "Retourner",
+      previous: "Carte précédente",
+      next: "Carte suivante",
+      position: (index, total) => `Carte ${index} sur ${total}`,
+      close: "Fermer",
+      delete: "Supprimer cette carte",
+      deleteConfirm: "Supprimer\u00A0?",
+      deleteCancel: "Annuler",
+      addTitle: "Ajouter une carte",
+      frontLabel: "Recto",
+      backLabel: "Verso",
+      noteLabel: "Note",
+      noteHint: "Facultatif",
+      save: "Ajouter",
+      addError: "La carte n'a pas pu être ajoutée.",
+    },
+
+    todo: {
+      empty: "Rien à faire pour l'instant\u00A0!",
+      addPlaceholder: "Ajouter une tâche…",
+      add: "Ajouter",
+      toggle: (text) => `Cocher «\u00A0${text}\u00A0»`,
+      delete: (text) => `Supprimer «\u00A0${text}\u00A0»`,
+      byTeacher: "Jenn",
+      byStudent: "Moi",
+      error: "Ça n'a pas fonctionné. Réessayez.",
     },
 
     shelf: {
@@ -1189,6 +1270,8 @@ const en: Strings = {
       card: "The card",
       files: "Files",
       board: "Board",
+      cards: "Vocabulary",
+      todo: "To do",
     },
 
     card: {
@@ -1259,6 +1342,43 @@ const en: Strings = {
         resetZoom: "Actual size",
         loadFailed: "This board could not be opened.",
       },
+    },
+
+    deck: {
+      empty: "No cards yet!",
+      sort: {
+        group: "Sort by",
+        added: "Added",
+        random: "Random",
+        revision: "Needs revision",
+      },
+      open: (front) => `Open the card “${front}”`,
+      flip: "Flip",
+      previous: "Previous card",
+      next: "Next card",
+      position: (index, total) => `Card ${index} of ${total}`,
+      close: "Close",
+      delete: "Delete this card",
+      deleteConfirm: "Delete?",
+      deleteCancel: "Cancel",
+      addTitle: "Add a flashcard",
+      frontLabel: "Front",
+      backLabel: "Back",
+      noteLabel: "Note",
+      noteHint: "Optional",
+      save: "Add",
+      addError: "That card could not be added.",
+    },
+
+    todo: {
+      empty: "Nothing to do yet!",
+      addPlaceholder: "Add an item…",
+      add: "Add",
+      toggle: (text) => `Tick “${text}”`,
+      delete: (text) => `Delete “${text}”`,
+      byTeacher: "Jenn",
+      byStudent: "Me",
+      error: "That did not work. Try again.",
     },
 
     shelf: {
