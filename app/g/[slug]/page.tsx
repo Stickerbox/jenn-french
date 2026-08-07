@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getEffectiveCard, listCardDates } from "@/lib/cards";
+import { pickRevisionDate } from "@/lib/card-revision";
 import { Flashcard } from "@/components/Flashcard";
 import { CardDateNav } from "@/components/student/CardDateNav";
 import { latestViewableDate } from "@/lib/week";
@@ -174,10 +175,32 @@ export default async function GroupPage({
   const card = await getEffectiveCard(selectedDate);
 
   const selected = selectedDate.toISOString().slice(0, 10);
+  const latestStr = latest.toISOString().slice(0, 10);
   // Only for the card tab, and bounded, so the dates of pre-posted cards never
   // reach the browser. An unlocked teacher has no card tab, so her page does
   // not run this query at all.
   const cardDates = tab === "card" ? await listCardDates(latest) : [];
+
+  // Nothing posted for the latest day a student may open? Show an old card for
+  // revision rather than an empty page. See lib/card-revision.ts for the rule
+  // and for why this is not the silent fallback that was removed on
+  // 2026-07-31.
+  //
+  // `selected === latestStr` is the whole of "today only". A past date the
+  // student navigated to keeps saying nothing was posted, which is what lets
+  // the calendar go on disabling those days honestly — the exact disagreement
+  // between the page and the picker that killed the old fallback.
+  //
+  // Resolved HERE, at read time, which is the other half of the ask and costs
+  // nothing: the moment Jenn posts a card for this date, `card` is non-null
+  // and none of this runs.
+  const revisionDate =
+    tab === "card" && !card && selected === latestStr
+      ? pickRevisionDate(cardDates, selected)
+      : null;
+  const revisionCard = revisionDate
+    ? await getEffectiveCard(new Date(`${revisionDate}T00:00:00Z`))
+    : null;
 
   // Whoever is looking at the page, not "her line vs. theirs" — that used to
   // mean English for Jenn and French for the student because the whole app
@@ -220,12 +243,18 @@ export default async function GroupPage({
             slug={slug}
             selected={selected}
             today={todayStr}
-            latest={latest.toISOString().slice(0, 10)}
+            latest={latestStr}
             cardDates={cardDates}
             locale={locale}
           />
           {card ? (
             <Flashcard card={card} locale={locale} />
+          ) : revisionCard ? (
+            // Its own date, its own content, untouched — only the chip says
+            // why it is here. The calendar above is deliberately NOT told
+            // about it: today still has no card, and the day this card really
+            // belongs to is still the day that opens it.
+            <Flashcard card={revisionCard} locale={locale} revision />
           ) : (
             // emptyStateText: the same treatment the shelf's own empty and
             // no-match lines use — this is the card tab's version of "there is

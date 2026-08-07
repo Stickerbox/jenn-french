@@ -12,6 +12,7 @@ import {
   cardEyebrow,
   cardHeaderRow,
   cardPanel,
+  cardRevisionChip,
   cardSubjectPill,
 } from "@/components/card-styles";
 
@@ -28,18 +29,32 @@ export function CardFront({
   card,
   strings,
   locale,
+  revision,
   className,
 }: {
   card: CardContent;
   strings: Strings;
   locale: Locale;
+  // This card is being shown again because nothing was posted today. A
+  // PRESENTATION flag and deliberately not a field on CardContent: the card
+  // itself is unchanged, and putting it on the content type would carry it
+  // into the admin editor's form values, where it means nothing. Optional, so
+  // StudentPreview and every other caller are untouched.
+  revision?: boolean;
   className?: string;
 }) {
   return (
     <div className={cn(cardPanel, className)}>
       <span className={accentBarClass} style={accentBarStyle} />
       <div className={cardHeaderRow}>
-        <span className={cardDateLabel}>{formatCardDate(card.date, locale)}</span>
+        <span className="flex items-baseline gap-2">
+          <span className={cardDateLabel}>
+            {formatCardDate(card.date, locale)}
+          </span>
+          {revision && (
+            <span className={cardRevisionChip}>{strings.common.card.revision}</span>
+          )}
+        </span>
         {card.subject && (
           <span className={cardSubjectPill}>
             <InlineMarkup text={card.subject} style={FIELD_STYLES.subject} />

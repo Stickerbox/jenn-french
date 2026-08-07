@@ -63,6 +63,10 @@ export type Strings = {
       sayItInFrench: string;
       tapToReveal: string;
       answer: string;
+      // The chip on a card being shown again because Jenn posted nothing
+      // today. It is what keeps this from being the silent fallback that was
+      // removed on 2026-07-31 — see lib/card-revision.ts.
+      revision: string;
     };
   };
 
@@ -688,6 +692,7 @@ const fr: Strings = {
       sayItInFrench: "Dites-le en français",
       tapToReveal: "touchez pour révéler la réponse",
       answer: "La réponse",
+      revision: "Révision",
     },
   },
 
@@ -1241,6 +1246,7 @@ const en: Strings = {
       sayItInFrench: "Say it in French",
       tapToReveal: "tap to reveal the answer",
       answer: "The answer",
+      revision: "Revision",
     },
   },
 

@@ -36,6 +36,17 @@ export const cardDateLabel =
 export const cardSubjectPill =
   "rounded-full bg-[var(--card-bleu-soft)] px-2.5 py-1 font-[family-name:var(--card-font-serif)] text-[11px] uppercase tracking-wide";
 
+// The chip beside the date on a card being shown again for revision. Moss
+// rather than the subject pill's blue, and it sits on the LEFT beside the date
+// rather than on the right where the subject pill is: it qualifies the date —
+// "this is that day's card, not today's" — and a chip in the subject's slot
+// would read as a subject called "Révision".
+//
+// Here rather than local to CardFront because CardBack draws the same header
+// row, and a second copy is a second thing to keep in step.
+export const cardRevisionChip =
+  "rounded-full border border-[var(--card-moss)] px-2 py-0.5 font-[family-name:var(--card-font-mono)] text-[10px] uppercase tracking-wider text-[var(--card-moss)]";
+
 export const cardEyebrow =
   "font-[family-name:var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[#a89a7f]";
 

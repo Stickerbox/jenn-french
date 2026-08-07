@@ -11,8 +11,12 @@ import { CardBack } from "@/components/CardBack";
 export function Flashcard({
   card,
   locale,
+  revision,
 }: {
   card: CardContent;
+  // Passed straight through to both faces — see CardFront. Optional, so the
+  // landing page's sample card and the admin preview are untouched.
+  revision?: boolean;
   // This is a client component, so it cannot call headers() itself — the
   // server component above it (app/g/[slug]/page.tsx) hands down the locale
   // rather than the resolved dictionary. See lib/strings.ts: a `Strings`
@@ -38,12 +42,14 @@ export function Flashcard({
             card={card}
             strings={strings}
             locale={locale}
+            revision={revision}
             className="col-start-1 row-start-1 [backface-visibility:hidden]"
           />
           <CardBack
             card={card}
             strings={strings}
             locale={locale}
+            revision={revision}
             className="col-start-1 row-start-1 [backface-visibility:hidden] [transform:rotateY(180deg)]"
           />
         </motion.div>

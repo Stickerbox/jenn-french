@@ -74,9 +74,38 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 
 A card belongs to a date, and every student sees the same one: `getEffectiveCard`
 (`lib/cards.ts`) reads the `GlobalCard` row for that date and takes no student
-or group id at all. A date with no row resolves to `null` and the page says
-nothing was posted — it deliberately does **not** fall back to an earlier day,
-because that made the week picker lie.
+or group id at all. A date with no row resolves to `null`, and
+**`getEffectiveCard` itself still never falls back to an earlier day** — that
+fallback was removed on 2026-07-31 because it made the week picker lie, and
+resurrecting it inside the resolver would bring the lie back.
+
+What exists instead, as of 2026-08-07, is a **revision card**, composed one
+layer up in `app/g/[slug]/page.tsx` from `pickRevisionDate`
+(`lib/card-revision.ts`) plus a second `getEffectiveCard` call. Three things
+keep it from being the old fallback wearing a new name, and none may be relaxed
+alone:
+
+- **It applies to one date only** — `selected === latestStr`, the latest day a
+  student may open. A past date they navigated to still says nothing was
+  posted, which is what lets the calendar go on disabling those days honestly.
+  The old fallback's failure was the page and the picker disagreeing; widening
+  this to every empty day recreates it exactly.
+- **It is labelled.** Both card faces draw a *Révision* chip beside the date
+  (`cardRevisionChip`), and the card keeps its **own** date, not today's. A
+  student can therefore see which day it came from and go back to it.
+- **`cardDates` is not told about it.** Today still has no card, so the day dot
+  and the calendar cell stay disabled and the archive is unchanged.
+
+The pick is **stable and cycles oldest-first**: the index is the count of
+teaching days since the newest eligible card, modulo the archive length, so
+every card comes round before any repeats and a reload never swaps it. It is
+deliberately not random — a random pick differs between renders and reads as
+the page losing its place. Only cards **strictly before** the date are
+eligible, which is what stops a pre-posted card leaking through this door.
+
+Nothing is needed for "if Jenn posts one that day, show hers instead": the
+whole thing resolves at read time, so a real row makes `card` non-null and none
+of it runs.
 
 Per-student overrides used to exist — a `Card` model unique on `(groupId, date)`,
 a `pickEffectiveCard` resolution rule, and an `/admin/[slug]` route to edit one —
