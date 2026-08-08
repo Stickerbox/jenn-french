@@ -305,7 +305,17 @@ export default async function GroupPage({
       {unlocked &&
         !group.isEveryone &&
         (tab === "files" || tab === "deck" || tab === "todo") && (
-          <MarkTabSeen onSeen={markTabSeen.bind(null, group.id, tab)} />
+          // key={tab} IS THE WHOLE CONTROL, and without it two of the three
+          // dots never clear at all. Moving between tabs is a search-param
+          // navigation, so this element keeps its position and its type in the
+          // tree; React reconciles it to the same instance, MarkTabSeen's
+          // once-only ref is still set, and its effect returns without writing.
+          // Jenn lands on Files, so Files spends the single stamp and the deck
+          // and to-do watermarks are the ones that never move.
+          <MarkTabSeen
+            key={tab}
+            onSeen={markTabSeen.bind(null, group.id, tab)}
+          />
         )}
 
       {/* Guarded on `unlocked` as well as the tab: LiveBanner calls useStream,
