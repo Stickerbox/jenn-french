@@ -196,13 +196,6 @@ export type Strings = {
       // grid of twenty of these would otherwise read as twenty identical
       // "Flip the card" tab stops with nothing to tell them apart.
       flipCard: (front: string) => string;
-      open: (front: string) => string;
-      flip: string;
-      flipHint: string;
-      previous: string;
-      next: string;
-      position: (index: number, total: number) => string;
-      close: string;
       delete: string;
       deleteConfirm: string;
       deleteCancel: string;
@@ -838,13 +831,6 @@ const fr: Strings = {
         revision: "À réviser",
       },
       flipCard: (front) => `Retourner la carte «\u00A0${front}\u00A0»`,
-      open: (front) => `Ouvrir la carte «\u00A0${front}\u00A0»`,
-      flip: "Retourner",
-      flipHint: "Retourner la carte",
-      previous: "Carte précédente",
-      next: "Carte suivante",
-      position: (index, total) => `Carte ${index} sur ${total}`,
-      close: "Fermer",
       delete: "Supprimer cette carte",
       deleteConfirm: "Supprimer\u00A0?",
       deleteCancel: "Annuler",
@@ -1399,13 +1385,6 @@ const en: Strings = {
         revision: "Needs revision",
       },
       flipCard: (front) => `Flip the card “${front}”`,
-      open: (front) => `Open the card “${front}”`,
-      flip: "Flip",
-      flipHint: "Flip the card",
-      previous: "Previous card",
-      next: "Next card",
-      position: (index, total) => `Card ${index} of ${total}`,
-      close: "Close",
       delete: "Delete this card",
       deleteConfirm: "Delete?",
       deleteCancel: "Cancel",

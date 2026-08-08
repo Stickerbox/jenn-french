@@ -386,7 +386,7 @@ export default async function GroupPage({
           onDelete={deleteFlashcard.bind(null, group.id)}
           // The bound ACTION, not an arrow — a closure cannot cross the
           // server/client boundary. DeckTab fires it without awaiting, from
-          // the handler that makes a card current.
+          // the handler that turns a card to its answer.
           onViewed={markFlashcardViewed.bind(null, group.id)}
         />
       ) : tab === "todo" ? (
