@@ -47,6 +47,20 @@ export const cardSubjectPill =
 export const cardRevisionChip =
   "rounded-full border border-[var(--card-moss)] px-2 py-0.5 font-[family-name:var(--card-font-mono)] text-[10px] uppercase tracking-wider text-[var(--card-moss)]";
 
+// The small pill in a deck tile's top right saying which face is showing —
+// "Recto" on the paper front, "Verso" on the lilac back.
+//
+// Colour is deliberately absent, the same split cardSubjectPill makes: the two
+// faces sit on opposite surfaces, so each call site supplies its own border and
+// text colour. A version of this with a colour baked in would be overridden on
+// one of the two faces every time.
+//
+// Here rather than local to DeckCard because two faces draw it and a second
+// copy is a second thing to keep in step — the reason cardRevisionChip above
+// gives for itself.
+export const deckFacePill =
+  "shrink-0 rounded-full border px-2 py-0.5 font-[family-name:var(--card-font-mono)] text-[10px] uppercase tracking-wider";
+
 export const cardEyebrow =
   "font-[family-name:var(--card-font-mono)] text-[11px] uppercase tracking-[2px] text-[#a89a7f]";
 
