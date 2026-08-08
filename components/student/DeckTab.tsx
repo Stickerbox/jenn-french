@@ -6,10 +6,9 @@ import { useRouter } from "next/navigation";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { AddSheet } from "@/components/ui/AddSheet";
 import { AddFlashcardForm } from "@/components/student/AddFlashcardForm";
-import { FlashcardViewer } from "@/components/student/FlashcardViewer";
+import { DeckCard } from "@/components/student/DeckCard";
 import { orderFlashcards, type FlashcardSort } from "@/lib/flashcard-order";
-import { cardDateLabel, cardFocusRing, emptyStateText } from "@/components/card-styles";
-import { formatLongDate } from "@/lib/format";
+import { cardFocusRing, emptyStateText } from "@/components/card-styles";
 import { getStrings } from "@/lib/strings";
 import type { Locale } from "@/lib/i18n";
 import type { FlashcardRow } from "@/lib/flashcards";
@@ -49,7 +48,21 @@ export function DeckTab({
   };
   const [sort, setSort] = useState<FlashcardSort>("added");
   const [seed, setSeed] = useState(1);
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  // Which cards are face up, by ID and not by index. Here rather than inside
+  // each tile so a re-sort can clear them all in one line, and so clearing them
+  // does not mean remounting a tile and throwing away its own delete-confirm
+  // state as a side effect of an unrelated action.
+  //
+  // Keying on the id is also what lets a flip survive a re-sort at all. The
+  // deleted overlay held an `openIndex` into the ordered array, so changing the
+  // sort put a DIFFERENT card behind the same number and it had to close.
+  //
+  // `new Set<string>()` with the argument spelled out, not a bare `new Set()`:
+  // an empty Set literal infers Set<unknown>, and contextual inference through
+  // SetStateAction's union does not reliably rescue it.
+  const [flippedIds, setFlippedIds] = useState<ReadonlySet<string>>(
+    new Set<string>(),
+  );
   const [adding, setAdding] = useState(false);
 
   function chooseSort(next: FlashcardSort) {
@@ -64,29 +77,51 @@ export function DeckTab({
     // "random" has to mean here.
     if (next === "random") setSeed((current) => current + 1);
     setSort(next);
-    // The open card's index refers to the OLD order. Closing is honest;
-    // silently showing a different card is not.
-    setOpenIndex(null);
+    // Every card goes back to its front. Nothing FORCES this any more — flips
+    // key on the id, so they would survive the re-sort perfectly well. It is a
+    // choice: sorting is a request for a fresh pass through the deck, and
+    // twenty answers left face up defeats the thing the reader just asked for.
+    setFlippedIds(new Set<string>());
   }
 
   const ordered = orderFlashcards(cards, sort, seed);
 
-  // Making a card current — from the grid or from the viewer's arrows — is the
-  // one place lastViewedAt is stamped.
+  // Revealing a card's answer is the one place lastViewedAt is stamped. It used
+  // to fire on OPENING a card, when the deck was an overlay; the equivalent act
+  // is now the flip to the back, and only that direction. This is stricter and
+  // more honest — the timestamp feeds the "À réviser" ordering, and seeing the
+  // question is not revising.
   //
-  // A HANDLER and not an effect, deliberately. An effect keyed on the current
-  // card would re-fire whenever its dependencies changed identity, and
+  // A HANDLER and not an effect, deliberately. An effect keyed on the flipped
+  // set would re-fire whenever its dependencies changed identity, and
   // `onViewed` is a bound server action whose identity this component does not
   // control — so a stamp could fire on renders caused by something else
-  // entirely. Opening a card is a click; treat it as one.
+  // entirely. Revealing a card is a click; treat it as one.
   //
   // Fired without awaiting: a dropped stamp costs one card's ordering, and a
-  // blocked open costs the feature. The action itself refuses the teacher, so
+  // blocked flip costs the feature. The action itself refuses the teacher, so
   // the isTeacher check here only avoids a request that would do nothing.
-  function show(index: number) {
-    setOpenIndex(index);
-    const card = ordered[index];
-    if (card && !isTeacher) void onViewed(card.id);
+  function toggleFlip(id: string) {
+    const revealing = !flippedIds.has(id);
+    setFlippedIds((current) => {
+      const next = new Set(current);
+      if (revealing) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+    if (revealing && !isTeacher) void onViewed(id);
+  }
+
+  // The card is gone, so its id must not stay in the set. Nothing reads a
+  // stale id today — the card never comes back — but a set that only ever
+  // grows is the kind of thing a later feature reads and is wrong about.
+  async function removeCard(id: string) {
+    await onDelete(id);
+    setFlippedIds((current) => {
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
   }
 
   const options: { sort: FlashcardSort; label: string }[] = [
@@ -125,7 +160,7 @@ export function DeckTab({
               just added. Only a card that arrives while this list is on screen
               animates, which is exactly the one the reader wrote. */}
           <AnimatePresence initial={false}>
-            {ordered.map((card, index) => (
+            {ordered.map((card) => (
             <motion.li
               key={card.id}
               layout={reduceMotion ? false : "position"}
@@ -134,33 +169,16 @@ export function DeckTab({
               exit={{ opacity: 0, scale: 0.9 }}
               transition={motionTransition}
             >
-              <button
-                type="button"
-                onClick={() => show(index)}
-                aria-label={t.open(card.front)}
-                className={cn(
-                  // 160px rather than the old 132px: the word below is centred
-                  // in whatever this leaves under the date, and at 132px there
-                  // was not enough of it left for the centring to read as one.
-                  "flex min-h-[160px] w-full flex-col rounded-2xl border border-[var(--card-line)] bg-[var(--card-paper)] p-4 text-left shadow-[var(--card-shadow)] transition-colors duration-150 hover:bg-[var(--card-section)] motion-reduce:transition-none",
-                  cardFocusRing,
-                )}
-              >
-                <span className={cardDateLabel}>
-                  {formatLongDate(card.createdAt, locale)}
-                </span>
-                {/* The front only. A tile that showed the answer would make the
-                    deck a glossary and the revision order meaningless.
-
-                    It fills what the date leaves and centres on both axes, so
-                    the word is the tile rather than a caption under a date.
-                    `break-words` because this is now text-2xl inside a tile as
-                    narrow as ~140px on a two-column phone grid, and a long
-                    French infinitive would otherwise run out of it. */}
-                <span className="flex flex-1 items-center justify-center break-words text-center font-[family-name:var(--card-font-serif)] text-2xl font-bold text-[var(--card-ink)]">
-                  {card.front}
-                </span>
-              </button>
+              {/* The `layout` transform lives on this <li>; the flip's rotateY
+                  lives on a motion.div two levels inside DeckCard. Parent and
+                  child, not the same node, so the two do not fight. */}
+              <DeckCard
+                card={card}
+                flipped={flippedIds.has(card.id)}
+                locale={locale}
+                onFlip={() => toggleFlip(card.id)}
+                onDelete={() => removeCard(card.id)}
+              />
             </motion.li>
             ))}
           </AnimatePresence>
@@ -218,19 +236,6 @@ export function DeckTab({
             }}
           />
         </AddSheet>
-      )}
-
-      {openIndex !== null && (
-        <FlashcardViewer
-          cards={ordered}
-          index={openIndex}
-          locale={locale}
-          // `show`, not setOpenIndex: paging with the arrows makes a new card
-          // current, and that is a view.
-          onIndex={show}
-          onClose={() => setOpenIndex(null)}
-          onDelete={onDelete}
-        />
       )}
     </div>
   );
