@@ -184,8 +184,13 @@ stops the card, the tab and the shelf disagreeing.
 **The shelf counted is the effective one**, from `listPagesForGroup`, so a page
 Jenn assigns to the everyone group lights a dot on every student's Files tab.
 That is correct: it is new to each of them, and inheritance is invisible to
-callers by design. It also means one such page shows on every card at once,
-which is the intended reading of "I shared something with the class".
+callers by design.
+
+It does **not** light every card in her admin. The author filter is what stops
+it — her own upload is not news to her — so what reaches *N new files* is the
+student's own additions and their saved versions. The effective shelf matters
+on her side for a different reason: a worksheet assigned to the whole class is
+still owed per student, so the homework states have to see it.
 
 ### `lib/homework-status.ts`
 
