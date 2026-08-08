@@ -1398,7 +1398,7 @@ const en: Strings = {
         random: "Random",
         revision: "Needs revision",
       },
-      flipCard: (front) => `Flip the card "${front}"`,
+      flipCard: (front) => `Flip the card “${front}”`,
       open: (front) => `Open the card “${front}”`,
       flip: "Flip",
       flipHint: "Flip the card",
