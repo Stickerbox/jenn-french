@@ -21,6 +21,8 @@ import { PdfShell } from "@/components/pdf/PdfShell";
 import { WorksheetHeading } from "@/components/worksheet/WorksheetHeading";
 import { PdfDocumentView } from "@/components/pdf/PdfDocumentView";
 import { UploadVersion } from "@/components/worksheet/UploadVersion";
+import { MarkTabSeen } from "@/components/student/MarkTabSeen";
+import { markWorksheetOpened } from "@/app/seen-actions";
 
 export const metadata: Metadata = {
   // Nothing behind a token should ever reach an index.
@@ -94,6 +96,20 @@ export default async function WorksheetPage({
   const hasStudent = versions.some((version) => !version.fromTeacher);
   const hasTeacher = versions.some((version) => version.fromTeacher);
 
+  // Both shells mount this, so an open is recorded whichever kind the
+  // worksheet is. Gated on the role here as well as inside the action: the
+  // action is the authority and re-checks, but there is no reason to post from
+  // Jenn's browser on every worksheet she opens.
+  //
+  // The bound ACTION, not an arrow — a closure cannot cross the server/client
+  // boundary. Same shape as DeckTab's onViewed.
+  const openMarker =
+    context.role === "student" ? (
+      <MarkTabSeen
+        onSeen={markWorksheetOpened.bind(null, context.group.id, context.page.id)}
+      />
+    ) : null;
+
   // The pdf branch below is UNCHANGED and keeps the old list: blank plus every
   // row, for both parties. A pdf worksheet is filled in on paper, so a student
   // must be able to reach the blank and print it — the one thing the html rule
@@ -125,41 +141,44 @@ export default async function WorksheetPage({
     const t = getStrings(locale).worksheet;
 
     return (
-      <PdfShell
-        ariaLabel={t.versionsLabel}
-        back={{ kind: "link", href: `/g/${slug}?tab=files`, label: t.backToFiles }}
-        center={
-          <WorksheetHeading
-            slots={pdfSlots}
-            slot={slot}
-            audience={audience}
-            studentName={context.group.name}
-            title={context.page.title}
-            locale={locale}
-          />
-        }
-        actions={
-          // canSaveFromSlot is reused rather than re-expressed: a student
-          // must never be offered an upload while looking at Jenn's
-          // correction, for the reason lib/worksheet-save-slots.ts records —
-          // the route writes the CALLER's own slot regardless of which view
-          // asked, so that upload would file Jenn's marks as the student's
-          // own attempt and destroy the record of what they actually handed
-          // in.
-          canSaveFromSlot(slot, audience) && (
-            // Capped rather than left to fill the whole `1fr` action track,
-            // which can be several hundred pixels wide on a desktop nav bar —
-            // FileDropZone was built for a narrow dialog column
-            // (VersionChooser) and stretching it that far reads as a mistake
-            // rather than a control.
-            <div className="w-full max-w-[220px]">
-              <UploadVersion groupSlug={slug} pageSlug={pageSlug} audience={audience} />
-            </div>
-          )
-        }
-      >
-        <PdfDocumentView src={pdfHref} fallbackHref={pdfHref} locale={locale} />
-      </PdfShell>
+      <>
+        {openMarker}
+        <PdfShell
+          ariaLabel={t.versionsLabel}
+          back={{ kind: "link", href: `/g/${slug}?tab=files`, label: t.backToFiles }}
+          center={
+            <WorksheetHeading
+              slots={pdfSlots}
+              slot={slot}
+              audience={audience}
+              studentName={context.group.name}
+              title={context.page.title}
+              locale={locale}
+            />
+          }
+          actions={
+            // canSaveFromSlot is reused rather than re-expressed: a student
+            // must never be offered an upload while looking at Jenn's
+            // correction, for the reason lib/worksheet-save-slots.ts records —
+            // the route writes the CALLER's own slot regardless of which view
+            // asked, so that upload would file Jenn's marks as the student's
+            // own attempt and destroy the record of what they actually handed
+            // in.
+            canSaveFromSlot(slot, audience) && (
+              // Capped rather than left to fill the whole `1fr` action track,
+              // which can be several hundred pixels wide on a desktop nav bar —
+              // FileDropZone was built for a narrow dialog column
+              // (VersionChooser) and stretching it that far reads as a mistake
+              // rather than a control.
+              <div className="w-full max-w-[220px]">
+                <UploadVersion groupSlug={slug} pageSlug={pageSlug} audience={audience} />
+              </div>
+            )
+          }
+        >
+          <PdfDocumentView src={pdfHref} fallbackHref={pdfHref} locale={locale} />
+        </PdfShell>
+      </>
     );
   }
 
@@ -179,21 +198,24 @@ export default async function WorksheetPage({
   );
 
   return (
-    <WorksheetShell
-      groupSlug={slug}
-      pageSlug={pageSlug}
-      title={context.page.title}
-      audience={audience}
-      studentName={context.group.name}
-      slot={slot}
-      slots={slots}
-      writable={isWritableSlot({ slot, audience, hasTeacher })}
-      locale={locale}
-      hasOwnVersion={Boolean(own)}
-      // Reduced to a boolean HERE, on the server. A Date would serialise
-      // across the boundary, but nothing in the client needs to know when —
-      // and lib/worksheet-send.ts is written to take facts, not rows.
-      sent={own?.sentAt != null}
-    />
+    <>
+      {openMarker}
+      <WorksheetShell
+        groupSlug={slug}
+        pageSlug={pageSlug}
+        title={context.page.title}
+        audience={audience}
+        studentName={context.group.name}
+        slot={slot}
+        slots={slots}
+        writable={isWritableSlot({ slot, audience, hasTeacher })}
+        locale={locale}
+        hasOwnVersion={Boolean(own)}
+        // Reduced to a boolean HERE, on the server. A Date would serialise
+        // across the boundary, but nothing in the client needs to know when —
+        // and lib/worksheet-send.ts is written to take facts, not rows.
+        sent={own?.sentAt != null}
+      />
+    </>
   );
 }
