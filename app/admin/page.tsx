@@ -18,6 +18,8 @@ import { toCardFormValues } from "@/lib/cards";
 import { parseAdminDate } from "@/lib/admin-date";
 import { parseAdminTab } from "@/lib/admin-tab";
 import { listConversations } from "@/lib/inbox";
+import { listStudentActivity } from "@/lib/student-activity";
+import { summaryBullets } from "@/lib/student-summary";
 import { visibleStudents } from "@/lib/audience";
 import {
   createPage,
@@ -211,28 +213,50 @@ async function DailyWordTab({
 async function GroupsTab({ locale }: { locale: Locale }) {
   // The query still fetches every row and the everyone one is dropped on the
   // way into the list, rather than filtered in the `where`. Two reasons: the
-  // unread map below is built from listConversations, which already excludes
-  // it, so a narrower query would buy nothing; and a UI rule belongs in a
-  // predicate with a test on it, not in a Prisma clause. See lib/audience.ts.
-  const [groups, conversations] = await Promise.all([
+  // maps below are built from listConversations and listStudentActivity, which
+  // already exclude it, so a narrower query would buy nothing; and a UI rule
+  // belongs in a predicate with a test on it, not in a Prisma clause. See
+  // lib/audience.ts.
+  //
+  // `now` is read once, here, and threaded into the read model — not inside it.
+  // Two students' cards resolving the seven-day window against two different
+  // clocks is a difference nobody could reproduce.
+  const now = new Date();
+  const [groups, conversations, activity] = await Promise.all([
     prisma.group.findMany({ orderBy: { name: "asc" } }),
     listConversations(),
+    listStudentActivity(now),
   ]);
   const unread = new Map(conversations.map((c) => [c.groupId, c.unread]));
 
   return (
-    <div className="mx-auto w-full max-w-[560px]">
+    <div className="mx-auto w-full max-w-[1152px]">
       <GroupList
-        groups={visibleStudents(groups).map((g) => ({
-          id: g.id,
-          name: g.name,
-          slug: g.slug,
-          isEveryone: g.isEveryone,
-          unread: unread.get(g.id) ?? 0,
-          chatToken: g.chatToken,
-          email: g.email,
-          claimedAt: g.claimedAt,
-        }))}
+        groups={visibleStudents(groups).map((g) => {
+          const counts = activity.get(g.id);
+          return {
+            id: g.id,
+            name: g.name,
+            slug: g.slug,
+            isEveryone: g.isEveryone,
+            // Assembled HERE rather than inside the read model, because unread
+            // comes from listConversations and the read model deliberately does
+            // not compute it — two query paths for one number are two things
+            // that can disagree.
+            bullets: summaryBullets({
+              unreadMessages: unread.get(g.id) ?? 0,
+              toCorrect: counts?.toCorrect ?? 0,
+              started: counts?.started ?? 0,
+              notOpened: counts?.notOpened ?? 0,
+              newFlashcards: counts?.newFlashcards ?? 0,
+              newFiles: counts?.newFiles ?? 0,
+              itemsDone: counts?.itemsDone ?? 0,
+            }),
+            chatToken: g.chatToken,
+            email: g.email,
+            claimedAt: g.claimedAt,
+          };
+        })}
         onDelete={deleteGroup}
         onReset={resetStudentSignIn}
         locale={locale}

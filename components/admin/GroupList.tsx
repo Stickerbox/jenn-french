@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, KeyRound, Link2, Trash2 } from "lucide-react";
-import { Tile } from "@/components/ui/Tile";
+import { StudentCard } from "@/components/admin/StudentCard";
+import type { SummaryBullet } from "@/lib/student-summary";
 import { SearchField } from "@/components/admin/SearchField";
 import { filterGroups } from "@/lib/admin-search";
 import { canDeleteGroup } from "@/lib/everyone";
@@ -33,7 +34,9 @@ export type GroupSummary = {
   name: string;
   slug: string;
   isEveryone: boolean;
-  unread: number;
+  // Already ordered and already filtered of zeroes by summaryBullets. This
+  // component decides nothing about which bullets exist — only how they look.
+  bullets: SummaryBullet[];
   chatToken: string | null;
   // Null until the student signs up. Both move together, so either one answers
   // "claimed?" — email is the one displayed.
@@ -147,17 +150,16 @@ export function GroupList({
       {visible.length === 0 ? (
         <p className={emptyStateText}>{strings.admin.noMatches}</p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
           {visible.map((group) => {
             const claimed = group.claimedAt !== null;
             return (
               <li key={group.id}>
-                <Tile
+                <StudentCard
                   href={`/g/${group.slug}?k=${group.chatToken ?? ""}`}
-                  title={group.name}
-                  eyebrow={`/g/${group.slug}${
-                    group.unread > 0 ? ` · ${labels.unreadCount(group.unread)}` : ""
-                  }`}
+                  name={group.name}
+                  bullets={group.bullets}
+                  locale={locale}
                   action={
                     canDeleteGroup(group) ? (
                       <div className="flex items-center gap-1">
@@ -241,8 +243,85 @@ export function GroupList({
                       </span>
                     )
                   }
+                  footer={
+                    // Inside the card now, where it used to sit under the tile.
+                    // The px-5 those blocks carried is gone with it — it existed
+                    // only to line them up with the tile's own padding, which
+                    // they are now within. StudentCard wraps this in a
+                    // `relative z-10` box, which is what keeps the reset buttons
+                    // and the copy-fallback input reachable through the name
+                    // link stretched over the whole card.
+                    group.chatToken ? (
+                      <>
+                        {/* The claim state, which is a fact she reads. The invite URL
+                            itself is no longer printed: it existed only to be
+                            selected by hand, and it was never paste-able anyway — it
+                            had no origin. The link icon copies an absolute one. */}
+                        {group.email === null ? (
+                          <p className="text-xs text-[var(--color-ink-muted)]">
+                            {labels.invitationNotUsed}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-[var(--color-ink-muted)]">
+                            <span className="break-all">{group.email}</span>
+                            {group.claimedAt !== null && (
+                              <>{labels.signedUp(formatLongDate(group.claimedAt, locale))}</>
+                            )}
+                          </p>
+                        )}
+
+                        {copyFallback?.id === group.id && (
+                          <div className="mt-2">
+                            <label className="block text-xs text-[var(--color-ink-muted)]">
+                              {labels.copyThisLink}
+                              <input
+                                readOnly
+                                value={copyFallback.url}
+                                autoFocus
+                                onFocus={(event) => event.currentTarget.select()}
+                                className={cn(
+                                  "mt-1 w-full rounded border px-2 py-1 font-mono text-xs",
+                                  cardFieldSkin,
+                                  cardFocusRing,
+                                )}
+                              />
+                            </label>
+                          </div>
+                        )}
+
+                        {confirmingReset === group.id && (
+                          <div className="mt-2 flex flex-wrap items-baseline gap-3 text-sm">
+                            <span>
+                              {group.email === null
+                                ? labels.makeNewInviteConfirm(group.name)
+                                : labels.resetSignInConfirm(group.name)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmingReset(null)}
+                              disabled={resetting !== null}
+                              className={cn(confirmActionButton, "text-[var(--color-ink-muted)]")}
+                            >
+                              {strings.common.cancel}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReset(group.id)}
+                              disabled={resetting !== null}
+                              className={cn(confirmActionButton, "font-medium text-[var(--card-rouge)]")}
+                            >
+                              {resetting === group.id ? labels.resetting : labels.reset}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    ) : null
+                  }
                 />
 
+                {/* Outside the card, unlike the reset confirmation above it.
+                    This one asks about the card itself, and a prompt to destroy
+                    a thing drawn inside that thing reads as part of it. */}
                 {confirming === group.id && (
                   <div className="mt-2 flex flex-wrap items-baseline justify-center gap-3 text-sm">
                     <span className="text-[var(--color-ink-muted)]">
@@ -265,72 +344,6 @@ export function GroupList({
                       {deleting === group.id ? strings.common.deleting : strings.common.delete}
                     </button>
                   </div>
-                )}
-
-                {group.chatToken && (
-                  <>
-                    {/* The claim state, which is a fact she reads. The invite URL
-                        itself is no longer printed: it existed only to be
-                        selected by hand, and it was never paste-able anyway — it
-                        had no origin. The link icon copies an absolute one. */}
-                    {group.email === null ? (
-                      <p className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
-                        {labels.invitationNotUsed}
-                      </p>
-                    ) : (
-                      <p className="mt-1 px-5 text-xs text-[var(--color-ink-muted)]">
-                        <span className="break-all">{group.email}</span>
-                        {group.claimedAt !== null && (
-                          <>{labels.signedUp(formatLongDate(group.claimedAt, locale))}</>
-                        )}
-                      </p>
-                    )}
-
-                    {copyFallback?.id === group.id && (
-                      <div className="mt-2 px-5">
-                        <label className="block text-xs text-[var(--color-ink-muted)]">
-                          {labels.copyThisLink}
-                          <input
-                            readOnly
-                            value={copyFallback.url}
-                            autoFocus
-                            onFocus={(event) => event.currentTarget.select()}
-                            className={cn(
-                              "mt-1 w-full rounded border px-2 py-1 font-mono text-xs",
-                              cardFieldSkin,
-                              cardFocusRing,
-                            )}
-                          />
-                        </label>
-                      </div>
-                    )}
-
-                    {confirmingReset === group.id && (
-                      <div className="mt-2 flex flex-wrap items-baseline gap-3 text-sm">
-                        <span>
-                          {group.email === null
-                            ? labels.makeNewInviteConfirm(group.name)
-                            : labels.resetSignInConfirm(group.name)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmingReset(null)}
-                          disabled={resetting !== null}
-                          className={cn(confirmActionButton, "text-[var(--color-ink-muted)]")}
-                        >
-                          {strings.common.cancel}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReset(group.id)}
-                          disabled={resetting !== null}
-                          className={cn(confirmActionButton, "font-medium text-[var(--card-rouge)]")}
-                        >
-                          {resetting === group.id ? labels.resetting : labels.reset}
-                        </button>
-                      </div>
-                    )}
-                  </>
                 )}
               </li>
             );
