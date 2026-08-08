@@ -9,6 +9,7 @@ describe("homeworkStatus", () => {
     expect(
       homeworkStatus({
         openedAt: null,
+        studentSaved: false,
         studentSentAt: null,
         teacherSavedAt: null,
         now,
@@ -20,6 +21,7 @@ describe("homeworkStatus", () => {
     expect(
       homeworkStatus({
         openedAt: t("2026-08-06T09:00:00Z"),
+        studentSaved: false,
         studentSentAt: null,
         teacherSavedAt: null,
         now,
@@ -31,6 +33,7 @@ describe("homeworkStatus", () => {
     expect(
       homeworkStatus({
         openedAt: t("2026-08-06T09:00:00Z"),
+        studentSaved: false,
         studentSentAt: t("2026-08-06T10:00:00Z"),
         teacherSavedAt: null,
         now,
@@ -42,6 +45,7 @@ describe("homeworkStatus", () => {
     expect(
       homeworkStatus({
         openedAt: t("2026-08-06T09:00:00Z"),
+        studentSaved: false,
         studentSentAt: t("2026-08-06T10:00:00Z"),
         teacherSavedAt: t("2026-08-06T11:00:00Z"),
         now,
@@ -55,6 +59,7 @@ describe("homeworkStatus", () => {
     expect(
       homeworkStatus({
         openedAt: t("2026-08-01T09:00:00Z"),
+        studentSaved: false,
         studentSentAt: t("2026-08-06T10:00:00Z"),
         teacherSavedAt: t("2026-08-02T11:00:00Z"),
         now,
@@ -67,6 +72,7 @@ describe("homeworkStatus", () => {
     expect(
       homeworkStatus({
         openedAt: sent,
+        studentSaved: false,
         studentSentAt: sent,
         teacherSavedAt: null,
         now,
@@ -81,6 +87,7 @@ describe("homeworkStatus", () => {
     expect(
       homeworkStatus({
         openedAt: sent,
+        studentSaved: false,
         studentSentAt: sent,
         teacherSavedAt: null,
         now,
@@ -94,11 +101,40 @@ describe("homeworkStatus", () => {
     expect(
       homeworkStatus({
         openedAt: null,
+        studentSaved: false,
         studentSentAt: t("2026-08-06T10:00:00Z"),
         teacherSavedAt: null,
         now,
       }),
     ).toBe("awaiting-correction");
+  });
+
+  it("is started when the student has saved but has no open row", () => {
+    // You cannot save a worksheet you never opened. This is the case the
+    // migration's backfill covers for existing rows, and this clause covers for
+    // anything it could not reach — including a save made and then edited,
+    // since every save nulls sentAt.
+    expect(
+      homeworkStatus({
+        openedAt: null,
+        studentSaved: true,
+        studentSentAt: null,
+        teacherSavedAt: null,
+        now,
+      }),
+    ).toBe("started");
+  });
+
+  it("is not-opened only when there is neither an open nor a saved row", () => {
+    expect(
+      homeworkStatus({
+        openedAt: null,
+        studentSaved: false,
+        studentSentAt: null,
+        teacherSavedAt: null,
+        now,
+      }),
+    ).toBe("not-opened");
   });
 
   it("holds a seven-day window", () => {

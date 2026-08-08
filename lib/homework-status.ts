@@ -19,11 +19,22 @@ export const CORRECTION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function homeworkStatus({
   openedAt,
+  studentSaved,
   studentSentAt,
   teacherSavedAt,
   now,
 }: {
   openedAt: Date | null;
+  // The student has a row on this worksheet, announced or not. A SECOND proof
+  // of an open, and it outranks the absent WorksheetOpen row rather than being
+  // a nicety: you cannot save a worksheet you never opened.
+  //
+  // Without it, work saved before WorksheetOpen existed — and work saved and
+  // then edited, since every save nulls sentAt — reads as never opened. The
+  // migration backfills a row per existing student version for exactly this
+  // reason, and this clause is what keeps the answer right for anything the
+  // backfill could not reach.
+  studentSaved: boolean;
   // The student's own row, announced. Null covers both "no row" and "saved but
   // never sent" — sendState already treats an unannounced row as unfinished,
   // and Jenn is not owed a correction of work nobody handed her.
@@ -59,6 +70,6 @@ export function homeworkStatus({
     return "awaiting-correction";
   }
 
-  if (openedAt !== null) return "started";
+  if (openedAt !== null || studentSaved) return "started";
   return "not-opened";
 }

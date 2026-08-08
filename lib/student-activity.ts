@@ -16,12 +16,13 @@ export type ActivityCounts = Omit<SummaryCounts, "unreadMessages">;
 // it has no deck, no checklist and a public shelf, so there is no student whose
 // activity it would summarise.
 //
-// This runs roughly 5N queries for N students against a SQLite file on the same
-// box — four here plus listPagesForGroup's own four. That is the same SHAPE as
-// listConversations and about two and a half times the size, so read its note
-// rather than this line as the argument: legible at one tutor's scale, and if N
-// ever justifies otherwise the thing to reach for is a maintained count column,
-// with nothing outside this module changing.
+// This runs 1 + 8N queries for N students against a SQLite file on the same
+// box: four directly below, plus listPagesForGroup's own four (own pages,
+// everyone's pages, pins, shelf versions). listConversations is 1 + 2N, so this
+// is roughly four times its size — read its note as the argument rather than
+// this line, because the SHAPE is what they share. Legible at one tutor's
+// scale; if N ever justifies otherwise the thing to reach for is a maintained
+// count column, with nothing outside this module changing.
 //
 // Two of those are knowingly redundant across students: the everyone-group half
 // of listPagesForGroup returns the same rows every time, and the pageVersion
@@ -113,6 +114,10 @@ export async function listStudentActivity(
 
         const state = homeworkStatus({
           openedAt: openedAt.get(page.id) ?? null,
+          // Row existence, not sentAt: an unannounced save still proves they
+          // opened it. The two questions are different and this is the only
+          // place that asks the first one.
+          studentSaved: student !== undefined,
           studentSentAt: student?.sentAt ?? null,
           teacherSavedAt: teacher?.updatedAt ?? null,
           now,
