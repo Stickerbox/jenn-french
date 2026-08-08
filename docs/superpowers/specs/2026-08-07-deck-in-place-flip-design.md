@@ -96,7 +96,7 @@ flip because the button never unmounts.
 |---|---|---|
 | Surface | unchanged — `--card-paper`, `--card-line` | `--color-accent`, matching border |
 | Text | `--card-ink`, serif | white, serif |
-| Note | — | beneath the answer, `white/80`, small italic, clamped to 2 lines |
+| Note | — | beneath the answer, white, small italic, clamped to 2 lines |
 | Top left | the date (`cardDateLabel`) | nothing |
 | Top right | pill: *Recto* / *Front* | pill: *Verso* / *Back* |
 | Bottom right | — | trash, then *Supprimer ?* / *Annuler* |
@@ -121,6 +121,13 @@ purpose, recorded.
 White on `#AC5395` is 4.75:1. That is not a new measurement: it is the reason
 that exact value was chosen over the rejected `#B05C9A`, which failed at 4.34:1
 against white. The variable already carries white text elsewhere.
+
+**Every white on this fill must be full white.** The note was drafted at
+`white/80`, which composites to `#EEDDEA` and measures **3.65:1** — under AA for
+12px text, and drawn in the smallest type on the card. This is the trap the
+rule beside `--color-accent` already names: measure before moving it. The note
+is set apart by size and italics, which is signal enough without a second one
+that fails.
 
 The border is `--color-accent` and not `--card-line`. A cream line on lilac
 reads as an artefact; matching the fill keeps the radius without a mismatched
