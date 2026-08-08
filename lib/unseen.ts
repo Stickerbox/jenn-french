@@ -33,9 +33,10 @@ export function countUnseen(
 
 // Only what deciding a dot needs. Satisfied by lib/pages.ts's ShelfPage
 // without a cast, which is why the fields are named as they are.
+//
+// `updatedAt` is deliberately absent — see pageIsUnseen.
 export type UnseenPage = {
   createdAt: Date;
-  updatedAt: Date;
   addedByStudent: boolean;
   versions: { fromTeacher: boolean; updatedAt: Date }[];
 };
@@ -57,23 +58,22 @@ export function pageIsUnseen(
     })),
   ];
 
-  // A content change has no author column and needs none: updatePage,
-  // updatePdfPage and updatePageMeta are the only writers of updatedAt and all
-  // three are requireTeacher(), so an edit is always Jenn's.
+  // THERE IS NO CONTENT-CHANGE SIGNAL, and that is a knowing gap rather than an
+  // oversight. Replacing a PDF at the same slug lights nothing.
   //
-  // Gated on the page pre-dating the WATERMARK, and deliberately NOT on
-  // updatedAt > createdAt. Prisma writes those two from different clocks —
-  // SQLite's CURRENT_TIMESTAMP for the default and the client's Date for
-  // @updatedAt — so on a fresh row they differ by milliseconds in either
-  // direction, and comparing them would read a student's own upload as a
-  // teacher edit in the instant they made it. This is the same two-clock trap
-  // PageVersion.sentAt records.
+  // `Page.updatedAt` was it, on the reasoning that only updatePage,
+  // updatePdfPage and updatePageMeta write that column and all three are
+  // requireTeacher(). That was wrong: setPageThumbnail is a fourth writer, and
+  // Prisma bumps @updatedAt on its updateMany like any other. ThumbBackfill
+  // calls it on every visit to /admin?tab=pages, for every row published
+  // without a browser to capture in — so a student's own PDF, whose preview
+  // rendered late, grew a red dot attributed to Jenn for a document nobody had
+  // touched.
   //
-  // A page newer than the watermark needs no such row: its creation entry
-  // above already decides it, with the correct author.
-  if (seenAt !== null && page.createdAt.getTime() <= seenAt.getTime()) {
-    rows.push({ at: page.updatedAt, fromTeacher: true });
-  }
-
+  // A preview is not content, and from this column the two are
+  // indistinguishable. A dot that fires for a write nobody made is worse than a
+  // missing dot on a replacement, so the signal is withdrawn until it can be
+  // told truthfully: a `contentAt` column written by savePage alone would do
+  // it, and nothing here would change but this comment and one field.
   return countUnseen(rows, seenAt, viewerIsTeacher) > 0;
 }

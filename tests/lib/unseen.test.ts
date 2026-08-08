@@ -45,7 +45,6 @@ describe("countUnseen", () => {
 describe("pageIsUnseen", () => {
   const base = {
     createdAt: t("2026-08-01T00:00:00Z"),
-    updatedAt: t("2026-08-01T00:00:00Z"),
     addedByStudent: false,
     versions: [],
   };
@@ -54,7 +53,6 @@ describe("pageIsUnseen", () => {
     const page = {
       ...base,
       createdAt: t("2026-08-07T10:00:00Z"),
-      updatedAt: t("2026-08-07T10:00:00Z"),
       addedByStudent: true,
     };
     expect(pageIsUnseen(page, t("2026-08-06T00:00:00Z"), true)).toBe(true);
@@ -64,7 +62,6 @@ describe("pageIsUnseen", () => {
     const page = {
       ...base,
       createdAt: t("2026-08-07T10:00:00Z"),
-      updatedAt: t("2026-08-07T10:00:00Z"),
       addedByStudent: true,
     };
     expect(pageIsUnseen(page, t("2026-08-06T00:00:00Z"), false)).toBe(false);
@@ -78,23 +75,26 @@ describe("pageIsUnseen", () => {
     expect(pageIsUnseen(page, t("2026-08-06T00:00:00Z"), false)).toBe(true);
   });
 
-  it("treats a content change on an older page as the teacher's", () => {
-    // Only updatePage, updatePdfPage and updatePageMeta write updatedAt and
-    // all three are requireTeacher(), so an edit is always Jenn's.
-    const page = { ...base, updatedAt: t("2026-08-07T10:00:00Z") };
-    expect(pageIsUnseen(page, t("2026-08-06T00:00:00Z"), false)).toBe(true);
+  it("reports no content change, because Page.updatedAt cannot mean one", () => {
+    // The withdrawn signal, pinned so it is not reinstated from that column by
+    // someone reading the feature as unfinished. setPageThumbnail writes
+    // updatedAt too, via ThumbBackfill on every visit to the admin's Pages tab,
+    // so a student's own upload whose preview rendered late would grow a dot
+    // attributed to Jenn. A preview is not content, and from that column the
+    // two cannot be told apart — see pageIsUnseen.
+    const page = { ...base, versions: [] };
+    expect(pageIsUnseen(page, t("2026-08-06T00:00:00Z"), false)).toBe(false);
     expect(pageIsUnseen(page, t("2026-08-06T00:00:00Z"), true)).toBe(false);
   });
 
-  it("does not read a student's own fresh upload as a teacher edit", () => {
-    // THE TWO-CLOCK TRAP. createdAt comes from SQLite's CURRENT_TIMESTAMP and
+  it("does not light a student's own fresh upload on their own shelf", () => {
+    // What the withdrawn signal used to get wrong even before the thumbnail
+    // writer was found: createdAt comes from SQLite's CURRENT_TIMESTAMP and
     // updatedAt from the client's Date, so on a fresh row they differ by
-    // milliseconds in either direction. Comparing them would light the
-    // student's own tile the instant they uploaded.
+    // milliseconds in either direction.
     const page = {
       ...base,
       createdAt: t("2026-08-07T10:00:00.000Z"),
-      updatedAt: t("2026-08-07T10:00:00.004Z"),
       addedByStudent: true,
     };
     expect(pageIsUnseen(page, t("2026-08-06T00:00:00Z"), false)).toBe(false);

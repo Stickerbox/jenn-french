@@ -170,10 +170,19 @@ its content. **The Files tab dot is `pages.some(pageIsUnseen)`, not a separate
 count.** A tab claiming work that no tile shows is the failure the worksheet
 rules name directly: deriving badge, tabs and count from one module is the fix.
 
-A content change (`Page.updatedAt`) has no author column, and needs none: only
-`updatePage`, `updatePdfPage` and `updatePageMeta` write it and all three are
-`requireTeacher()`. An update is always Jenn's, so it lights the student's tile
-and never her own.
+**A content change is not reported at all, and this is a correction to an
+earlier draft of this spec.** That draft said `Page.updatedAt` could stand in
+for one, because only `updatePage`, `updatePdfPage` and `updatePageMeta` write
+it and all three are `requireTeacher()`. That was wrong: `setPageThumbnail` is a
+fourth writer, and `ThumbBackfill` calls it on every visit to the admin's Pages
+tab for any row published without a browser to capture in. A student's own PDF
+whose preview rendered late therefore grew a dot attributed to Jenn, for a
+document nobody had touched.
+
+A preview is not content, and from that column the two cannot be told apart. The
+signal is withdrawn rather than guessed at: replacing a PDF at the same slug
+lights nothing. Restoring it needs a `contentAt` column written by `savePage`
+alone, at which point `pageIsUnseen` changes by one field.
 
 **One tile, one dot, and the count matches.** *N new files* counts tiles, not
 events: a page that was added and then had a version saved to it is one unseen
