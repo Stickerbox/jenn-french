@@ -192,6 +192,10 @@ export type Strings = {
         random: string;
         revision: string;
       };
+      // The stretched button covering a tile. It names the card, because a
+      // grid of twenty of these would otherwise read as twenty identical
+      // "Flip the card" tab stops with nothing to tell them apart.
+      flipCard: (front: string) => string;
       open: (front: string) => string;
       flip: string;
       flipHint: string;
@@ -203,6 +207,10 @@ export type Strings = {
       deleteConfirm: string;
       deleteCancel: string;
       addTitle: string;
+      // Two consumers each: the add form's field labels, and the pill in a
+      // deck tile's top right. The same words for the same idea — a second
+      // pair would be two strings both meaning "this is the front of a card"
+      // with nothing keeping them in step.
       frontLabel: string;
       backLabel: string;
       noteLabel: string;
@@ -829,6 +837,7 @@ const fr: Strings = {
         random: "Aléatoire",
         revision: "À réviser",
       },
+      flipCard: (front) => `Retourner la carte «\u00A0${front}\u00A0»`,
       open: (front) => `Ouvrir la carte «\u00A0${front}\u00A0»`,
       flip: "Retourner",
       flipHint: "Retourner la carte",
@@ -1389,6 +1398,7 @@ const en: Strings = {
         random: "Random",
         revision: "Needs revision",
       },
+      flipCard: (front) => `Flip the card "${front}"`,
       open: (front) => `Open the card “${front}”`,
       flip: "Flip",
       flipHint: "Flip the card",
