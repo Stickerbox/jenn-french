@@ -130,7 +130,7 @@ export async function deleteFlashcard(
 // codebase's own rule that silence is for a resource already gone and a policy
 // refusal throws (see setShelfPin). The bend is deliberate: unlike deleteGroup
 // or setShelfPin, nobody pressed anything here — it is fired unawaited on every
-// card opened, so a throw would be an uncaught rejection in the browser for
+// card revealed, so a throw would be an uncaught rejection in the browser for
 // every card Jenn looks at, with nothing to catch it and nothing to show.
 //
 // And it does NOT revalidate. The caller fires it without awaiting, and a

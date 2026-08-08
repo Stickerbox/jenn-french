@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { FilterChip } from "@/components/ui/FilterChip";
@@ -86,6 +86,17 @@ export function DeckTab({
 
   const ordered = orderFlashcards(cards, sort, seed);
 
+  // Cards already stamped this mount. The old overlay was opened once per card;
+  // a tile invites flipping back and forth, and each stamp is a role lookup
+  // plus an update on the single pm2 fork process that also serves every SSE
+  // stream. Re-stamping is harmless to the data — it writes the same kind of
+  // value — so this is about the requests, not correctness.
+  //
+  // A ref and not state, because nothing renders from it: a re-render on the
+  // first reveal of every card is precisely the reordering markFlashcardViewed
+  // avoids by not revalidating.
+  const stamped = useRef<Set<string>>(new Set());
+
   // Revealing a card's answer is the one place lastViewedAt is stamped. It used
   // to fire on OPENING a card, when the deck was an overlay; the equivalent act
   // is now the flip to the back, and only that direction. This is stricter and
@@ -109,7 +120,10 @@ export function DeckTab({
       else next.delete(id);
       return next;
     });
-    if (revealing && !isTeacher) void onViewed(id);
+    if (revealing && !isTeacher && !stamped.current.has(id)) {
+      stamped.current.add(id);
+      void onViewed(id);
+    }
   }
 
   // The card is gone, so its id must not stay in the set. Nothing reads a
