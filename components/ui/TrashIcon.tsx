@@ -6,10 +6,6 @@
 // data are how two deletes quietly stop looking alike. It lived inside
 // PageList until 2026-08-07 and moved here the moment a second caller wanted
 // it, rather than being copied.
-//
-// FlashcardViewer keeps its own and is deliberately left alone: it is on the
-// student's card palette, and pulling it in would be a refactor of a file this
-// change has no other business in.
 export function TrashIcon() {
   return (
     <svg

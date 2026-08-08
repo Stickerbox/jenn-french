@@ -5,6 +5,10 @@ export type ActionItemRow = {
   text: string;
   fromTeacher: boolean;
   doneAt: Date | null;
+  // Who ticked it, null while nobody has. What lets a dot mean "the other
+  // party did this" rather than "something is here": your own tick must never
+  // light your own tab.
+  doneByTeacher: boolean | null;
   createdAt: Date;
 };
 
@@ -23,6 +27,7 @@ export async function listActionItems(
       text: true,
       fromTeacher: true,
       doneAt: true,
+      doneByTeacher: true,
       createdAt: true,
     },
   });

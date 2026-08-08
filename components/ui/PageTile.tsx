@@ -10,6 +10,7 @@ export function PageTile({
   eyebrow,
   preview,
   badge,
+  dot,
   action,
   className,
   onClick,
@@ -35,6 +36,11 @@ export function PageTile({
   // reason as `preview`: the tile does not learn what a pin is, and a later
   // marker needs no change here. Decorative only; it never takes a click.
   badge?: ReactNode;
+  // The other party has touched this page since you last opened the shelf. A
+  // separate slot from `badge`, which already carries the pin and the version
+  // count: one slot meaning two things would force the caller to choose which
+  // to draw.
+  dot?: ReactNode;
   action?: ReactNode;
   className?: string;
   // A worksheet with more than one version, or any pdf worksheet, has a
@@ -53,6 +59,15 @@ export function PageTile({
       {badge && (
         <div className="pointer-events-none absolute right-2 top-2 z-10">
           {badge}
+        </div>
+      )}
+
+      {/* The opposite corner, so a marked tile that is also pinned or badged
+          shows both. pointer-events-none for the same reason the badge has
+          it: the marker must never eat the tile's stretched link. */}
+      {dot && (
+        <div className="pointer-events-none absolute left-2 top-2 z-10">
+          {dot}
         </div>
       )}
 

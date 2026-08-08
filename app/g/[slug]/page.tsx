@@ -27,6 +27,9 @@ import { listFlashcards } from "@/lib/flashcards";
 import { listActionItems } from "@/lib/action-items";
 import { DeckTab } from "@/components/student/DeckTab";
 import { TodoTab } from "@/components/student/TodoTab";
+import { MarkTabSeen } from "@/components/student/MarkTabSeen";
+import { markTabSeen } from "@/app/seen-actions";
+import { pageIsUnseen, countUnseen } from "@/lib/unseen";
 import {
   addFlashcard,
   deleteFlashcard,
@@ -93,6 +96,12 @@ export default async function GroupPage({
       isEveryone: true,
       chatToken: true,
       passwordHash: true,
+      teacherSeenFilesAt: true,
+      teacherSeenDeckAt: true,
+      teacherSeenTodoAt: true,
+      studentSeenFilesAt: true,
+      studentSeenDeckAt: true,
+      studentSeenTodoAt: true,
     },
   });
   if (!group) notFound();
@@ -165,6 +174,70 @@ export default async function GroupPage({
     todo: unlocked,
   });
 
+  // Which watermark this reader reads. The everyone group has neither, which is
+  // chatRole's own first clause reaching this page: its shelf is public and it
+  // has no student for a visit to belong to.
+  const seen = group.isEveryone
+    ? { files: null, deck: null, todo: null }
+    : viewerIsTeacher
+      ? {
+          files: group.teacherSeenFilesAt,
+          deck: group.teacherSeenDeckAt,
+          todo: group.teacherSeenTodoAt,
+        }
+      : {
+          files: group.studentSeenFilesAt,
+          deck: group.studentSeenDeckAt,
+          todo: group.studentSeenTodoAt,
+        };
+
+  // The tab dot is the shelf's own predicate over the whole list, NOT a second
+  // count. A Files tab lit above a shelf with no marked tile is the failure the
+  // worksheet rules record about shelfSlotCount.
+  const dots = unlocked
+    ? {
+        files: pages.some((page) =>
+          pageIsUnseen(page, seen.files, viewerIsTeacher),
+        ),
+        deck:
+          countUnseen(
+            flashcards.map((card) => ({
+              at: card.createdAt,
+              fromTeacher: card.fromTeacher,
+            })),
+            seen.deck,
+            viewerIsTeacher,
+          ) > 0,
+        // TWO events per row, not one, and this is the one place the tab dot
+        // and the admin bullet deliberately disagree. The bullet counts what
+        // the student FINISHED, which is what Jenn asked to be told. The dot
+        // means "the other party touched your list", and on a checklist the
+        // event that matters most to a student is Jenn ADDING something —
+        // under a done-only rule that lit nothing at all, while their own tick
+        // lit hers. The dot was reporting progress upward and new work not at
+        // all.
+        //
+        // countUnseen still drops your own of either kind, so adding a row for
+        // yourself does not light your own tab.
+        todo:
+          countUnseen(
+            actionItems.flatMap((item) => [
+              { at: item.createdAt, fromTeacher: item.fromTeacher },
+              ...(item.doneAt
+                ? [
+                    {
+                      at: item.doneAt,
+                      fromTeacher: item.doneByTeacher ?? false,
+                    },
+                  ]
+                : []),
+            ]),
+            seen.todo,
+            viewerIsTeacher,
+          ) > 0,
+      }
+    : { files: false, deck: false, todo: false };
+
   const todayStr = new Date().toISOString().slice(0, 10);
   const today = new Date(`${todayStr}T00:00:00Z`);
   // One value doing two jobs, deliberately: the ceiling parseDate clamps to,
@@ -220,6 +293,31 @@ export default async function GroupPage({
   // reason: outside the provider the hook throws.
   const body = (
     <>
+      {/* Stamps the watermark for whichever tab is open. Only the three that
+          have one, and never on the everyone group — markTabSeen refuses it
+          anyway through chatRole, but there is no reason to post.
+
+          THE COST, stated: an unlocked teacher has no card tab and lands on
+          Files, so opening a student from the admin always stamps
+          teacherSeenFilesAt. That is honest — she is looking at the shelf — but
+          it makes "N new files" a weaker signal than the homework bullets,
+          which have no watermark and do not clear on sight at all. */}
+      {unlocked &&
+        !group.isEveryone &&
+        (tab === "files" || tab === "deck" || tab === "todo") && (
+          // key={tab} IS THE WHOLE CONTROL, and without it two of the three
+          // dots never clear at all. Moving between tabs is a search-param
+          // navigation, so this element keeps its position and its type in the
+          // tree; React reconciles it to the same instance, MarkTabSeen's
+          // once-only ref is still set, and its effect returns without writing.
+          // Jenn lands on Files, so Files spends the single stamp and the deck
+          // and to-do watermarks are the ones that never move.
+          <MarkTabSeen
+            key={tab}
+            onSeen={markTabSeen.bind(null, group.id, tab)}
+          />
+        )}
+
       {/* Guarded on `unlocked` as well as the tab: LiveBanner calls useStream,
           and `body` also renders outside the provider for a visitor who only
           has the public card. The board tab shows the thing itself.
@@ -280,6 +378,8 @@ export default async function GroupPage({
           // else. This is where that gets closed: no shelf, no worksheet
           // route, so the tile falls back to the public page.
           groupSlug={group.isEveryone ? null : slug}
+          seenAt={seen.files}
+          viewerIsTeacher={viewerIsTeacher}
           onTogglePin={setShelfPin.bind(null, group.id)}
           onDeleteLink={deleteShelfLink.bind(null, group.id)}
           locale={locale}
@@ -296,7 +396,7 @@ export default async function GroupPage({
           onDelete={deleteFlashcard.bind(null, group.id)}
           // The bound ACTION, not an arrow — a closure cannot cross the
           // server/client boundary. DeckTab fires it without awaiting, from
-          // the handler that makes a card current.
+          // the handler that turns a card to its answer.
           onViewed={markFlashcardViewed.bind(null, group.id)}
         />
       ) : tab === "todo" ? (
@@ -411,6 +511,7 @@ export default async function GroupPage({
             deck: unlocked,
             todo: unlocked,
           }}
+          dots={dots}
         />
       )}
 

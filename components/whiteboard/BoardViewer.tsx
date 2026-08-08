@@ -343,11 +343,11 @@ export function BoardViewer({
     // z-[60], above the z-50 corner buttons, the same layer AddSheet and
     // ChatPanel use.
     <div className="fixed inset-0 z-[60] flex items-center justify-center sm:p-8">
-      {/* The scrim DOES NOT CLOSE on a click, unlike FlashcardViewer's. The
-          frame below pans with pointer capture, so a drag that starts on the
-          board and ends past the panel's edge delivers its click here — and the
-          board would close in the middle of a gesture, with no way to tell that
-          from a bug. Escape and the Close button are the two ways out. */}
+      {/* The scrim DOES NOT CLOSE on a click. The frame below pans with
+          pointer capture, so a drag that starts on the board and ends past the
+          panel's edge delivers its click here — and the board would close in
+          the middle of a gesture, with no way to tell that from a bug. Escape
+          and the Close button are the two ways out. */}
       <div
         aria-hidden="true"
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"

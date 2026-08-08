@@ -42,10 +42,10 @@ Env vars live in two gitignored files: `.env` holds `DATABASE_URL`
 | Route | Who | Notes |
 |---|---|---|
 | `/` | public | landing page — **but a signed-in visitor is redirected off it**: a teacher session goes to `/admin`, a live student cookie to that student's `/g/[slug]`. `/?stay=1` is the escape hatch and renders the page for anyone; the link to it is drawn only when a redirect would otherwise have fired |
-| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the student's own chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included, who once unlocked also gets *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. **Jenn's own chat is her inbox FAB and follows her session, not the token** — the only thing on this page that does, and it carries the delete and read-marker controls with it. Everything the gate controls is unchanged. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding to the shelf is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. **Its menu depends on who is looking**: a student gets *Ajouter un lien* and *Ajouter un PDF*, Jenn gets *Add a link*, *Add a page* and *Add a PDF* — she keeps the full admin menu on the one screen where "put this on Marie's shelf" is the obvious act, and the student loses the HTML paste box, because they may upload a PDF and not a website. `addShelfPage` keeps its guard and its tests; what changed is which control is drawn. Jenn also gets a pencil on each editable tile. The card tab carries the week's five day dots, a week-range line that opens a month calendar, and *Aujourd'hui*; a day with no card cannot be selected. The shelf's kind and sort chips sit behind a filter icon, closed by default, with a dot on the icon — and an `sr-only` *Filtres actifs* / *Filters active* beside it, following `ConversationList`'s unread-dot precedent — while a hidden filter is narrowing the list (`lib/shelf-filters.ts`); the admin Pages tab deliberately keeps its rows visible, because its student chip also decides pin target and default audience. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing. Two more tabs as of 2026-08-07, both gated on `unlocked` like Files and Whiteboard. **Vocabulaire** is a deck of two-sided cards either party may add and delete, opened in a full-screen overlay that reuses the daily card's flip; it sorts by Ajout, Aléatoire or À réviser (`lib/flashcard-order.ts`). It is called *Vocabulaire* and not *Les cartes* because the daily-card tab is *La carte* and two adjacent tabs one letter apart is a trap. The overlay takes focus on open and traps Tab: `aria-modal` is a hint to assistive tech and does nothing to the tab order, so without it Shift+Tab reached the deck tile painted underneath and re-stamped another card's `lastViewedAt`. **À faire** is one shared checklist — either party adds, ticks and deletes, and a done row is struck through **in place** rather than moved, so an accidental tick is easy to undo. Both use `chatRole`, so the everyone group has neither. The tab strip scrolls horizontally now: three tabs fit a phone and five do not |
+| `/g/[slug]` | students | the card for `?date=` (public); `?tab=files`, `?tab=board` and the student's own chat need the student to be signed in — a valid `chatToken` cookie **and** a claimed account — teacher included, who once unlocked also gets *Nouveau tableau* and a delete per board — except the everyone group, whose files are public and which has neither chat nor whiteboard. **Jenn's own chat is her inbox FAB and follows her session, not the token** — the only thing on this page that does, and it carries the delete and read-marker controls with it. Everything the gate controls is unchanged. Both extra tabs are present for anyone unlocked, empty state and all. **An unlocked teacher has no card tab** and lands on Files; an untokened teacher is just a visitor and still gets the public card. Adding to the shelf is a `+` FAB left of the chat button, present on every tab, and either party may pin a page. **Its menu depends on who is looking**: a student gets *Ajouter un lien* and *Ajouter un PDF*, Jenn gets *Add a link*, *Add a page* and *Add a PDF* — she keeps the full admin menu on the one screen where "put this on Marie's shelf" is the obvious act, and the student loses the HTML paste box, because they may upload a PDF and not a website. `addShelfPage` keeps its guard and its tests; what changed is which control is drawn. Jenn also gets a pencil on each editable tile. The card tab carries the week's five day dots, a week-range line that opens a month calendar, and *Aujourd'hui*; a day with no card cannot be selected. The shelf's kind and sort chips sit behind a filter icon, closed by default, with a dot on the icon — and an `sr-only` *Filtres actifs* / *Filters active* beside it, following `ConversationList`'s unread-dot precedent — while a hidden filter is narrowing the list (`lib/shelf-filters.ts`); the admin Pages tab deliberately keeps its rows visible, because its student chip also decides pin target and default audience. A teacher session also adds a *← Back to admin* link and turns the header line into *Marie Dupont's page* in place of the student's *Bonjour Marie*, and **suppresses `LiveBanner`** — she is the only person who can be drawing. Two more tabs as of 2026-08-07, both gated on `unlocked` like Files and Whiteboard. **Vocabulaire** is a deck of two-sided cards either party may add and delete; it sorts by Ajout, Aléatoire or À réviser (`lib/flashcard-order.ts`). It is called *Vocabulaire* and not *Les cartes* because the daily-card tab is *La carte* and two adjacent tabs one letter apart is a trap. **A card flips in place, in the grid.** It opened in a full-screen overlay until 2026-08-07; that overlay is gone, and with it the focus trap it needed — `aria-modal` does nothing to the tab order, so without one Shift+Tab reached the tile painted underneath and re-stamped another card's `lastViewedAt`. Flipping in the grid removes the layer that made that reachable rather than guarding against it. `markFlashcardViewed` now fires on reveal. **À faire** is one shared checklist — either party adds, ticks and deletes, and a done row is struck through **in place** rather than moved, so an accidental tick is easy to undo. Both use `chatRole`, so the everyone group has neither. The tab strip scrolls horizontally now: three tabs fit a phone and five do not. Files, Vocabulaire and À faire each carry an **unseen dot** as of 2026-08-07, drawn inside the pill rather than over its corner because the strip scrolls and an element outside a scrolling child is clipped; each file tile carries the same dot, from the same predicate. A dot fires only for the **other** party's work, and opening a tab stamps that party's watermark — see *Activity and unseen state* |
 | `/signin` | students | sign in with an email address and a password, from anywhere |
 | `/login` | teacher | passkey register/authenticate |
-| `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages. **The everyone group is not drawn as a student on any of them** as of 2026-08-07: no row in Students, no chip on Pages. It keeps one pill in the **two create** forms — `NewPageForm` and `AddLinkForm` — labelled *All students* from the dictionary rather than from `Group.name`; `PageEditor` withheld it as of 2026-08-07 and takes `studentAudienceOptions` instead, so sharing with the class is decided when a page is made and not afterwards. A page already assigned to that row **keeps the assignment through a save** and cannot be unshared from that form, which is why `hasAudienceSelection` compares against the pills on screen rather than counting ids — see `lib/audience.ts`. All three forms now refuse to submit with nobody ticked. The consequence is that the admin has no link to `/g/all`; shared pages are found under any student's chip, which `filterPagesByGroup` already widens for exactly that reason. The Pages tab's kind and sort rows sit behind the shelf's own `FilterDisclosure` now, but **the student chip row stays visible** — it also decides pin target and default audience — and it has **no *All* chip**: a chip is always active (`resolveChip`, `lib/admin-chip.ts`), because every page reaches at least one student |
+| `/admin` | teacher | three tabs via `?tab=` — the global card for `?date=` (default), groups, pages. **The everyone group is not drawn as a student on any of them** as of 2026-08-07: no row in Students, no chip on Pages. It keeps one pill in the **two create** forms — `NewPageForm` and `AddLinkForm` — labelled *All students* from the dictionary rather than from `Group.name`; `PageEditor` withheld it as of 2026-08-07 and takes `studentAudienceOptions` instead, so sharing with the class is decided when a page is made and not afterwards. A page already assigned to that row **keeps the assignment through a save** and cannot be unshared from that form, which is why `hasAudienceSelection` compares against the pills on screen rather than counting ids — see `lib/audience.ts`. All three forms now refuse to submit with nobody ticked. The consequence is that the admin has no link to `/g/all`; shared pages are found under any student's chip, which `filterPagesByGroup` already widens for exactly that reason. The Pages tab's kind and sort rows sit behind the shelf's own `FilterDisclosure` now, but **the student chip row stays visible** — it also decides pin target and default audience — and it has **no *All* chip**: a chip is always active (`resolveChip`, `lib/admin-chip.ts`), because every page reaches at least one student. The Students tab is a **two-column card grid** as of 2026-08-07, not a row list: `StudentCard` carries the name, the three icon buttons, a bullet summary of what changed and what Jenn owes, and the email line on its floor. It copies `Tile`'s stretched-link structure rather than extending it. Students stay in **name order** — a list that reorders itself by activity makes a student hard to find, and the search field is what finds them |
 | `/p/[slug]` | public | an uploaded HTML page, in a sandboxed iframe; a pdf row renders `PdfShell` over `PdfDocumentView` — pdf.js rasterises each page onto its own canvas in-site rather than redirecting out to the browser's own viewer, still never in an iframe |
 | `/p/[slug]/pdf` | public | the raw PDF bytes — `/p/[slug]`'s byte source and its fallback on a render failure |
 | `GET /p/[slug]/thumb` | public | a page's cached preview picture — a pdf's first page, or an html page's captured top |
@@ -358,6 +358,57 @@ file first — each of these records a failure that already happened.**
 - **An upload never fails because a preview did not render.** The glyph is a
   working fallback; `renderPdfThumbnail` and `captureHtmlThumbnail` return `null`
   rather than throwing.
+- **`WorksheetOpen` is its own table and must not fold into `PageVersion`.** An
+  open is a visit; a version is content. A student who opens a worksheet and
+  saves nothing has no version row, so an `openedAt` column there would mean
+  creating an empty slot — and `visibleSlots`, `sendState` and `shelfSlotCount`
+  all read row existence as "this party has saved something".
+- **A tab's dot and its tiles' dots come from one predicate.** `pageIsUnseen`
+  answers both, so a lit Files tab always has a marked tile under it. Two
+  counters drift, which is the lesson `shelfSlotCount` already records.
+
+### Activity and unseen state
+
+Added 2026-08-07. Six watermarks on `Group` — `teacherSeen{Files,Deck,Todo}At`
+and their `studentSeen*` twins — following `teacherLastReadAt`, which already
+worked this way. A count is rows newer than the mark; null means "has never
+looked", not "has seen it all". Deliberately **not** a `viewedByTutor` flag per
+row: that needs a column on four tables, a twin on each for the student's side,
+and a second write-on-read driven by scroll position.
+
+`lib/unseen.ts` holds the counting. **The author filter is the rule, not an
+optimisation** — a dot means "something happened that you have not seen", so
+your own upload must never light your own tab. `Flashcard.fromTeacher` and
+`ActionItem.doneByTeacher` were added for exactly that; without an author a dot
+cannot mean anything. `pageIsUnseen`'s content-change signal compares
+`createdAt` against the **watermark**, never against `updatedAt`: Prisma writes
+those two from different clocks, so on a fresh row they differ either way and a
+student's own upload would read as a teacher edit.
+
+`lib/homework-status.ts` resolves one worksheet to one of four disjoint states.
+*Awaiting correction* has **no watermark and does not clear on sight** — it is a
+task, not news, so a glance must not spend the only signal that a student is
+waiting. It expires after seven days instead, because Jenn often corrects live
+in the lesson and files nothing.
+
+`markTabSeen` (`app/seen-actions.ts`) is the **second** write-on-read here and
+follows `markFlashcardViewed`: no `revalidatePath`, because clearing a dot under
+the reader still looking at what it pointed to is the same failure as reordering
+the deck mid-flip; and silent refusals, because it is fired unawaited from an
+effect. `chatRole` gates it, so `/g/all` has no watermarks at all.
+`markWorksheetOpened` refuses the teacher — her opening a worksheet is not the
+student opening it.
+
+**One accepted cost**: an unlocked teacher has no card tab and lands on Files,
+so opening a student from the admin always stamps `teacherSeenFilesAt`. *N new
+files* therefore clears more eagerly than the homework bullets, which have no
+watermark at all.
+
+The admin bullet and the *À faire* dot **disagree on purpose**. The bullet
+counts what the student finished, which is what Jenn asked to be told; the dot
+also counts rows the other party **added**, because on a shared checklist the
+event a student most needs telling about is Jenn adding work — a done-only rule
+reported progress upward and new work not at all.
 
 ## Conventions
 
@@ -369,7 +420,12 @@ file first — each of these records a failure that already happened.**
 - **Comments explain the "why", especially the counter-intuitive.** Most comments in
   this codebase record a decision and the failure that motivated it. Match that —
   don't add comments that restate the code.
-- **`markFlashcardViewed` is the only write-on-read in this codebase**, and it
+- **There are exactly three write-on-reads in this codebase**, and each is
+  refused for at least one party: `markFlashcardViewed`, and `markTabSeen` and
+  `markWorksheetOpened` in `app/seen-actions.ts` (see *Activity and unseen
+  state*). None of them calls `revalidatePath`. Adding a fourth needs the same
+  two answers: who must it refuse, and what would re-rendering do to the reader
+  who triggered it. `markFlashcardViewed`
   is refused for the teacher. A card sits on one student's deck but two people
   can open it, so if Jenn's browsing stamped `lastViewedAt`, flicking through a
   deck would tell that student's app they had revised everything — and the
@@ -474,7 +530,7 @@ file first — each of these records a failure that already happened.**
   appears in a list gives the reader nothing to follow from the field they
   typed in to the place their work landed. Every overlay in the app obeys the
   first — `AddSheet`, `AddMenu`, `ChatPanel`, `MonthCalendar`,
-  `LeaveBoardDialog`, `FlashcardViewer`, `BoardViewer` — and the shelf, the
+  `LeaveBoardDialog`, `BoardViewer` — and the shelf, the
   deck and the to-do list obey the second. **Add the animation when you add the
   surface or the list**; retrofitting it is what left four overlays without one
   until 2026-08-07.

@@ -103,6 +103,9 @@ export type Strings = {
       // "Vocabulaire" also says what the deck is for.
       deck: string;
       todo: string;
+      // Read out beside the dot, which is aria-hidden. ConversationList's
+      // unread dot is the precedent and FilterDisclosure is the second use.
+      unseenLabel: string;
     };
 
     card: {
@@ -189,17 +192,18 @@ export type Strings = {
         random: string;
         revision: string;
       };
-      open: (front: string) => string;
-      flip: string;
-      flipHint: string;
-      previous: string;
-      next: string;
-      position: (index: number, total: number) => string;
-      close: string;
+      // The stretched button covering a tile. It names the card, because a
+      // grid of twenty of these would otherwise read as twenty identical
+      // "Flip the card" tab stops with nothing to tell them apart.
+      flipCard: (front: string) => string;
       delete: string;
       deleteConfirm: string;
       deleteCancel: string;
       addTitle: string;
+      // Two consumers each: the add form's field labels, and the pill in a
+      // deck tile's top right. The same words for the same idea — a second
+      // pair would be two strings both meaning "this is the front of a card"
+      // with nothing keeping them in step.
       frontLabel: string;
       backLabel: string;
       noteLabel: string;
@@ -385,6 +389,18 @@ export type Strings = {
       noStudentsYet: string;
       searchLabel: string;
       unreadCount: (count: number) => string;
+      // The bullet sentences. FUNCTIONS and not placeholder templates: French
+      // and English disagree about agreement as well as word order, and a
+      // template scheme invites building sentences by concatenation.
+      summaryToCorrect: (count: number) => string;
+      summaryStarted: (count: number) => string;
+      summaryNotOpened: (count: number) => string;
+      summaryNewFlashcards: (count: number) => string;
+      summaryNewFiles: (count: number) => string;
+      summaryItemsDone: (count: number) => string;
+      // Drawn when a student has no bullets at all. A card with an empty gap
+      // under the name reads as a row that failed to load.
+      summaryNothingNew: string;
       copyInviteAria: (name: string) => string;
       inviteCopiedAria: (name: string) => string;
       copyInviteTitle: string;
@@ -728,6 +744,7 @@ const fr: Strings = {
       board: "Le tableau",
       deck: "Vocabulaire",
       todo: "À faire",
+      unseenLabel: "Nouveau",
     },
 
     card: {
@@ -813,13 +830,7 @@ const fr: Strings = {
         random: "Aléatoire",
         revision: "À réviser",
       },
-      open: (front) => `Ouvrir la carte «\u00A0${front}\u00A0»`,
-      flip: "Retourner",
-      flipHint: "Retourner la carte",
-      previous: "Carte précédente",
-      next: "Carte suivante",
-      position: (index, total) => `Carte ${index} sur ${total}`,
-      close: "Fermer",
+      flipCard: (front) => `Retourner la carte «\u00A0${front}\u00A0»`,
       delete: "Supprimer cette carte",
       deleteConfirm: "Supprimer\u00A0?",
       deleteCancel: "Annuler",
@@ -986,6 +997,19 @@ const fr: Strings = {
       noStudentsYet: "Pas encore d'élèves.",
       searchLabel: "Chercher des élèves",
       unreadCount: (count) => `${count} non lu${count > 1 ? "s" : ""}`,
+      summaryToCorrect: (count) =>
+        `${count} devoir${count > 1 ? "s" : ""} à corriger`,
+      summaryStarted: (count) =>
+        `${count} devoir${count > 1 ? "s" : ""} commencé${count > 1 ? "s" : ""}`,
+      summaryNotOpened: (count) =>
+        `${count} devoir${count > 1 ? "s" : ""} pas encore ouvert${count > 1 ? "s" : ""}`,
+      summaryNewFlashcards: (count) =>
+        `${count} nouvelle${count > 1 ? "s" : ""} carte${count > 1 ? "s" : ""}`,
+      summaryNewFiles: (count) =>
+        `${count} nouveau${count > 1 ? "x" : ""} fichier${count > 1 ? "s" : ""}`,
+      summaryItemsDone: (count) =>
+        `${count} tâche${count > 1 ? "s" : ""} terminée${count > 1 ? "s" : ""}`,
+      summaryNothingNew: "Rien de nouveau.",
       copyInviteAria: (name) => `Copier le lien d'invitation pour ${name}`,
       inviteCopiedAria: (name) => `Lien d'invitation pour ${name} copié`,
       copyInviteTitle: "Copier le lien d'invitation",
@@ -1280,6 +1304,7 @@ const en: Strings = {
       board: "Board",
       deck: "Vocabulary",
       todo: "To-do",
+      unseenLabel: "New",
     },
 
     card: {
@@ -1359,13 +1384,7 @@ const en: Strings = {
         random: "Random",
         revision: "Needs revision",
       },
-      open: (front) => `Open the card “${front}”`,
-      flip: "Flip",
-      flipHint: "Flip the card",
-      previous: "Previous card",
-      next: "Next card",
-      position: (index, total) => `Card ${index} of ${total}`,
-      close: "Close",
+      flipCard: (front) => `Flip the card “${front}”`,
       delete: "Delete this card",
       deleteConfirm: "Delete?",
       deleteCancel: "Cancel",
@@ -1527,6 +1546,19 @@ const en: Strings = {
       noStudentsYet: "No students yet.",
       searchLabel: "Search students",
       unreadCount: (count) => `${count} unread`,
+      summaryToCorrect: (count) =>
+        `${count} homework to correct`,
+      summaryStarted: (count) =>
+        `${count} homework started`,
+      summaryNotOpened: (count) =>
+        `${count} homework not opened`,
+      summaryNewFlashcards: (count) =>
+        `${count} new flashcard${count > 1 ? "s" : ""}`,
+      summaryNewFiles: (count) =>
+        `${count} new file${count > 1 ? "s" : ""}`,
+      summaryItemsDone: (count) =>
+        `${count} to-do${count > 1 ? "s" : ""} done`,
+      summaryNothingNew: "Nothing new.",
       copyInviteAria: (name) => `Copy invite link for ${name}`,
       inviteCopiedAria: (name) => `Invite link for ${name} copied`,
       copyInviteTitle: "Copy invite link",
