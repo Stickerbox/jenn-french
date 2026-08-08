@@ -47,6 +47,26 @@ model Group {
   // Stamped when Jenn opens this chat; the unread count is the student's
   // messages newer than it. Null means she has never opened it.
   teacherLastReadAt DateTime?
+  // What Jenn and the student have each already looked at, one column per
+  // (party, surface). The mechanism is Group.teacherLastReadAt directly above,
+  // and the count is the same shape: rows newer than the mark. Six columns and
+  // not three because the student asks the same question about Jenn that Jenn
+  // asks about the student, and a per-tutor flag cannot answer both.
+  //
+  // Null means "has never looked", not "has seen it all" — the same reading
+  // teacherLastReadAt has. Correct for a student created after this shipped:
+  // they have no rows yet.
+  //
+  // There is deliberately no studentSeenChatAt. The chat FAB already carries
+  // its own unread dot, stored per device under `chat-seen:<slug>`, and two
+  // query paths for one number are two things that can disagree — the reason
+  // unreadCounts was removed when listConversations absorbed it.
+  teacherSeenFilesAt DateTime?
+  teacherSeenDeckAt  DateTime?
+  teacherSeenTodoAt  DateTime?
+  studentSeenFilesAt DateTime?
+  studentSeenDeckAt  DateTime?
+  studentSeenTodoAt  DateTime?
   messages          Message[]
   whiteboards       Whiteboard[]
   createdAt DateTime    @default(now())
@@ -55,6 +75,7 @@ model Group {
   versions  PageVersion[]
   flashcards  Flashcard[]
   actionItems ActionItem[]
+  worksheetOpens WorksheetOpen[]
 }
 
 model Message {
@@ -179,6 +200,7 @@ model Page {
   updatedAt DateTime    @updatedAt
   groups    PageGroup[]
   pins      PagePin[]
+  opens     WorksheetOpen[]
 }
 
 // An explicit join model rather than Prisma's implicit many-to-many, so the
@@ -311,6 +333,16 @@ model Flashcard {
   // Drawn greyed on the back, beside the answer.
   note  String?
 
+  // Who added it. A boolean for the reason Message.fromTeacher is one: there
+  // are exactly two participants and one of them has no row to point at.
+  //
+  // Without it a dot cannot mean "the other party added this", so a student's
+  // own card would light their own tab. ActionItem.fromTeacher is the twin.
+  //
+  // The default exists only to admit the rows already in this table. Every
+  // writer sets it explicitly, from the role the guard resolved.
+  fromTeacher Boolean @default(false)
+
   // Null until the STUDENT opens this card full screen. Jenn's viewing never
   // writes here, and that is the whole rule: a card sits on one student's deck
   // but two people can open it, so if her browsing stamped this, flicking
@@ -338,8 +370,46 @@ model ActionItem {
   // Null means open. A timestamp rather than a boolean, following pinnedAt and
   // sentAt: it records WHEN, and re-ticking a row does something.
   doneAt DateTime?
+  // Who ticked it, null while the row is open. doneAt records WHEN and either
+  // party can tick, so without this Jenn ticking her own item counts as the
+  // student completing work.
+  //
+  // A nullable boolean rather than a second timestamp: doneAt already answers
+  // when, and two clocks on one transition is the trap PageVersion.sentAt
+  // records.
+  doneByTeacher Boolean?
 
   createdAt DateTime @default(now())
 
   @@index([groupId, createdAt])
+}
+
+// A student has opened this worksheet. One row per (page, student), rewritten
+// on each open, so it means "last opened" and not "opened N times".
+//
+// NOT a column on PageVersion, and the reason must not be undone. A student
+// who opens a worksheet and saves nothing has no PageVersion row, so stamping
+// an openedAt there means creating an empty slot — and three rules read row
+// existence as "this party has saved something": visibleSlots would give Jenn
+// a "Marie's answers" tab holding nothing, sendState would move the student's
+// Send from empty to ready with nothing to send, and shelfSlotCount would
+// badge the shelf before any work exists. The three-slot rule is enforced by
+// @@unique([pageId, groupId, fromTeacher]) at the database level, and that is
+// exactly what makes row existence worth trusting.
+//
+// An open is a visit and a version is content. They have different lifetimes,
+// so they get different rows.
+model WorksheetOpen {
+  pageId  String
+  groupId String
+  page    Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  // Written explicitly by the action on both branches of its upsert, NOT
+  // @updatedAt: Prisma does not reliably bump an @updatedAt field on an update
+  // with an empty data object, which is exactly the shape an upsert's update
+  // branch would otherwise have here.
+  openedAt DateTime @default(now())
+
+  @@id([pageId, groupId])
 }
