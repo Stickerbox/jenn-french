@@ -8,6 +8,7 @@ import { HtmlPreview } from "@/components/ui/HtmlPreview";
 import { LinkPreview } from "@/components/ui/LinkPreview";
 import { PdfPreview } from "@/components/ui/PdfPreview";
 import { PinIcon } from "@/components/ui/PinIcon";
+import { UnseenDot } from "@/components/ui/UnseenDot";
 import { PencilIcon } from "@/components/ui/PencilIcon";
 import { KindFilter } from "@/components/ui/KindFilter";
 import { SearchField } from "@/components/admin/SearchField";
@@ -27,6 +28,7 @@ import { FilterDisclosure } from "@/components/ui/FilterDisclosure";
 import { DEFAULT_KIND, DEFAULT_SORT, filtersAreActive } from "@/lib/shelf-filters";
 import type { PageKind } from "@/lib/page-kind";
 import { pageTarget } from "@/lib/page-target";
+import { pageIsUnseen } from "@/lib/unseen";
 import { shelfSlotCount } from "@/lib/page-versions";
 import { formatLongDate } from "@/lib/format";
 import { pageVersion } from "@/lib/page-version";
@@ -58,6 +60,8 @@ export function FilesTab({
   canDeleteAny = false,
   canEdit = false,
   groupSlug,
+  seenAt = null,
+  viewerIsTeacher = false,
   onTogglePin,
   onDeleteLink,
   locale,
@@ -93,6 +97,13 @@ export function FilesTab({
   // student. Passing null there is what keeps a worksheet tile falling back to
   // the public page instead of linking a visible tile at a 404.
   groupSlug: string | null;
+  // The reader's own watermark for this shelf, and which party they are. Both
+  // absent on /f/[token] and on the public everyone shelf, where there is
+  // nobody to have a watermark — a read-only link addresses a shelf and nothing
+  // else, so a parent holding it must not be told what the student has not
+  // read.
+  seenAt?: Date | null;
+  viewerIsTeacher?: boolean;
   // `studentName` used to sit here, for the version dialog's teacher-facing
   // labels ("Marie Dupont's answers"). The dialog is gone and the worksheet
   // page builds those labels itself from the group it already resolved, so
@@ -269,6 +280,18 @@ export function FilesTab({
                               <PinIcon filled />
                             </span>
                           ) : undefined
+                        }
+                        dot={
+                          // canWrite stands in for "this reader has a
+                          // watermark": it is false for an untokened visitor
+                          // and on the public everyone shelf, which are exactly
+                          // the two cases with nobody to report to.
+                          canWrite &&
+                          pageIsUnseen(page, seenAt, viewerIsTeacher) ? (
+                            <UnseenDot
+                              label={strings.student.tabs.unseenLabel}
+                            />
+                          ) : null
                         }
                         action={
                           canWrite && onTogglePin ? (

@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import type { StudentTab } from "@/lib/student-tab";
 import { currentStrings } from "@/lib/locale";
 import { cardFocusRing } from "@/components/card-styles";
+import { UnseenDot } from "@/components/ui/UnseenDot";
 
 // Mirrors /admin's strip so both halves of the site work the same way, in the
 // flashcard palette rather than the admin one.
@@ -15,6 +16,7 @@ export async function StudentTabs({
   active,
   date,
   has,
+  dots,
 }: {
   slug: string;
   active: StudentTab;
@@ -26,24 +28,33 @@ export async function StudentTabs({
     deck: boolean;
     todo: boolean;
   };
+  // Only the three surfaces that carry a watermark. The card is the same
+  // global card for everyone and a board is Jenn's to draw, so neither has an
+  // "other party added this" to report.
+  dots: { files: boolean; deck: boolean; todo: boolean };
 }) {
   const { student } = await currentStrings();
 
-  const tabs: { tab: StudentTab; label: string; href: string }[] = [
+  const tabs: {
+    tab: StudentTab;
+    label: string;
+    href: string;
+    dot: boolean;
+  }[] = [
     ...(has.card
-      ? [{ tab: "card" as const, label: student.tabs.card, href: `/g/${slug}?date=${date}` }]
+      ? [{ tab: "card" as const, label: student.tabs.card, href: `/g/${slug}?date=${date}`, dot: false }]
       : []),
     ...(has.files
-      ? [{ tab: "files" as const, label: student.tabs.files, href: `/g/${slug}?tab=files` }]
+      ? [{ tab: "files" as const, label: student.tabs.files, href: `/g/${slug}?tab=files`, dot: dots.files }]
       : []),
     ...(has.board
-      ? [{ tab: "board" as const, label: student.tabs.board, href: `/g/${slug}?tab=board` }]
+      ? [{ tab: "board" as const, label: student.tabs.board, href: `/g/${slug}?tab=board`, dot: false }]
       : []),
     ...(has.deck
-      ? [{ tab: "deck" as const, label: student.tabs.deck, href: `/g/${slug}?tab=deck` }]
+      ? [{ tab: "deck" as const, label: student.tabs.deck, href: `/g/${slug}?tab=deck`, dot: dots.deck }]
       : []),
     ...(has.todo
-      ? [{ tab: "todo" as const, label: student.tabs.todo, href: `/g/${slug}?tab=todo` }]
+      ? [{ tab: "todo" as const, label: student.tabs.todo, href: `/g/${slug}?tab=todo`, dot: dots.todo }]
       : []),
   ];
 
@@ -72,7 +83,7 @@ export async function StudentTabs({
       className="mx-auto mb-[var(--space-5)] flex max-w-[560px] overflow-x-auto"
     >
       <div className="mx-auto flex w-max shrink-0 gap-1 rounded-full border border-[var(--card-line)] bg-[var(--card-paper)] p-1">
-        {tabs.map(({ tab, label, href }) => (
+        {tabs.map(({ tab, label, href, dot }) => (
           <Link
             key={tab}
             href={href}
@@ -89,6 +100,17 @@ export async function StudentTabs({
             )}
           >
             {label}
+            {/* INSIDE the pill, not absolutely positioned over its corner.
+                The strip above is `overflow-x-auto`, and an element hanging
+                outside a scrolling child is clipped by the container's own
+                overflow — the dot on the last tab would be cut in half at
+                every width where the strip has to scroll, which is most of
+                them on a phone. */}
+            {dot && (
+              <span className="ml-1.5 flex items-center">
+                <UnseenDot label={student.tabs.unseenLabel} />
+              </span>
+            )}
           </Link>
         ))}
       </div>

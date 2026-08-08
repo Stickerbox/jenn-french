@@ -10,6 +10,9 @@ export type FlashcardRow = {
   note: string | null;
   lastViewedAt: Date | null;
   createdAt: Date;
+  // Who added it. What lets a dot mean "the other party added this" rather
+  // than "something is here": your own card must never light your own tab.
+  fromTeacher: boolean;
 };
 
 export async function listFlashcards(groupId: string): Promise<FlashcardRow[]> {
@@ -26,6 +29,7 @@ export async function listFlashcards(groupId: string): Promise<FlashcardRow[]> {
       note: true,
       lastViewedAt: true,
       createdAt: true,
+      fromTeacher: true,
     },
   });
 }
