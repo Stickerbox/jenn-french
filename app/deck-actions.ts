@@ -84,7 +84,7 @@ export async function addFlashcard(
   groupId: string,
   input: { front: string; back: string; note: string },
 ): Promise<void> {
-  await requireDeckRole(groupId);
+  const role = await requireDeckRole(groupId);
 
   await prisma.flashcard.create({
     data: {
@@ -94,6 +94,11 @@ export async function addFlashcard(
       // An empty note is null, not "". The column is nullable so the viewer can
       // ask one question — is there a note — rather than two.
       note: input.note.trim() ? requireText(input.note, MAX_CARD_NOTE) : null,
+      // From the ROLE the guard resolved, never from an argument — the same
+      // rule addActionItem below states, and for the same reason: a client that
+      // could name its own author could put words in Jenn's mouth on a deck she
+      // shares with a student.
+      fromTeacher: role === "teacher",
     },
   });
 
@@ -170,10 +175,16 @@ export async function setActionItemDone(
   id: string,
   done: boolean,
 ): Promise<void> {
-  await requireDeckRole(groupId);
+  const role = await requireDeckRole(groupId);
   await prisma.actionItem.updateMany({
     where: { id, groupId },
-    data: { doneAt: done ? new Date() : null },
+    data: {
+      doneAt: done ? new Date() : null,
+      // Cleared alongside doneAt, so an untick leaves no author behind for the
+      // next tick to inherit. doneAt already answers WHEN; this answers who,
+      // which doneAt cannot, because either party may tick a shared list.
+      doneByTeacher: done ? role === "teacher" : null,
+    },
   });
   revalidateDeck();
 }
