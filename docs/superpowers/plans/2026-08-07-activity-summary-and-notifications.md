@@ -2144,7 +2144,17 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 npx prisma generate && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-Expected: all five pass. **Do not claim the work is done on a partial run** — the build is what catches a `Strings` object crossing into a client component, which lint, `tsc` and the tests all miss.
+Expected: all five pass. **Do not claim the work is done on a partial run.**
+
+**A green build does not prove the server/client boundary is sound.** An earlier draft of this plan said it did, and `CLAUDE.md` records the opposite from the incident that established the rule: passing a resolved `Strings` object into a client component "threw a 500 on every affected page while lint, `tsc`, the tests and the build all stayed green — a runtime-only failure, which is exactly how it shipped." The only check that catches it is rendering the page. Step 1b below is therefore not optional.
+
+- [ ] **Step 1b: Smoke-test the rendered pages**
+
+```bash
+npm run dev
+```
+
+Then load, and confirm each answers 200 with no server error in the dev log: `/`, `/login`, `/signin`, `/g/all`, `/g/all?tab=files`, and — signed in as the teacher — `/admin?tab=groups` and a student's `/g/[slug]` on each of its five tabs. Those last two are the ones that exercise `StudentCard` and the dots.
 
 - [ ] **Step 2: Walk the four rules that were nearly broken**
 
